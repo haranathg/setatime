@@ -16,6 +16,12 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
   const [saved, setSaved] = useState(false);
   const isConnected = !!getSecretKey();
 
+  // Baked in at build time by the deploy workflow. Falls back to "dev" for
+  // local `npm run dev` / `npm run build` runs that don't set these.
+  const appVersion = import.meta.env.VITE_APP_VERSION || 'dev';
+  const buildTime = import.meta.env.VITE_BUILD_TIME || '';
+  const versionTitle = buildTime ? `Built ${buildTime} (${appVersion})` : `Version ${appVersion}`;
+
   const handleSave = () => {
     if (key.trim().length < 4) return;
     setSecretKey(key.trim());
@@ -32,9 +38,17 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
 
   return (
     <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-30">
-      <h1 className="text-xl font-semibold tracking-tight text-gray-900">
-        Set<span className="text-indigo-600">A</span>Time
-      </h1>
+      <div className="flex items-baseline gap-2">
+        <h1 className="text-xl font-semibold tracking-tight text-gray-900">
+          Set<span className="text-indigo-600">A</span>Time
+        </h1>
+        <span
+          className="text-[10px] font-mono text-gray-400 select-all"
+          title={versionTitle}
+        >
+          v{appVersion}
+        </span>
+      </div>
 
       <div className="flex items-center gap-2">
         <nav className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
