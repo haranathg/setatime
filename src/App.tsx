@@ -120,7 +120,7 @@ function AppMain({
     if (task) {
       startScheduling(task);
       setActiveView('calendar');
-      setSidebarOpen(true);
+      setSidebarOpen(false); // close sidebar so the calendar is tappable (on mobile the sidebar is full-screen)
     }
   };
 
@@ -180,10 +180,7 @@ function AppMain({
           onStartScheduling={handleStartSchedulingFromFullPage}
           onCancelScheduling={cancelScheduling}
           onDeleteTask={deleteTask}
-          onSwitchToCalendar={() => {
-            setActiveView('calendar');
-            setSidebarOpen(true);
-          }}
+          onSwitchToCalendar={() => setActiveView('calendar')}
         />
       ) : (
         <StatsView stats={stats} />
