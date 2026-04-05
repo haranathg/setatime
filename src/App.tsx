@@ -104,6 +104,7 @@ function AppMain({
     removeScheduledTask,
     startScheduling,
     cancelScheduling,
+    updateTask,
     deleteTask,
   } = useBrainDump();
 
@@ -180,6 +181,7 @@ function AppMain({
           onStartScheduling={handleStartSchedulingFromFullPage}
           onCancelScheduling={cancelScheduling}
           onDeleteTask={deleteTask}
+          onUpdateTask={updateTask}
           onSwitchToCalendar={() => setActiveView('calendar')}
         />
       ) : (

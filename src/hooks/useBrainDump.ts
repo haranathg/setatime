@@ -109,6 +109,12 @@ export function useBrainDump() {
     setSchedulingTask(null);
   }, []);
 
+  const updateTask = useCallback((taskId: string, updates: Partial<Pick<BrainDumpTask, 'priority' | 'tags'>>) => {
+    setUnscheduledTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
+    );
+  }, []);
+
   const deleteTask = useCallback((taskId: string) => {
     setUnscheduledTasks((prev) => prev.filter((t) => t.id !== taskId));
     setSchedulingTask((prev) => (prev?.id === taskId ? null : prev));
@@ -123,6 +129,7 @@ export function useBrainDump() {
     removeScheduledTask,
     startScheduling,
     cancelScheduling,
+    updateTask,
     deleteTask,
   };
 }

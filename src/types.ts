@@ -16,10 +16,14 @@ export interface TaskBlock {
   createdAt: string; // ISO timestamp
 }
 
+export type EisenhowerPriority = 'do-first' | 'schedule' | 'delegate' | 'drop';
+
 export interface BrainDumpTask {
   id: string;
   label: string;
   extractedAt: string; // ISO timestamp
+  priority?: EisenhowerPriority;
+  tags?: string[]; // freeform value tags (family, work, health, etc.)
 }
 
 export interface BrainDumpState {
