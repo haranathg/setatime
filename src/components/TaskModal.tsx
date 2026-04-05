@@ -11,12 +11,13 @@ interface TaskModalProps {
   date: Date;
   editingBlock: TaskBlock | null;
   prefillTaskName?: string;
+  prefillTime?: string; // "HH:MM" — seeded when the user taps a specific time slot
   onSave: (block: TaskBlock) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
 }
 
-export default function TaskModal({ date, editingBlock, prefillTaskName, onSave, onDelete, onClose }: TaskModalProps) {
+export default function TaskModal({ date, editingBlock, prefillTaskName, prefillTime, onSave, onDelete, onClose }: TaskModalProps) {
   const [mainInput, setMainInput] = useState('');
   const [mainTask, setMainTask] = useState('');
   const [mainTime, setMainTime] = useState('');
@@ -36,6 +37,13 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, onSave,
       setMainTime(editingBlock.mainTime);
       setSubTasks(editingBlock.subTasks);
       setMainParsed(true);
+    } else if (prefillTime) {
+      // User tapped a specific time slot on the calendar — seed the time and
+      // only ask for the task name. Brain-dump task name (if any) also
+      // prefilled so scheduling-from-dump-by-tap works in one step.
+      setMainTime(prefillTime);
+      if (prefillTaskName) setMainTask(prefillTaskName);
+      mainInputRef.current?.focus();
     } else if (prefillTaskName) {
       // Pre-fill from brain dump — user still needs to add a time
       setMainInput(prefillTaskName);
@@ -43,7 +51,7 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, onSave,
     } else {
       mainInputRef.current?.focus();
     }
-  }, [editingBlock, prefillTaskName]);
+  }, [editingBlock, prefillTaskName, prefillTime]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -56,8 +64,18 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, onSave,
   const handleMainSubmit = () => {
     const parsed = parseTaskInput(mainInput, date);
     if (parsed) {
+      // User typed a time in the input — explicit wins over any prefill.
       setMainTask(parsed.label);
       setMainTime(parsed.time);
+      setMainParsed(true);
+      setTimeout(() => subInputRef.current?.focus(), 50);
+      return;
+    }
+    // No time in the input. If the user tapped a specific time slot, fall back
+    // to that and use the whole input as the label.
+    if (prefillTime && mainInput.trim()) {
+      setMainTask(mainInput.trim());
+      setMainTime(prefillTime);
       setMainParsed(true);
       setTimeout(() => subInputRef.current?.focus(), 50);
     }
@@ -229,18 +247,30 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, onSave,
           {!mainParsed ? (
             <div>
               <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                What do you need to do?
+                {prefillTime ? 'Name your task' : 'What do you need to do?'}
               </label>
+              {prefillTime && (
+                <div className="mt-1 mb-2 flex items-center gap-2">
+                  <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
+                    {formatTime24to12(prefillTime)}
+                  </span>
+                  <span className="text-[11px] text-gray-400">Tap-selected time (type a new time to override)</span>
+                </div>
+              )}
               <input
                 ref={mainInputRef}
                 type="text"
                 value={mainInput}
                 onChange={(e) => setMainInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleMainSubmit()}
-                placeholder='e.g. "9am go for a run"'
+                placeholder={prefillTime ? 'e.g. "go for a run"' : 'e.g. "9am go for a run"'}
                 className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
-              <p className="text-[11px] text-gray-400 mt-1">Type a time and task, then press Enter</p>
+              <p className="text-[11px] text-gray-400 mt-1">
+                {prefillTime
+                  ? 'Press Enter to use the tapped time, or include a new time like "7pm meeting"'
+                  : 'Type a time and task, then press Enter'}
+              </p>
             </div>
           ) : (
             <div className="bg-gray-50 rounded-xl p-3">
