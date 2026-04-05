@@ -31,6 +31,7 @@ export default function WeeklyCalendar({
   onScheduleComplete,
 }: WeeklyCalendarProps) {
   const [modalDate, setModalDate] = useState<Date | null>(null);
+  const [modalPrefillTime, setModalPrefillTime] = useState<string | undefined>(undefined);
   const [editingBlock, setEditingBlock] = useState<TaskBlock | null>(null);
   const [mobileSelectedDay, setMobileSelectedDay] = useState<number>(() => new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -44,14 +45,16 @@ export default function WeeklyCalendar({
     }
   }, []);
 
-  const handleDayClick = (date: Date) => {
+  const handleDayClick = (date: Date, prefillTime?: string) => {
     setModalDate(date);
+    setModalPrefillTime(prefillTime);
     setEditingBlock(null);
   };
 
   const handleBlockClick = (block: TaskBlock) => {
     const blockDate = new Date(block.date + 'T00:00:00');
     setModalDate(blockDate);
+    setModalPrefillTime(undefined);
     setEditingBlock(block);
   };
 
@@ -221,9 +224,10 @@ export default function WeeklyCalendar({
           date={modalDate}
           editingBlock={editingBlock}
           prefillTaskName={schedulingTask?.label}
+          prefillTime={modalPrefillTime}
           onSave={handleSave}
           onDelete={onDeleteBlock}
-          onClose={() => { setModalDate(null); setEditingBlock(null); }}
+          onClose={() => { setModalDate(null); setEditingBlock(null); setModalPrefillTime(undefined); }}
         />
       )}
     </div>

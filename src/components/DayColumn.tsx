@@ -1,5 +1,5 @@
 import type { TaskBlock } from '../types';
-import { HOURS, HOUR_HEIGHT_PX, START_HOUR } from '../constants';
+import { HOURS, HOUR_HEIGHT_PX, START_HOUR, END_HOUR } from '../constants';
 import { formatDayHeader, isToday, formatDateKey } from '../utils/dateHelpers';
 import { computeRenderedBlocks } from '../utils/calendarLayout';
 import TaskBlockCard from './TaskBlockCard';
@@ -7,10 +7,24 @@ import TaskBlockCard from './TaskBlockCard';
 interface DayColumnProps {
   date: Date;
   blocks: TaskBlock[];
-  onDayClick: (date: Date) => void;
+  onDayClick: (date: Date, prefillTime?: string) => void;
   onBlockClick: (block: TaskBlock) => void;
   onToggleSubTask: (blockId: string, subTaskId: string) => void;
   hideHeader?: boolean;
+}
+
+// Snap minutes to the nearest 15-minute slot, clamp to the visible day range.
+function snapMinutesToSlot(minutes: number): number {
+  const snapped = Math.round(minutes / 15) * 15;
+  const minM = START_HOUR * 60;
+  const maxM = END_HOUR * 60 + 45; // last 15-min slot of the last hour
+  return Math.max(minM, Math.min(maxM, snapped));
+}
+
+function minutesToHHMM(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
 }
 
 export default function DayColumn({ date, blocks, onDayClick, onBlockClick, onToggleSubTask, hideHeader }: DayColumnProps) {
@@ -23,6 +37,16 @@ export default function DayColumn({ date, blocks, onDayClick, onBlockClick, onTo
   const currentMinute = now.getHours() * 60 + now.getMinutes();
   const showTimeLine = today && currentMinute >= START_HOUR * 60;
   const timeLineTop = ((currentMinute - START_HOUR * 60) / 60) * HOUR_HEIGHT_PX;
+
+  const handleGridClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Compute Y offset relative to the grid, independent of any scroll ancestor.
+    const rect = e.currentTarget.getBoundingClientRect();
+    const offsetY = e.clientY - rect.top;
+    const minutesFromStart = (offsetY / HOUR_HEIGHT_PX) * 60;
+    const absoluteMinutes = START_HOUR * 60 + minutesFromStart;
+    const snapped = snapMinutesToSlot(absoluteMinutes);
+    onDayClick(date, minutesToHHMM(snapped));
+  };
 
   return (
     <div className="flex flex-col min-w-0">
@@ -43,7 +67,7 @@ export default function DayColumn({ date, blocks, onDayClick, onBlockClick, onTo
       <div
         className="relative cursor-pointer"
         style={{ height: `${HOURS.length * HOUR_HEIGHT_PX}px`, minHeight: `${HOURS.length * HOUR_HEIGHT_PX}px` }}
-        onClick={() => onDayClick(date)}
+        onClick={handleGridClick}
       >
         {/* Hour lines */}
         {HOURS.map((hour) => (
