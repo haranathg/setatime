@@ -202,11 +202,14 @@ export default function BrainDumpSidebar({
                         ? 'bg-indigo-100 border-2 border-indigo-400 ring-2 ring-indigo-200'
                         : 'bg-gray-50 border border-gray-100 hover:bg-indigo-50 hover:border-indigo-200'
                     }`}
-                    onClick={() =>
-                      schedulingTask?.id === task.id
-                        ? onCancelScheduling()
-                        : onStartScheduling(task)
-                    }
+                    onClick={() => {
+                      if (schedulingTask?.id === task.id) {
+                        onCancelScheduling();
+                      } else {
+                        onStartScheduling(task);
+                        onToggle(); // close sidebar to reveal the calendar for time-slot selection
+                      }
+                    }}
                   >
                     <span className="flex-1 text-sm text-gray-800 truncate">{task.label}</span>
                     <button
