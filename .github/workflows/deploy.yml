@@ -40,7 +40,11 @@ jobs:
         run: npm ci
 
       - name: Build frontend
-        run: npm run build
+        run: |
+          export VITE_APP_VERSION="${GITHUB_SHA:0:7}"
+          export VITE_BUILD_TIME="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo "Building version $VITE_APP_VERSION ($VITE_BUILD_TIME)"
+          npm run build
         env:
           VITE_AI_API_URL: ${{ env.VITE_AI_API_URL }}
           VITE_SYNC_API_URL: ${{ env.VITE_SYNC_API_URL }}
