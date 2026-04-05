@@ -12,6 +12,18 @@ dist
 dist-ssr
 *.local
 
+# Secrets / credentials — never commit
+.env
+.env.*
+*.pem
+*.key
+*.pfx
+.aws/
+aws-credentials*
+
+# Build artifacts
+*.zip
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
