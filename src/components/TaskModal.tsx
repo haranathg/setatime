@@ -37,12 +37,18 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
       setMainTime(editingBlock.mainTime);
       setSubTasks(editingBlock.subTasks);
       setMainParsed(true);
-    } else if (prefillTime) {
-      // User tapped a specific time slot on the calendar — seed the time and
-      // only ask for the task name. Brain-dump task name (if any) also
-      // prefilled so scheduling-from-dump-by-tap works in one step.
+    } else if (prefillTime && prefillTaskName) {
+      // Scheduling a brain-dump task by tapping a time slot — we have both
+      // the time and the task name, so jump straight to the confirmed state.
+      // User can still hit "Edit" to change either value.
       setMainTime(prefillTime);
-      if (prefillTaskName) setMainTask(prefillTaskName);
+      setMainTask(prefillTaskName);
+      setMainParsed(true);
+      setTimeout(() => subInputRef.current?.focus(), 50);
+    } else if (prefillTime) {
+      // User tapped a specific time slot but no brain-dump task selected —
+      // seed the time and ask for the task name.
+      setMainTime(prefillTime);
       mainInputRef.current?.focus();
     } else if (prefillTaskName) {
       // Pre-fill from brain dump — user still needs to add a time
