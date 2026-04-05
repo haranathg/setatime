@@ -2,12 +2,68 @@
 
 Operational runbook for deploying SetATime to AWS (`us-west-2`).
 
-> Deploys run from a developer workstation with a scoped AWS profile that has
-> programmatic-only access to SetATime resources. The profile name, local
-> workstation paths, and any credentials are intentionally **not** stored in
-> this repo — keep them in your shell env / `~/.aws/credentials`.
+## Primary flow: push to `main` (GitHub Actions + OIDC)
 
-Set these once per shell before running any commands below:
+**This is the normal way to deploy. No credentials anywhere.**
+
+```
+git checkout main
+git pull --ff-only
+# make changes, or merge a feature branch
+git push origin main
+```
+
+That's it. The workflow at `.github/workflows/deploy.yml` runs on every push
+to `main` (and can also be triggered manually from the Actions tab via
+`workflow_dispatch`). It:
+
+1. Checks out the repo, installs deps (`npm ci`), builds the frontend with
+   the `VITE_*` env vars baked in.
+2. Assumes IAM role `arn:aws:iam::158291236521:role/setatime-github-deploy`
+   via GitHub OIDC — no long-lived AWS keys stored anywhere.
+3. Diffs against the previous commit and only re-deploys Lambdas whose
+   `lambda/<name>/` directory actually changed. Frontend always deploys.
+4. `aws s3 sync dist s3://setatime-frontend-us-west-2 --delete`.
+5. CloudFront invalidation on `/*` for distribution `E26AJUHQAV6UYQ`.
+6. Writes a deploy summary with the frontend URL.
+
+Guardrails baked into the setup:
+
+- **Branch-scoped trust.** The IAM role's trust policy only allows assumption
+  from `repo:haranathg/setatime:ref:refs/heads/main`. Pushes to any other
+  branch cannot deploy even if a workflow runs.
+- **Permissions.** The role has `SetATimeManageOnly` attached — scoped to
+  existing SetATime resources; cannot create/delete new resources, cannot
+  touch unrelated account resources.
+- **Concurrency lock.** `concurrency.group: deploy-main` prevents overlapping
+  deploys from racing. In-progress deploys are not cancelled.
+- **Lambda secrets stay on the Lambda.** `ANTHROPIC_API_KEY` and
+  `ALLOWED_KEY_HASHES` live as Lambda env vars and are never passed through
+  the workflow, never in GitHub secrets, never in this repo.
+
+### To deploy a change
+
+1. Work on a feature branch.
+2. Open a PR to `main`, get it reviewed.
+3. Merge → deploy fires automatically.
+4. Watch the run in the **Actions** tab; verify the deploy summary and hit
+   https://d1bycim0bytkm9.cloudfront.net. CloudFront invalidation takes
+   ~1–2 min to propagate.
+
+### Manual trigger (e.g. redeploy without a code change)
+
+GitHub UI → **Actions** → **Deploy SetATime** → **Run workflow** → pick
+`main`. A `workflow_dispatch` run redeploys the frontend **and both
+Lambdas** (the change-detection step falls through to "deploy both" when
+there's no `before` SHA).
+
+---
+
+## Fallback: manual CLI deploy from a workstation
+
+Only use this if GitHub Actions is unavailable (e.g. GitHub outage) or you
+need to hotfix and the workflow is broken. Requires a scoped AWS profile on
+the workstation. **Do not commit the profile name or credentials.**
 
 ```bash
 export AWS_PROFILE=<your-scoped-setatime-profile>
