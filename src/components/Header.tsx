@@ -16,11 +16,16 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
   const [saved, setSaved] = useState(false);
   const isConnected = !!getSecretKey();
 
-  // Baked in at build time by the deploy workflow. Falls back to "dev" for
-  // local `npm run dev` / `npm run build` runs that don't set these.
+  // Baked in at build time by the deploy workflow. Format: "<major>.<minor>.<build>"
+  // where <major>.<minor> comes from package.json and <build> is the commit
+  // count on main (auto-increments on every deploy). Falls back to "dev" for
+  // local runs that don't set these.
   const appVersion = import.meta.env.VITE_APP_VERSION || 'dev';
+  const buildSha = import.meta.env.VITE_BUILD_SHA || '';
   const buildTime = import.meta.env.VITE_BUILD_TIME || '';
-  const versionTitle = buildTime ? `Built ${buildTime} (${appVersion})` : `Version ${appVersion}`;
+  const versionTitle = buildTime
+    ? `v${appVersion}${buildSha ? ` · ${buildSha}` : ''} · built ${buildTime}`
+    : `Version ${appVersion}`;
 
   const handleSave = () => {
     if (key.trim().length < 4) return;
