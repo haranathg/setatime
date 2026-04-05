@@ -1,6 +1,13 @@
 import { useState, useRef, useCallback } from 'react';
-import type { BrainDumpTask } from '../types';
+import type { BrainDumpTask, EisenhowerPriority } from '../types';
 import { useVoiceDictation } from '../hooks/useVoiceDictation';
+
+const PRIORITY_DOTS: Record<EisenhowerPriority, string> = {
+  'do-first': 'bg-red-500',
+  'schedule': 'bg-indigo-500',
+  'delegate': 'bg-amber-500',
+  'drop': 'bg-gray-400',
+};
 
 interface BrainDumpSidebarProps {
   isOpen: boolean;
@@ -211,6 +218,9 @@ export default function BrainDumpSidebar({
                       }
                     }}
                   >
+                    {task.priority && (
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOTS[task.priority]}`} />
+                    )}
                     <span className="flex-1 text-sm text-gray-800 truncate">{task.label}</span>
                     <button
                       onClick={(e) => {
