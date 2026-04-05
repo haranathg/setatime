@@ -3,6 +3,7 @@ export interface SubTask {
   time: string; // "HH:MM" 24hr format
   label: string;
   completed: boolean;
+  date?: string; // Optional override "YYYY-MM-DD" for cross-midnight sub-tasks
 }
 
 export interface TaskBlock {
@@ -15,8 +16,19 @@ export interface TaskBlock {
   createdAt: string; // ISO timestamp
 }
 
+export interface BrainDumpTask {
+  id: string;
+  label: string;
+  extractedAt: string; // ISO timestamp
+}
+
+export interface BrainDumpState {
+  unscheduledTasks: BrainDumpTask[];
+}
+
 export interface AppState {
   blocks: TaskBlock[];
+  brainDump?: BrainDumpState;
 }
 
 export interface RenderedBlock {
@@ -27,4 +39,5 @@ export interface RenderedBlock {
   heightPx: number;
   left: string;
   width: string;
+  isCrossDay?: boolean;
 }

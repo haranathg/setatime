@@ -7,9 +7,10 @@ interface SubTaskRowProps {
   onDelete?: () => void;
   onToggle?: () => void;
   editable?: boolean;
+  isPrevDay?: boolean;
 }
 
-export default function SubTaskRow({ time, label, completed, onDelete, onToggle, editable = true }: SubTaskRowProps) {
+export default function SubTaskRow({ time, label, completed, onDelete, onToggle, editable = true, isPrevDay }: SubTaskRowProps) {
   return (
     <div className="flex items-center gap-2 py-1 group">
       {onToggle && (
@@ -20,8 +21,8 @@ export default function SubTaskRow({ time, label, completed, onDelete, onToggle,
           className="w-4 h-4 rounded border-gray-300 text-indigo-600"
         />
       )}
-      <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded min-w-[60px] text-center">
-        {formatTime24to12(time)}
+      <span className={`text-xs font-medium px-1.5 py-0.5 rounded min-w-[60px] text-center ${isPrevDay ? 'text-amber-600 bg-amber-50' : 'text-indigo-600 bg-indigo-50'}`}>
+        {isPrevDay ? 'prev day ' : ''}{formatTime24to12(time)}
       </span>
       <span className={`text-sm text-gray-700 flex-1 ${completed ? 'line-through opacity-50' : ''}`}>
         {label}

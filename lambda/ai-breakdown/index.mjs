@@ -15,14 +15,18 @@ export const handler = async (event) => {
 
   try {
     const body = typeof event.body === 'string' ? JSON.parse(event.body) : event.body;
-    const { mainTask, mainTime } = body;
 
-    if (!mainTask || !mainTime) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'mainTask and mainTime are required' }),
-      };
+    // Auth check: verify the caller has a valid secret key hash
+    const allowedHashes = (process.env.ALLOWED_KEY_HASHES || '').split(',').filter(Boolean);
+    if (allowedHashes.length > 0) {
+      const authHash = body.authHash;
+      if (!authHash || !allowedHashes.includes(authHash)) {
+        return {
+          statusCode: 403,
+          headers,
+          body: JSON.stringify({ error: 'Unauthorized. Please connect with your sync key first.' }),
+        };
+      }
     }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -31,6 +35,75 @@ export const handler = async (event) => {
         statusCode: 500,
         headers,
         body: JSON.stringify({ error: 'API key not configured' }),
+      };
+    }
+
+    // Brain dump extraction mode
+    if (body.mode === 'brain-dump-extract') {
+      const { text } = body;
+      if (!text) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'text is required' }) };
+      }
+
+      const response = await fetch(ANTHROPIC_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1024,
+          messages: [
+            {
+              role: 'user',
+              content: `You are a task extraction assistant. The user has written a brain dump of things they need to do.
+
+Extract individual, actionable tasks from this text. Each task should be a clear, concise label.
+
+Return ONLY valid JSON in this exact format, no other text:
+[{"label": "task description"}, ...]
+
+Rules:
+- Extract 1-20 tasks
+- Each label should be short (under 60 chars)
+- Ignore filler words and feelings, focus on actionable items
+- If the user mentions specific times, include them in the label
+- Keep the user's intent — don't reinterpret or over-summarize
+
+Brain dump text:
+${text}`,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        console.error('Anthropic API error:', err);
+        return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI service error' }) };
+      }
+
+      const data = await response.json();
+      const content = data.content[0].text;
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        return { statusCode: 502, headers, body: JSON.stringify({ error: 'Could not parse AI response' }) };
+      }
+
+      const tasks = JSON.parse(jsonMatch[0]);
+      return { statusCode: 200, headers, body: JSON.stringify({ tasks }) };
+    }
+
+    // Default mode: task breakdown
+    const { mainTask, mainTime } = body;
+
+    if (!mainTask || !mainTime) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'mainTask and mainTime are required' }),
       };
     }
 

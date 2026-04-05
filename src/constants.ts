@@ -1,6 +1,7 @@
 export const HOUR_HEIGHT_PX = 60;
-export const START_HOUR = 6;
+export const START_HOUR = 0;
 export const END_HOUR = 23;
+export const DEFAULT_SCROLL_HOUR = 7;
 export const HOURS = Array.from({ length: END_HOUR - START_HOUR + 1 }, (_, i) => i + START_HOUR);
 
 export const BLOCK_COLORS = [

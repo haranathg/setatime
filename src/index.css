@@ -9,7 +9,9 @@ body {
 }
 
 #root {
-  height: 100svh;
+  height: 100dvh;
+  /* Support safe area insets for iPhone notch/home indicator */
+  padding-top: env(safe-area-inset-top, 0px);
 }
 
 /* Modal slide-up animation */

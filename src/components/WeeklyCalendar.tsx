@@ -1,6 +1,6 @@
-import { useState } from 'react';
-import type { TaskBlock } from '../types';
-import { HOURS, HOUR_HEIGHT_PX } from '../constants';
+import { useState, useRef, useEffect } from 'react';
+import type { TaskBlock, BrainDumpTask } from '../types';
+import { HOURS, HOUR_HEIGHT_PX, DEFAULT_SCROLL_HOUR, START_HOUR } from '../constants';
 import { getWeekDays, getWeekRangeLabel, formatDayHeader, isToday } from '../utils/dateHelpers';
 import DayColumn from './DayColumn';
 import TaskModal from './TaskModal';
@@ -14,6 +14,8 @@ interface WeeklyCalendarProps {
   onUpdateBlock: (block: TaskBlock) => void;
   onDeleteBlock: (id: string) => void;
   onToggleSubTask: (blockId: string, subTaskId: string) => void;
+  schedulingTask?: BrainDumpTask | null;
+  onScheduleComplete?: () => void;
 }
 
 export default function WeeklyCalendar({
@@ -25,12 +27,22 @@ export default function WeeklyCalendar({
   onUpdateBlock,
   onDeleteBlock,
   onToggleSubTask,
+  schedulingTask,
+  onScheduleComplete,
 }: WeeklyCalendarProps) {
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [editingBlock, setEditingBlock] = useState<TaskBlock | null>(null);
   const [mobileSelectedDay, setMobileSelectedDay] = useState<number>(() => new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const weekDays = getWeekDays(currentWeekStart);
+
+  // Auto-scroll to default hour on mount
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = (DEFAULT_SCROLL_HOUR - START_HOUR) * HOUR_HEIGHT_PX;
+    }
+  }, []);
 
   const handleDayClick = (date: Date) => {
     setModalDate(date);
@@ -48,6 +60,10 @@ export default function WeeklyCalendar({
       onUpdateBlock(block);
     } else {
       onAddBlock(block);
+      // If we were scheduling from brain dump, mark it complete
+      if (schedulingTask) {
+        onScheduleComplete?.();
+      }
     }
   };
 
@@ -61,7 +77,7 @@ export default function WeeklyCalendar({
   return (
     <div className="flex flex-col h-full">
       {/* Navigation bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-white sticky top-[53px] z-20">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-white z-20 shrink-0">
         <button
           onClick={() => onNavigateWeek(-1)}
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -90,7 +106,7 @@ export default function WeeklyCalendar({
       </div>
 
       {/* Mobile day selector */}
-      <div className="sm:hidden flex border-b border-gray-200 bg-white overflow-x-auto">
+      <div className="sm:hidden flex border-b border-gray-200 bg-white overflow-x-auto shrink-0">
         {weekDays.map((day, i) => (
           <button
             key={i}
@@ -108,18 +124,38 @@ export default function WeeklyCalendar({
         ))}
       </div>
 
-      {/* Calendar grid */}
-      <div className="flex-1 overflow-auto">
-        {/* Desktop: full week */}
-        <div className="hidden sm:grid" style={{ gridTemplateColumns: '50px repeat(7, 1fr)' }}>
-          {/* Empty corner for header alignment */}
-          <div className="border-b border-gray-200" />
-          {/* Day headers */}
-          {weekDays.map((_day, i) => (
-            <div key={i} className="border-b border-gray-200" />
-          ))}
+      {/* Desktop day headers — fixed above scroll area */}
+      <div className="hidden sm:grid border-b border-gray-200 bg-white shrink-0" style={{ gridTemplateColumns: '50px repeat(7, 1fr)' }}>
+        <div />
+        {weekDays.map((day, i) => (
+          <div
+            key={i}
+            className={`text-center py-2 text-sm font-medium border-l border-gray-100 ${
+              isToday(day) ? 'text-indigo-600' : 'text-gray-700'
+            }`}
+          >
+            <span className={isToday(day) ? 'bg-indigo-600 text-white rounded-full px-2 py-0.5' : ''}>
+              {formatDayHeader(day)}
+            </span>
+          </div>
+        ))}
+      </div>
 
-          {/* Time gutter + day columns */}
+      {/* Scheduling mode banner */}
+      {schedulingTask && (
+        <div className="px-4 py-2 bg-indigo-50 border-b border-indigo-100 flex items-center gap-2 shrink-0">
+          <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
+          <span className="text-sm text-indigo-700">
+            Click a time slot to schedule: <strong>{schedulingTask.label}</strong>
+          </span>
+        </div>
+      )}
+
+      {/* Scrollable calendar grid */}
+      <div ref={scrollRef} className="flex-1 overflow-auto relative">
+        {/* Desktop: full week */}
+        <div className="hidden sm:grid pt-2" style={{ gridTemplateColumns: '50px repeat(7, 1fr)' }}>
+          {/* Time gutter */}
           <div className="relative" style={{ height: `${HOURS.length * HOUR_HEIGHT_PX}px` }}>
             {HOURS.map((hour) => (
               <div
@@ -131,21 +167,23 @@ export default function WeeklyCalendar({
               </div>
             ))}
           </div>
+          {/* Day columns */}
           {weekDays.map((day, i) => (
-            <div key={i} className="border-l border-gray-100">
+            <div key={i} className="border-l border-gray-100" style={{ height: `${HOURS.length * HOUR_HEIGHT_PX}px` }}>
               <DayColumn
                 date={day}
                 blocks={getBlocksForDate(day)}
                 onDayClick={handleDayClick}
                 onBlockClick={handleBlockClick}
                 onToggleSubTask={onToggleSubTask}
+                hideHeader
               />
             </div>
           ))}
         </div>
 
         {/* Mobile: single day */}
-        <div className="sm:hidden grid" style={{ gridTemplateColumns: '44px 1fr' }}>
+        <div className="sm:hidden grid pt-2" style={{ gridTemplateColumns: '44px 1fr' }}>
           <div className="relative" style={{ height: `${HOURS.length * HOUR_HEIGHT_PX}px` }}>
             {HOURS.map((hour) => (
               <div
@@ -157,21 +195,22 @@ export default function WeeklyCalendar({
               </div>
             ))}
           </div>
-          <div className="border-l border-gray-100">
+          <div className="border-l border-gray-100" style={{ height: `${HOURS.length * HOUR_HEIGHT_PX}px` }}>
             <DayColumn
               date={weekDays[mobileSelectedDay]}
               blocks={getBlocksForDate(weekDays[mobileSelectedDay])}
               onDayClick={handleDayClick}
               onBlockClick={handleBlockClick}
               onToggleSubTask={onToggleSubTask}
+              hideHeader
             />
           </div>
         </div>
 
         {/* Empty state */}
         {weekDays.every((day) => getBlocksForDate(day).length === 0) && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <p className="text-sm text-gray-400">Click any day to plan your first task</p>
+          <div className="flex items-center justify-center py-8 pointer-events-none" style={{ position: 'absolute', top: '40%', left: 0, right: 0 }}>
+            <p className="text-sm text-gray-400">Tap any time slot to plan your first task</p>
           </div>
         )}
       </div>
@@ -181,6 +220,7 @@ export default function WeeklyCalendar({
         <TaskModal
           date={modalDate}
           editingBlock={editingBlock}
+          prefillTaskName={schedulingTask?.label}
           onSave={handleSave}
           onDelete={onDeleteBlock}
           onClose={() => { setModalDate(null); setEditingBlock(null); }}

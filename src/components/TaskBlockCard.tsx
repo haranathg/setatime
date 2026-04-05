@@ -10,19 +10,19 @@ interface TaskBlockCardProps {
 }
 
 export default function TaskBlockCard({ rendered, colorIndex, onToggleSubTask, onClick }: TaskBlockCardProps) {
-  const { block, topPx, heightPx, left, width } = rendered;
+  const { block, topPx, heightPx, left, width, isCrossDay } = rendered;
   const colors = BLOCK_COLORS[colorIndex % BLOCK_COLORS.length];
 
   return (
     <div
-      className={`absolute rounded-md border-l-3 ${colors.bg} ${colors.border} px-2 py-1 cursor-pointer hover:shadow-md transition-shadow overflow-hidden`}
+      className={`absolute rounded-md border-l-3 ${colors.bg} ${colors.border} px-2 py-1 cursor-pointer hover:shadow-md transition-shadow overflow-hidden ${isCrossDay ? 'opacity-80 border-dashed' : ''}`}
       style={{
         top: `${topPx}px`,
         height: `${heightPx}px`,
         left,
         width,
       }}
-      onClick={onClick}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
     >
       {/* Sub-tasks */}
       {block.subTasks.length > 0 && (
@@ -35,10 +35,8 @@ export default function TaskBlockCard({ rendered, colorIndex, onToggleSubTask, o
                 <input
                   type="checkbox"
                   checked={sub.completed}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    onToggleSubTask(block.id, sub.id);
-                  }}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={() => onToggleSubTask(block.id, sub.id)}
                   className="w-3 h-3 rounded border-gray-300 shrink-0"
                 />
                 <span

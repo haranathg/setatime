@@ -1,6 +1,6 @@
 import type { TaskBlock } from '../types';
 import { HOURS, HOUR_HEIGHT_PX, START_HOUR } from '../constants';
-import { formatDayHeader, isToday } from '../utils/dateHelpers';
+import { formatDayHeader, isToday, formatDateKey } from '../utils/dateHelpers';
 import { computeRenderedBlocks } from '../utils/calendarLayout';
 import TaskBlockCard from './TaskBlockCard';
 
@@ -10,11 +10,13 @@ interface DayColumnProps {
   onDayClick: (date: Date) => void;
   onBlockClick: (block: TaskBlock) => void;
   onToggleSubTask: (blockId: string, subTaskId: string) => void;
+  hideHeader?: boolean;
 }
 
-export default function DayColumn({ date, blocks, onDayClick, onBlockClick, onToggleSubTask }: DayColumnProps) {
+export default function DayColumn({ date, blocks, onDayClick, onBlockClick, onToggleSubTask, hideHeader }: DayColumnProps) {
   const today = isToday(date);
-  const rendered = computeRenderedBlocks(blocks);
+  const dateKey = formatDateKey(date);
+  const rendered = computeRenderedBlocks(blocks, dateKey);
 
   // Current time indicator
   const now = new Date();
@@ -24,21 +26,23 @@ export default function DayColumn({ date, blocks, onDayClick, onBlockClick, onTo
 
   return (
     <div className="flex flex-col min-w-0">
-      {/* Day header */}
-      <div
-        className={`text-center py-2 text-sm font-medium border-b border-gray-200 sticky top-[53px] bg-white z-10 ${
-          today ? 'text-indigo-600' : 'text-gray-700'
-        }`}
-      >
-        <span className={today ? 'bg-indigo-600 text-white rounded-full px-2 py-0.5' : ''}>
-          {formatDayHeader(date)}
-        </span>
-      </div>
+      {/* Day header — only shown when not hidden by parent */}
+      {!hideHeader && (
+        <div
+          className={`text-center py-2 text-sm font-medium border-b border-gray-200 bg-white z-10 ${
+            today ? 'text-indigo-600' : 'text-gray-700'
+          }`}
+        >
+          <span className={today ? 'bg-indigo-600 text-white rounded-full px-2 py-0.5' : ''}>
+            {formatDayHeader(date)}
+          </span>
+        </div>
+      )}
 
       {/* Hour grid */}
       <div
-        className="relative flex-1 cursor-pointer"
-        style={{ height: `${HOURS.length * HOUR_HEIGHT_PX}px` }}
+        className="relative cursor-pointer"
+        style={{ height: `${HOURS.length * HOUR_HEIGHT_PX}px`, minHeight: `${HOURS.length * HOUR_HEIGHT_PX}px` }}
         onClick={() => onDayClick(date)}
       >
         {/* Hour lines */}
