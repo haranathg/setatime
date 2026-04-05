@@ -39,7 +39,13 @@ export function useAppState() {
             }
             const mergedBlocks = Array.from(merged.values());
             setBlocks(mergedBlocks);
-            saveState({ blocks: mergedBlocks });
+            // Preserve brainDump from whichever source has it (cloud wins if present).
+            // Without this we'd strip brainDump from localStorage here.
+            saveState({
+              ...local,
+              blocks: mergedBlocks,
+              brainDump: cloud.brainDump ?? local.brainDump,
+            });
           }
           setSyncError(null);
         } catch {
@@ -52,10 +58,16 @@ export function useAppState() {
     init();
   }, []);
 
-  // Save to localStorage on every change, debounce cloud sync
+  // Save to localStorage on every change, debounce cloud sync.
+  // IMPORTANT: we must preserve brainDump (and any other slices owned by other
+  // hooks) when writing. This hook only owns `blocks`; reading the current
+  // persisted state and spreading it keeps brainDump intact on both local and
+  // cloud. Without this, every block edit would clobber brainDump in S3 and
+  // no other device would ever see the user's brain dump tasks.
   useEffect(() => {
     if (!loaded) return;
-    const state: AppState = { blocks };
+    const current = loadState();
+    const state: AppState = { ...current, blocks };
     saveState(state);
 
     // Debounce cloud save
@@ -63,8 +75,11 @@ export function useAppState() {
     if (key) {
       if (saveTimer.current) clearTimeout(saveTimer.current);
       saveTimer.current = setTimeout(async () => {
+        // Re-read at flush time so we include any brainDump edits that
+        // landed in localStorage after this effect scheduled the timer.
+        const latest = loadState();
         try {
-          await syncSave(key, state);
+          await syncSave(key, { ...latest, blocks });
           setSyncError(null);
         } catch {
           setSyncError('Could not save to cloud');
@@ -81,7 +96,13 @@ export function useAppState() {
       const cloud = await syncLoad(key);
       if (cloud.blocks) {
         setBlocks(cloud.blocks);
-        saveState({ blocks: cloud.blocks });
+        // Preserve brainDump from cloud if present, else keep local brainDump.
+        const current = loadState();
+        saveState({
+          ...current,
+          blocks: cloud.blocks,
+          brainDump: cloud.brainDump ?? current.brainDump,
+        });
       }
       setSyncError(null);
     } catch {
