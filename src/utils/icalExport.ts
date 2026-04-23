@@ -34,29 +34,31 @@ export function blocksToICS(blocks: TaskBlock[]): string {
   ];
 
   for (const block of blocks) {
-    // Compute end time: use the latest sub-task time, or default to +1 hour
-    let endDate = block.date;
-    let endTime = block.mainTime;
+    // In SetATime, mainTime is the "be ready by" deadline. Sub-tasks are
+    // prep steps BEFORE it. So the event spans from earliest sub-task to
+    // mainTime (+ buffer). This matches how calendarLayout.ts renders blocks.
+    let startDate = block.date;
+    let startTime = block.mainTime;
 
-    if (block.subTasks.length > 0) {
-      let latestMinutes = 0;
-      for (const sub of block.subTasks) {
-        const [sh, sm] = sub.time.split(':').map(Number);
-        const mins = sh * 60 + sm;
-        if (mins > latestMinutes) {
-          latestMinutes = mins;
-          endDate = sub.date || block.date;
-          endTime = sub.time;
-        }
+    // Find the earliest sub-task (same-day only for start time)
+    const sameDaySubs = block.subTasks.filter((s) => !s.date || s.date === block.date);
+    for (const sub of sameDaySubs) {
+      const [sh, sm] = sub.time.split(':').map(Number);
+      const [mh, mm] = startTime.split(':').map(Number);
+      if (sh * 60 + sm < mh * 60 + mm) {
+        startTime = sub.time;
       }
-      // Add 15 min after the latest sub-task as buffer
-      const { date: ed, time: et } = addHours(endDate, endTime, 0.25);
-      endDate = ed;
-      endTime = et;
-    } else {
-      const { date: ed, time: et } = addHours(block.date, block.mainTime, 1);
-      endDate = ed;
-      endTime = et;
+    }
+
+    // End time = mainTime + 15 min buffer (the deadline is when you need to
+    // be done, so the event extends slightly past it)
+    const { date: endDate, time: endTime } = addHours(block.date, block.mainTime, 0.25);
+
+    // If no sub-tasks, make event 1 hour (start 1h before main time)
+    if (block.subTasks.length === 0) {
+      const { date: sd, time: st } = addHours(block.date, block.mainTime, -1);
+      startDate = sd;
+      startTime = st;
     }
 
     // Build description from sub-tasks
@@ -73,7 +75,7 @@ export function blocksToICS(blocks: TaskBlock[]): string {
     lines.push('BEGIN:VEVENT');
     lines.push(`UID:${block.id}@setatime`);
     lines.push(`DTSTAMP:${stamp}`);
-    lines.push(`DTSTART:${toICalDate(block.date, block.mainTime)}`);
+    lines.push(`DTSTART:${toICalDate(startDate, startTime)}`);
     lines.push(`DTEND:${toICalDate(endDate, endTime)}`);
     lines.push(`SUMMARY:${escapeICalText(block.mainTask)}`);
     if (description) {
