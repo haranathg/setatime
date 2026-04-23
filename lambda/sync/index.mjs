@@ -46,41 +46,40 @@ function blocksToICS(blocks) {
   ];
 
   for (const block of blocks) {
-    let endDate = block.date;
-    let endTime = block.mainTime;
+    // In SetATime, mainTime is the "be ready by" deadline. Sub-tasks are
+    // prep steps BEFORE it. Event spans earliest sub-task → mainTime + buffer.
+    let startDate = block.date;
+    let startTime = block.mainTime;
 
-    if (block.subTasks && block.subTasks.length > 0) {
-      let latestMinutes = 0;
-      for (const sub of block.subTasks) {
-        const [sh, sm] = sub.time.split(':').map(Number);
-        const mins = sh * 60 + sm;
-        if (mins > latestMinutes) {
-          latestMinutes = mins;
-          endDate = sub.date || block.date;
-          endTime = sub.time;
-        }
+    const subs = block.subTasks || [];
+    const sameDaySubs = subs.filter((s) => !s.date || s.date === block.date);
+
+    for (const sub of sameDaySubs) {
+      const [sh, sm] = sub.time.split(':').map(Number);
+      const [mh, mm] = startTime.split(':').map(Number);
+      if (sh * 60 + sm < mh * 60 + mm) {
+        startTime = sub.time;
       }
-      // Add 15 min buffer after last sub-task
-      const [eh, em] = endTime.split(':').map(Number);
-      const totalMin = eh * 60 + em + 15;
-      const nh = Math.floor(totalMin / 60) % 24;
-      const nm = totalMin % 60;
-      endTime = `${pad2(nh)}:${pad2(nm)}`;
-    } else {
-      // Default: 1 hour duration
-      const [h, m] = block.mainTime.split(':').map(Number);
-      const totalMin = h * 60 + m + 60;
-      const nh = Math.floor(totalMin / 60) % 24;
-      const nm = totalMin % 60;
-      endTime = `${pad2(nh)}:${pad2(nm)}`;
+    }
+
+    // End = mainTime + 15 min buffer
+    const [eh, em] = block.mainTime.split(':').map(Number);
+    const endTotalMin = eh * 60 + em + 15;
+    const endTime = `${pad2(Math.floor(endTotalMin / 60) % 24)}:${pad2(endTotalMin % 60)}`;
+    const endDate = block.date;
+
+    // No sub-tasks: 1-hour event ending at mainTime + 15min
+    if (subs.length === 0) {
+      const startTotalMin = eh * 60 + em - 60;
+      const sh2 = Math.floor(((startTotalMin % 1440) + 1440) % 1440 / 60);
+      const sm2 = ((startTotalMin % 60) + 60) % 60;
+      startTime = `${pad2(sh2)}:${pad2(sm2)}`;
     }
 
     const descParts = [];
-    if (block.subTasks) {
-      for (const sub of block.subTasks) {
-        const check = sub.completed ? '[x]' : '[ ]';
-        descParts.push(`${check} ${sub.time} ${sub.label}`);
-      }
+    for (const sub of subs) {
+      const check = sub.completed ? '[x]' : '[ ]';
+      descParts.push(`${check} ${sub.time} ${sub.label}`);
     }
 
     const now = new Date();
@@ -89,7 +88,7 @@ function blocksToICS(blocks) {
     lines.push('BEGIN:VEVENT');
     lines.push(`UID:${block.id}@setatime`);
     lines.push(`DTSTAMP:${stamp}`);
-    lines.push(`DTSTART:${toICalDate(block.date, block.mainTime)}`);
+    lines.push(`DTSTART:${toICalDate(startDate, startTime)}`);
     lines.push(`DTEND:${toICalDate(endDate, endTime)}`);
     lines.push(`SUMMARY:${escapeICalText(block.mainTask)}`);
     if (descParts.length > 0) {
