@@ -7,10 +7,12 @@ interface HeaderProps {
   syncing?: boolean;
   syncError?: string | null;
   onRefreshFromCloud?: () => void;
+  onExportICal?: () => void;
   unscheduledCount?: number;
+  blockCount?: number;
 }
 
-export default function Header({ activeView, onViewChange, syncing, syncError, onRefreshFromCloud, unscheduledCount = 0 }: HeaderProps) {
+export default function Header({ activeView, onViewChange, syncing, syncError, onRefreshFromCloud, onExportICal, unscheduledCount = 0, blockCount = 0 }: HeaderProps) {
   const [showSync, setShowSync] = useState(false);
   const [key, setKey] = useState(getSecretKey());
   const [saved, setSaved] = useState(false);
@@ -150,6 +152,27 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
               )}
               {isConnected && !syncError && (
                 <p className="text-xs text-green-600 mt-2">Syncing automatically</p>
+              )}
+
+              {/* iCal export */}
+              {blockCount > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <button
+                    onClick={() => { onExportICal?.(); setShowSync(false); }}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                      <line x1="16" x2="16" y1="2" y2="6" />
+                      <line x1="8" x2="8" y1="2" y2="6" />
+                      <line x1="3" x2="21" y1="10" y2="10" />
+                    </svg>
+                    Export to iCal ({blockCount} events)
+                  </button>
+                  <p className="text-[10px] text-gray-400 mt-1 text-center">
+                    Downloads a .ics file — opens in Apple Calendar, Google Calendar, etc.
+                  </p>
+                </div>
               )}
             </div>
           )}
