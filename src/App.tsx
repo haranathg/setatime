@@ -8,6 +8,7 @@ import { useAppState } from './hooks/useAppState';
 import { useBrainDump } from './hooks/useBrainDump';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
+import { downloadICS } from './utils/icalExport';
 
 function LoginGate({ onUnlock }: { onUnlock: () => void }) {
   const [key, setKey] = useState('');
@@ -139,7 +140,9 @@ function AppMain({
         syncing={syncing}
         syncError={syncError}
         onRefreshFromCloud={refreshFromCloud}
+        onExportICal={() => downloadICS(blocks)}
         unscheduledCount={unscheduledTasks.length}
+        blockCount={blocks.length}
       />
 
       {activeView === 'calendar' ? (
