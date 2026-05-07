@@ -30,9 +30,26 @@ export interface BrainDumpState {
   unscheduledTasks: BrainDumpTask[];
 }
 
+export interface ChartNote {
+  id: string;
+  date: string; // "YYYY-MM-DD" — encounter date
+  encounterType: 'daily' | 'weekly' | 'other';
+  subjective: string;
+  objective: string;
+  assessment: string;
+  plan: string;
+  createdAt: string; // ISO timestamp
+  updatedAt: string; // ISO timestamp
+}
+
+export interface ChartState {
+  notes: ChartNote[];
+}
+
 export interface AppState {
   blocks: TaskBlock[];
   brainDump?: BrainDumpState;
+  chart?: ChartState;
 }
 
 export interface RenderedBlock {
