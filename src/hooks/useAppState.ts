@@ -45,6 +45,7 @@ export function useAppState() {
               ...local,
               blocks: mergedBlocks,
               brainDump: cloud.brainDump ?? local.brainDump,
+              chart: cloud.chart ?? local.chart,
             });
           }
           setSyncError(null);
@@ -102,6 +103,7 @@ export function useAppState() {
           ...current,
           blocks: cloud.blocks,
           brainDump: cloud.brainDump ?? current.brainDump,
+          chart: cloud.chart ?? current.chart,
         });
       }
       setSyncError(null);

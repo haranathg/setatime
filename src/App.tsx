@@ -4,8 +4,10 @@ import WeeklyCalendar from './components/WeeklyCalendar';
 import StatsView from './components/StatsView';
 import BrainDumpSidebar from './components/BrainDumpSidebar';
 import BrainDumpFullPage from './components/BrainDumpFullPage';
+import ChartView from './components/ChartView';
 import { useAppState } from './hooks/useAppState';
 import { useBrainDump } from './hooks/useBrainDump';
+import { useChartNotes } from './hooks/useChartNotes';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -59,7 +61,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'stats' | 'braindump'>('calendar');
+  const [activeView, setActiveView] = useState<'calendar' | 'stats' | 'braindump' | 'chart'>('calendar');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -76,8 +78,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'stats' | 'braindump';
-  setActiveView: (v: 'calendar' | 'stats' | 'braindump') => void;
+  activeView: 'calendar' | 'stats' | 'braindump' | 'chart';
+  setActiveView: (v: 'calendar' | 'stats' | 'braindump' | 'chart') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -110,8 +112,9 @@ function AppMain({
   } = useBrainDump();
 
   const stats = useStats(blocks);
+  const { notes: chartNotes, createNote: createChartNote, updateNote: updateChartNote, deleteNote: deleteChartNote } = useChartNotes();
 
-  const handleViewChange = (view: 'calendar' | 'stats' | 'braindump') => {
+  const handleViewChange = (view: 'calendar' | 'stats' | 'braindump' | 'chart') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -186,6 +189,13 @@ function AppMain({
           onDeleteTask={deleteTask}
           onUpdateTask={updateTask}
           onSwitchToCalendar={() => setActiveView('calendar')}
+        />
+      ) : activeView === 'chart' ? (
+        <ChartView
+          notes={chartNotes}
+          onCreateNote={createChartNote}
+          onUpdateNote={updateChartNote}
+          onDeleteNote={deleteChartNote}
         />
       ) : (
         <StatsView stats={stats} />
