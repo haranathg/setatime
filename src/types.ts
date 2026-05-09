@@ -46,10 +46,28 @@ export interface ChartState {
   notes: ChartNote[];
 }
 
+export type ThoughtStatus = 'inbox' | 'now' | 'future' | 'discarded';
+
+export interface Thought {
+  id: string;
+  text: string;
+  capturedAt: string; // ISO timestamp
+  status: ThoughtStatus;
+  triagedAt?: string; // ISO, set when status moves out of 'inbox'
+  futureSurfaceDate?: string; // "YYYY-MM-DD", for thoughts in 'future' bucket
+  promotedToTaskId?: string; // BrainDumpTask id if user clicked "Send to Dump"
+  tags?: string[];
+}
+
+export interface InboxState {
+  thoughts: Thought[];
+}
+
 export interface AppState {
   blocks: TaskBlock[];
   brainDump?: BrainDumpState;
   chart?: ChartState;
+  inbox?: InboxState;
 }
 
 export interface RenderedBlock {
