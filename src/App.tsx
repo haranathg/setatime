@@ -5,9 +5,11 @@ import StatsView from './components/StatsView';
 import BrainDumpSidebar from './components/BrainDumpSidebar';
 import BrainDumpFullPage from './components/BrainDumpFullPage';
 import ChartView from './components/ChartView';
+import InboxView from './components/InboxView';
 import { useAppState } from './hooks/useAppState';
 import { useBrainDump } from './hooks/useBrainDump';
 import { useChartNotes } from './hooks/useChartNotes';
+import { useInbox } from './hooks/useInbox';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -61,7 +63,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'stats' | 'braindump' | 'chart'>('calendar');
+  const [activeView, setActiveView] = useState<'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox'>('calendar');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -78,8 +80,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'stats' | 'braindump' | 'chart';
-  setActiveView: (v: 'calendar' | 'stats' | 'braindump' | 'chart') => void;
+  activeView: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox';
+  setActiveView: (v: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -113,8 +115,22 @@ function AppMain({
 
   const stats = useStats(blocks);
   const { notes: chartNotes, createNote: createChartNote, updateNote: updateChartNote, deleteNote: deleteChartNote } = useChartNotes();
+  const {
+    thoughts: inboxThoughts,
+    captureThought,
+    triageThought,
+    updateThought: updateInboxThought,
+    deleteThought: deleteInboxThought,
+  } = useInbox();
 
-  const handleViewChange = (view: 'calendar' | 'stats' | 'braindump' | 'chart') => {
+  // Triage tab count: anything still in 'inbox', plus 'future' thoughts whose
+  // resurface date has arrived. Drives the badge on the Inbox header tab.
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const inboxTriageCount = inboxThoughts.filter(
+    (t) => t.status === 'inbox' || (t.status === 'future' && !!t.futureSurfaceDate && t.futureSurfaceDate <= todayKey)
+  ).length;
+
+  const handleViewChange = (view: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -145,6 +161,7 @@ function AppMain({
         onRefreshFromCloud={refreshFromCloud}
         onExportICal={() => downloadICS(blocks)}
         unscheduledCount={unscheduledTasks.length}
+        inboxTriageCount={inboxTriageCount}
         blockCount={blocks.length}
       />
 
@@ -196,6 +213,15 @@ function AppMain({
           onCreateNote={createChartNote}
           onUpdateNote={updateChartNote}
           onDeleteNote={deleteChartNote}
+        />
+      ) : activeView === 'inbox' ? (
+        <InboxView
+          thoughts={inboxThoughts}
+          onCapture={captureThought}
+          onTriage={triageThought}
+          onUpdate={updateInboxThought}
+          onDelete={deleteInboxThought}
+          onSendToDump={addManualTask}
         />
       ) : (
         <StatsView stats={stats} />

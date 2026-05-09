@@ -2,17 +2,18 @@ import { useState } from 'react';
 import { getSecretKey, setSecretKey, clearSecretKey } from '../services/syncService';
 
 interface HeaderProps {
-  activeView: 'calendar' | 'stats' | 'braindump' | 'chart';
-  onViewChange: (view: 'calendar' | 'stats' | 'braindump' | 'chart') => void;
+  activeView: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox';
+  onViewChange: (view: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox') => void;
   syncing?: boolean;
   syncError?: string | null;
   onRefreshFromCloud?: () => void;
   onExportICal?: () => void;
   unscheduledCount?: number;
+  inboxTriageCount?: number;
   blockCount?: number;
 }
 
-export default function Header({ activeView, onViewChange, syncing, syncError, onRefreshFromCloud, onExportICal, unscheduledCount = 0, blockCount = 0 }: HeaderProps) {
+export default function Header({ activeView, onViewChange, syncing, syncError, onRefreshFromCloud, onExportICal, unscheduledCount = 0, inboxTriageCount = 0, blockCount = 0 }: HeaderProps) {
   const [showSync, setShowSync] = useState(false);
   const [key, setKey] = useState(getSecretKey());
   const [saved, setSaved] = useState(false);
@@ -68,6 +69,22 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
             }`}
           >
             Calendar
+          </button>
+          <button
+            onClick={() => onViewChange('inbox')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors relative ${
+              activeView === 'inbox'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            title="Triage thoughts: now / future / discard"
+          >
+            Inbox
+            {inboxTriageCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 text-[10px] font-bold bg-amber-500 text-white rounded-full flex items-center justify-center">
+                {inboxTriageCount > 9 ? '9+' : inboxTriageCount}
+              </span>
+            )}
           </button>
           <button
             onClick={() => onViewChange('braindump')}
