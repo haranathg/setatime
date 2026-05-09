@@ -28,7 +28,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
   };
 
   return (
-    <div className="h-screen flex items-center justify-center bg-gray-50 font-sans px-4">
+    <div className="h-full flex items-center justify-center bg-gray-50 font-sans px-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
         <h1 className="text-2xl font-semibold tracking-tight text-gray-900 text-center mb-1">
           Set<span className="text-indigo-600">A</span>Time
@@ -152,7 +152,7 @@ function AppMain({
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 font-sans">
+    <div className="h-full flex flex-col bg-gray-50 font-sans">
       <Header
         activeView={activeView}
         onViewChange={handleViewChange}

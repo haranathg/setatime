@@ -81,8 +81,8 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           >
             Inbox
             {inboxTriageCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 text-[10px] font-bold bg-amber-500 text-white rounded-full flex items-center justify-center">
-                {inboxTriageCount > 9 ? '9+' : inboxTriageCount}
+              <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 text-[10px] font-bold bg-amber-500 text-white rounded-full flex items-center justify-center tabular-nums">
+                {inboxTriageCount}
               </span>
             )}
           </button>
@@ -96,8 +96,8 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           >
             Dump
             {unscheduledCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 text-[10px] font-bold bg-indigo-600 text-white rounded-full flex items-center justify-center">
-                {unscheduledCount > 9 ? '9+' : unscheduledCount}
+              <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 text-[10px] font-bold bg-indigo-600 text-white rounded-full flex items-center justify-center tabular-nums">
+                {unscheduledCount}
               </span>
             )}
           </button>

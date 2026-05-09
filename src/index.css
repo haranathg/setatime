@@ -1,17 +1,35 @@
 @import "tailwindcss";
 @import "@fontsource/inter";
 
-body {
+html, body {
   margin: 0;
+  /* Lock body so iOS Safari/standalone don't rubber-band the whole app
+     when content scrolls inside it. */
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Stop iOS auto-resizing text on orientation change, and clean up tap UX. */
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #root {
+  /* dvh tracks the *visible* viewport on iOS as the URL bar collapses,
+     so the app fits without overflow under the home indicator. */
   height: 100dvh;
-  /* Support safe area insets for iPhone notch/home indicator */
+  /* Inset for the Dynamic Island / notch (top), home indicator (bottom),
+     and the landscape notch (sides) when launched as a home-screen PWA. */
   padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+  box-sizing: border-box;
 }
 
 /* Modal slide-up animation */
