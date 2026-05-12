@@ -1,9 +1,16 @@
+export interface SubStep {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
 export interface SubTask {
   id: string;
   time: string; // "HH:MM" 24hr format
   label: string;
   completed: boolean;
   date?: string; // Optional override "YYYY-MM-DD" for cross-midnight sub-tasks
+  steps?: SubStep[]; // optional one-level breakdown; when present, `completed` rolls up from steps
 }
 
 export interface TaskBlock {

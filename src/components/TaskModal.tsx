@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { TaskBlock, SubTask } from '../types';
+import type { TaskBlock, SubTask, SubStep } from '../types';
 import { BLOCK_COLORS_RAW } from '../constants';
 import { formatFullDate, formatTime24to12 } from '../utils/dateHelpers';
 import { parseTaskInput, parseDurationInput, timeToMinutes, minutesToTime } from '../utils/timeParser';
@@ -200,6 +200,32 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
     setSubTasks((prev) => prev.filter((s) => s.id !== id));
   };
 
+  const handleAddStep = (subTaskId: string, label: string) => {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    setSubTasks((prev) =>
+      prev.map((s) =>
+        s.id === subTaskId
+          ? { ...s, steps: [...(s.steps || []), { id: uuidv4(), label: trimmed, done: false }] }
+          : s
+      )
+    );
+  };
+
+  const handleDeleteStep = (subTaskId: string, stepId: string) => {
+    setSubTasks((prev) =>
+      prev.map((s) => {
+        if (s.id !== subTaskId || !s.steps) return s;
+        const steps = s.steps.filter((st) => st.id !== stepId);
+        // Drop the empty `steps` array entirely so the subtask reverts to a
+        // plain checkbox and `completed` stops getting rolled-up from nothing.
+        const next: SubTask = { ...s, steps: steps.length > 0 ? steps : undefined };
+        if (!next.steps) delete next.steps;
+        return next;
+      })
+    );
+  };
+
   const handleSave = () => {
     if (!mainTask || !mainTime) return;
 
@@ -346,7 +372,7 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
 
                 {/* Sub-task list */}
                 {subTasks.length > 0 && (
-                  <div className="space-y-0.5 mb-3">
+                  <div className="space-y-1.5 mb-3">
                     {subTasks
                       .slice()
                       .sort((a, b) => {
@@ -357,13 +383,19 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
                         return b.time.localeCompare(a.time);
                       })
                       .map((sub) => (
-                        <SubTaskRow
-                          key={sub.id}
-                          time={sub.time}
-                          label={sub.label}
-                          onDelete={() => handleDeleteSubTask(sub.id)}
-                          isPrevDay={!!sub.date}
-                        />
+                        <div key={sub.id}>
+                          <SubTaskRow
+                            time={sub.time}
+                            label={sub.label}
+                            onDelete={() => handleDeleteSubTask(sub.id)}
+                            isPrevDay={!!sub.date}
+                          />
+                          <StepsEditor
+                            subTask={sub}
+                            onAddStep={(label) => handleAddStep(sub.id, label)}
+                            onDeleteStep={(stepId) => handleDeleteStep(sub.id, stepId)}
+                          />
+                        </div>
                       ))}
                   </div>
                 )}
@@ -430,6 +462,82 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Inline editor for the optional `steps` of a sub-task. Collapsed when there
+// are no steps and the user hasn't tapped "Break down"; expands to a list
+// of mini-rows plus an input row. Steps are simple labels (no times).
+function StepsEditor({
+  subTask,
+  onAddStep,
+  onDeleteStep,
+}: {
+  subTask: SubTask;
+  onAddStep: (label: string) => void;
+  onDeleteStep: (stepId: string) => void;
+}) {
+  const steps: SubStep[] = subTask.steps || [];
+  const [open, setOpen] = useState(steps.length > 0);
+  const [draft, setDraft] = useState('');
+
+  const submit = () => {
+    if (!draft.trim()) return;
+    onAddStep(draft);
+    setDraft('');
+  };
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="ml-7 mt-0.5 text-[11px] text-indigo-500 hover:text-indigo-700 font-medium"
+      >
+        + Break down
+      </button>
+    );
+  }
+
+  return (
+    <div className="ml-7 mt-1 pl-3 border-l-2 border-gray-200 space-y-0.5">
+      {steps.map((step) => (
+        <div key={step.id} className="flex items-center gap-2 group">
+          <span className="w-3 h-3 rounded border border-gray-300 bg-white flex-shrink-0" />
+          <span className="text-xs text-gray-700 flex-1">{step.label}</span>
+          <button
+            onClick={() => onDeleteStep(step.id)}
+            className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity text-base leading-none"
+          >
+            &times;
+          </button>
+        </div>
+      ))}
+      <div className="flex items-center gap-2 py-0.5">
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          placeholder="step (e.g. socks)"
+          className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500"
+        />
+        <button
+          onClick={submit}
+          disabled={!draft.trim()}
+          className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 disabled:text-gray-300"
+        >
+          Add
+        </button>
+      </div>
+      {steps.length === 0 && (
+        <button
+          onClick={() => setOpen(false)}
+          className="text-[10px] text-gray-400 hover:text-gray-600"
+        >
+          Cancel
+        </button>
+      )}
     </div>
   );
 }
