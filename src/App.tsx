@@ -93,6 +93,7 @@ function AppMain({
     updateBlock,
     deleteBlock,
     toggleSubTask,
+    toggleSubStep,
     navigateWeek,
     goToToday,
     getBlocksForDate,
@@ -228,6 +229,7 @@ function AppMain({
         <TodayView
           todaysBlocks={getBlocksForDate(new Date())}
           onToggleSubTask={toggleSubTask}
+          onToggleSubStep={toggleSubStep}
           onSwitchToCalendar={() => setActiveView('calendar')}
         />
       ) : (

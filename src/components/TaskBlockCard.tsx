@@ -30,24 +30,31 @@ export default function TaskBlockCard({ rendered, colorIndex, onToggleSubTask, o
           {block.subTasks
             .slice()
             .sort((a, b) => a.time.localeCompare(b.time))
-            .map((sub) => (
-              <div key={sub.id} className="flex items-center gap-1">
-                <input
-                  type="checkbox"
-                  checked={sub.completed}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={() => onToggleSubTask(block.id, sub.id)}
-                  className="w-3 h-3 rounded border-gray-300 shrink-0"
-                />
-                <span
-                  className={`text-[10px] leading-tight ${colors.sub} ${
-                    sub.completed ? 'line-through opacity-50' : ''
-                  }`}
-                >
-                  {formatTime24to12(sub.time)} {sub.label}
-                </span>
-              </div>
-            ))}
+            .map((sub) => {
+              const stepCount = sub.steps?.length || 0;
+              const stepsDone = sub.steps?.filter((st) => st.done).length || 0;
+              return (
+                <div key={sub.id} className="flex items-center gap-1">
+                  <input
+                    type="checkbox"
+                    checked={sub.completed}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => onToggleSubTask(block.id, sub.id)}
+                    className="w-3 h-3 rounded border-gray-300 shrink-0"
+                  />
+                  <span
+                    className={`text-[10px] leading-tight ${colors.sub} ${
+                      sub.completed ? 'line-through opacity-50' : ''
+                    }`}
+                  >
+                    {formatTime24to12(sub.time)} {sub.label}
+                    {stepCount > 0 && (
+                      <span className="ml-1 opacity-70 font-mono tabular-nums">[{stepsDone}/{stepCount}]</span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
         </div>
       )}
 

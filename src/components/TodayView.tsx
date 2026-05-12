@@ -1,11 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { TaskBlock, SubTask } from '../types';
+import type { TaskBlock, SubTask, SubStep } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
 
 interface TodayViewProps {
   todaysBlocks: TaskBlock[];
   onToggleSubTask: (blockId: string, subTaskId: string) => void;
+  onToggleSubStep: (blockId: string, subTaskId: string, stepId: string) => void;
   onSwitchToCalendar: () => void;
+}
+
+function effectiveCompleted(sub: SubTask): boolean {
+  if (sub.steps && sub.steps.length > 0) return sub.steps.every((st) => st.done);
+  return sub.completed;
 }
 
 function timeToMinutes(t: string): number {
@@ -26,7 +32,7 @@ interface BlockState {
   doneCount: number;
 }
 
-export default function TodayView({ todaysBlocks, onToggleSubTask, onSwitchToCalendar }: TodayViewProps) {
+export default function TodayView({ todaysBlocks, onToggleSubTask, onToggleSubStep, onSwitchToCalendar }: TodayViewProps) {
   // Re-render every minute so 'current' / 'past' / 'upcoming' stays accurate.
   // The tick state value isn't read; setTick just forces a re-render.
   const [, setTick] = useState(0);
@@ -50,7 +56,7 @@ export default function TodayView({ todaysBlocks, onToggleSubTask, onSwitchToCal
       const subTimes = todaySubTasks.map((s) => timeToMinutes(s.time));
       const startMin = block.date === todayKey ? timeToMinutes(block.mainTime) : Math.min(...subTimes, 24 * 60);
       const endMin = subTimes.length ? Math.max(...subTimes) + 15 : startMin + 60;
-      const doneCount = todaySubTasks.filter((s) => s.completed).length;
+      const doneCount = todaySubTasks.filter(effectiveCompleted).length;
       return { block, startMin, endMin, status: 'upcoming', todaySubTasks, doneCount };
     });
     enriched.sort((a, b) => a.startMin - b.startMin);
@@ -114,6 +120,7 @@ export default function TodayView({ todaysBlocks, onToggleSubTask, onSwitchToCal
             variant="now"
             now={now}
             onToggleSubTask={onToggleSubTask}
+            onToggleSubStep={onToggleSubStep}
           />
         ) : nextUp ? (
           <UpNextCard state={nextUp} now={now} />
@@ -134,6 +141,7 @@ export default function TodayView({ todaysBlocks, onToggleSubTask, onSwitchToCal
                 variant="upcoming"
                 now={now}
                 onToggleSubTask={onToggleSubTask}
+                onToggleSubStep={onToggleSubStep}
               />
             ))}
           </Section>
@@ -149,6 +157,7 @@ export default function TodayView({ todaysBlocks, onToggleSubTask, onSwitchToCal
                 variant="past"
                 now={now}
                 onToggleSubTask={onToggleSubTask}
+                onToggleSubStep={onToggleSubStep}
               />
             ))}
           </Section>
@@ -203,11 +212,13 @@ function BlockCard({
   variant,
   now,
   onToggleSubTask,
+  onToggleSubStep,
 }: {
   state: BlockState;
   variant: 'now' | 'upcoming' | 'past';
   now: number;
   onToggleSubTask: (blockId: string, subTaskId: string) => void;
+  onToggleSubStep: (blockId: string, subTaskId: string, stepId: string) => void;
 }) {
   const { block, todaySubTasks, doneCount } = state;
   const total = todaySubTasks.length;
@@ -271,6 +282,7 @@ function BlockCard({
                 subTask={sub}
                 isNext={nextSub?.id === sub.id}
                 onToggle={() => onToggleSubTask(block.id, sub.id)}
+                onToggleStep={(stepId) => onToggleSubStep(block.id, sub.id, stepId)}
               />
             ))}
         </div>
@@ -284,8 +296,8 @@ function BlockCard({
 
 function nextUncheckedFrom(subs: SubTask[], now: number): SubTask | null {
   const sorted = [...subs].sort((a, b) => timeToMinutes(a.time) - timeToMinutes(b.time));
-  // Prefer the next uncompleted subtask whose time >= now-5 (close-to-now or ahead).
-  return sorted.find((s) => !s.completed && timeToMinutes(s.time) >= now - 5) || null;
+  // Prefer the next not-yet-effectively-done subtask whose time >= now-5 (close-to-now or ahead).
+  return sorted.find((s) => !effectiveCompleted(s) && timeToMinutes(s.time) >= now - 5) || null;
 }
 
 // ---------- Subtask row with big tap target ----------
@@ -294,50 +306,100 @@ function SubTaskCheckRow({
   subTask,
   isNext,
   onToggle,
+  onToggleStep,
 }: {
   subTask: SubTask;
   isNext: boolean;
+  onToggle: () => void;
+  onToggleStep: (stepId: string) => void;
+}) {
+  const done = effectiveCompleted(subTask);
+  const hasSteps = !!subTask.steps && subTask.steps.length > 0;
+  const stepsDone = hasSteps ? subTask.steps!.filter((s) => s.done).length : 0;
+  const stepsTotal = hasSteps ? subTask.steps!.length : 0;
+  return (
+    <div>
+      <button
+        onClick={onToggle}
+        className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors ${
+          isNext ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-gray-50'
+        }`}
+      >
+        <span
+          className={`flex-shrink-0 w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-colors ${
+            done
+              ? 'bg-indigo-600 border-indigo-600'
+              : isNext
+              ? 'border-amber-500 bg-white'
+              : 'border-gray-300 bg-white'
+          }`}
+        >
+          {done && (
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
+        </span>
+        <span className={`text-xs font-medium px-2 py-0.5 rounded font-mono min-w-[60px] text-center tabular-nums ${
+          isNext ? 'bg-amber-200 text-amber-800' : done ? 'bg-gray-100 text-gray-400' : 'bg-indigo-50 text-indigo-700'
+        }`}>
+          {formatTime24to12(subTask.time)}
+        </span>
+        <span className={`flex-1 text-base leading-snug ${
+          done ? 'line-through text-gray-400' : 'text-gray-900'
+        }`}>
+          {subTask.label}
+        </span>
+        {hasSteps && (
+          <span className="text-[10px] font-mono tabular-nums text-gray-500 px-1.5 py-0.5 bg-gray-100 rounded">
+            {stepsDone}/{stepsTotal}
+          </span>
+        )}
+        {isNext && !done && (
+          <span className="text-[10px] uppercase tracking-wider font-bold text-amber-700">Next</span>
+        )}
+      </button>
+      {hasSteps && (
+        <div className="ml-8 pl-3 my-1 border-l-2 border-gray-200 space-y-0.5">
+          {subTask.steps!.map((step) => (
+            <StepRow key={step.id} step={step} parentDone={done} onToggle={() => onToggleStep(step.id)} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StepRow({
+  step,
+  parentDone,
+  onToggle,
+}: {
+  step: SubStep;
+  parentDone: boolean;
   onToggle: () => void;
 }) {
   return (
     <button
       onClick={onToggle}
-      className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors ${
-        isNext
-          ? 'bg-amber-50 hover:bg-amber-100'
-          : subTask.completed
-          ? 'hover:bg-gray-50'
-          : 'hover:bg-gray-50'
-      }`}
+      className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-left hover:bg-gray-50 transition-colors"
     >
       <span
-        className={`flex-shrink-0 w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-colors ${
-          subTask.completed
-            ? 'bg-indigo-600 border-indigo-600'
-            : isNext
-            ? 'border-amber-500 bg-white'
-            : 'border-gray-300 bg-white'
+        className={`flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
+          step.done ? 'bg-indigo-500 border-indigo-500' : 'border-gray-300 bg-white'
         }`}
       >
-        {subTask.completed && (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+        {step.done && (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
         )}
       </span>
-      <span className={`text-xs font-medium px-2 py-0.5 rounded font-mono min-w-[60px] text-center tabular-nums ${
-        isNext ? 'bg-amber-200 text-amber-800' : subTask.completed ? 'bg-gray-100 text-gray-400' : 'bg-indigo-50 text-indigo-700'
+      <span className={`flex-1 text-sm leading-snug ${
+        step.done || parentDone ? 'line-through text-gray-400' : 'text-gray-800'
       }`}>
-        {formatTime24to12(subTask.time)}
+        {step.label}
       </span>
-      <span className={`flex-1 text-base leading-snug ${
-        subTask.completed ? 'line-through text-gray-400' : 'text-gray-900'
-      }`}>
-        {subTask.label}
-      </span>
-      {isNext && !subTask.completed && (
-        <span className="text-[10px] uppercase tracking-wider font-bold text-amber-700">Next</span>
-      )}
     </button>
   );
 }
