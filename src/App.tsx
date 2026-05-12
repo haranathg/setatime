@@ -6,6 +6,7 @@ import BrainDumpSidebar from './components/BrainDumpSidebar';
 import BrainDumpFullPage from './components/BrainDumpFullPage';
 import ChartView from './components/ChartView';
 import InboxView from './components/InboxView';
+import TodayView from './components/TodayView';
 import { useAppState } from './hooks/useAppState';
 import { useBrainDump } from './hooks/useBrainDump';
 import { useChartNotes } from './hooks/useChartNotes';
@@ -63,7 +64,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox'>('calendar');
+  const [activeView, setActiveView] = useState<'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today'>('calendar');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -80,8 +81,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox';
-  setActiveView: (v: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox') => void;
+  activeView: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today';
+  setActiveView: (v: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -130,7 +131,7 @@ function AppMain({
     (t) => t.status === 'inbox' || (t.status === 'future' && !!t.futureSurfaceDate && t.futureSurfaceDate <= todayKey)
   ).length;
 
-  const handleViewChange = (view: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox') => {
+  const handleViewChange = (view: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -222,6 +223,12 @@ function AppMain({
           onUpdate={updateInboxThought}
           onDelete={deleteInboxThought}
           onSendToDump={addManualTask}
+        />
+      ) : activeView === 'today' ? (
+        <TodayView
+          todaysBlocks={getBlocksForDate(new Date())}
+          onToggleSubTask={toggleSubTask}
+          onSwitchToCalendar={() => setActiveView('calendar')}
         />
       ) : (
         <StatsView stats={stats} />

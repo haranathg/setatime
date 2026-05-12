@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { getSecretKey, setSecretKey, clearSecretKey } from '../services/syncService';
 
 interface HeaderProps {
-  activeView: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox';
-  onViewChange: (view: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox') => void;
+  activeView: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today';
+  onViewChange: (view: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => void;
   syncing?: boolean;
   syncError?: string | null;
   onRefreshFromCloud?: () => void;
@@ -60,6 +60,17 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
 
       <div className="flex items-center gap-2">
         <nav className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
+          <button
+            onClick={() => onViewChange('today')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              activeView === 'today'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+            title="Today's blocks with progress tracking"
+          >
+            Today
+          </button>
           <button
             onClick={() => onViewChange('calendar')}
             className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
