@@ -96,6 +96,76 @@ ${text}`,
       return { statusCode: 200, headers, body: JSON.stringify({ tasks }) };
     }
 
+    // Habit activation mode: turn a habit into the smallest possible first
+    // physical action, plus even-smaller fallbacks for the worst days.
+    if (body.mode === 'habit-activation') {
+      const { name, reason } = body;
+      if (!name) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'name is required' }) };
+      }
+
+      const response = await fetch(ANTHROPIC_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 512,
+          messages: [
+            {
+              role: 'user',
+              content: `You design "activation steps" for someone with executive dysfunction. They want the habit: "${name}".${
+                reason ? ` Their reason: "${reason}".` : ''
+              }
+
+The goal is behavioral activation: get the body moving with the smallest possible physical action, so momentum — not motivation — does the work. The person is often stuck, ruminating, and cannot decompose tasks in the moment. You decompose for them.
+
+Return ONLY valid JSON in this exact format, no other text:
+{"activationStep": "...", "microSteps": ["...", "..."]}
+
+Rules for activationStep:
+- A single concrete PHYSICAL action, something the body does in under ~60 seconds
+- So small it feels almost silly to refuse ("put on your running shoes", not "go for a run")
+- Imperative voice, second person, no outcome or duration, no "and"
+- Under 8 words
+
+Rules for microSteps:
+- 3 items, each EVEN SMALLER than the activation step, tiniest first
+- The first should be doable from bed/couch without standing if possible
+- Same imperative, physical, under 8 words, no "and"
+- These are the "I can't even do that" fallbacks`,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        console.error('Anthropic API error:', err);
+        return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI service error' }) };
+      }
+
+      const data = await response.json();
+      const content = data.content[0].text;
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return { statusCode: 502, headers, body: JSON.stringify({ error: 'Could not parse AI response' }) };
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          activationStep: parsed.activationStep || '',
+          microSteps: Array.isArray(parsed.microSteps) ? parsed.microSteps : [],
+        }),
+      };
+    }
+
     // Default mode: task breakdown
     const { mainTask, mainTime } = body;
 

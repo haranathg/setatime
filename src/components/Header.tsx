@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { getSecretKey, setSecretKey, clearSecretKey } from '../services/syncService';
 
 interface HeaderProps {
-  activeView: 'calendar' | 'stats' | 'braindump' | 'chart';
-  onViewChange: (view: 'calendar' | 'stats' | 'braindump' | 'chart') => void;
+  activeView: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart';
+  onViewChange: (view: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart') => void;
   syncing?: boolean;
   syncError?: string | null;
   onRefreshFromCloud?: () => void;
@@ -68,6 +68,16 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
             }`}
           >
             Calendar
+          </button>
+          <button
+            onClick={() => onViewChange('habits')}
+            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+              activeView === 'habits'
+                ? 'bg-white text-gray-900 shadow-sm'
+                : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Habits
           </button>
           <button
             onClick={() => onViewChange('braindump')}

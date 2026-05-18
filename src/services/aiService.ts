@@ -26,3 +26,32 @@ export async function generateSubTasks(mainTask: string, mainTime: string): Prom
     completed: false,
   }));
 }
+
+export interface ActivationBreakdown {
+  activationStep: string;
+  microSteps: string[];
+}
+
+export async function generateActivation(
+  name: string,
+  reason: string
+): Promise<ActivationBreakdown> {
+  const authHash = await getAuthHashAsync();
+  const response = await fetch(AI_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode: 'habit-activation', name, reason, authHash }),
+  });
+
+  if (!response.ok) {
+    throw new Error('AI service unavailable. Please try again.');
+  }
+
+  const data = await response.json();
+  return {
+    activationStep: String(data.activationStep || '').trim(),
+    microSteps: Array.isArray(data.microSteps)
+      ? data.microSteps.map((s: unknown) => String(s).trim()).filter(Boolean)
+      : [],
+  };
+}

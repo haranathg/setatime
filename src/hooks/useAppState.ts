@@ -46,6 +46,7 @@ export function useAppState() {
               blocks: mergedBlocks,
               brainDump: cloud.brainDump ?? local.brainDump,
               chart: cloud.chart ?? local.chart,
+              habits: cloud.habits ?? local.habits,
             });
           }
           setSyncError(null);
@@ -104,6 +105,7 @@ export function useAppState() {
           blocks: cloud.blocks,
           brainDump: cloud.brainDump ?? current.brainDump,
           chart: cloud.chart ?? current.chart,
+          habits: cloud.habits ?? current.habits,
         });
       }
       setSyncError(null);
