@@ -53,6 +53,27 @@ export interface ChartState {
   notes: ChartNote[];
 }
 
+export interface HabitLogEntry {
+  date: string; // "YYYY-MM-DD" — local date the vote was cast
+  at: string; // ISO timestamp
+}
+
+export interface Habit {
+  id: string;
+  name: string;
+  reason: string; // one-line immediate "because", set at planning time only
+  activationStep: string; // the smallest physical first action
+  microSteps: string[]; // even-smaller fallbacks, tiniest-first
+  votes: number; // cumulative evidence — only ever increases, never resets
+  log: HabitLogEntry[]; // append-only, at most one entry per local day
+  createdAt: string; // ISO timestamp
+  archived?: boolean; // honest off-ramp; hidden from the doing surface
+}
+
+export interface HabitsState {
+  habits: Habit[];
+}
+
 export type ThoughtStatus = 'inbox' | 'now' | 'future' | 'discarded';
 
 export interface Thought {
@@ -74,6 +95,7 @@ export interface AppState {
   blocks: TaskBlock[];
   brainDump?: BrainDumpState;
   chart?: ChartState;
+  habits?: HabitsState;
   inbox?: InboxState;
 }
 

@@ -5,11 +5,13 @@ import StatsView from './components/StatsView';
 import BrainDumpSidebar from './components/BrainDumpSidebar';
 import BrainDumpFullPage from './components/BrainDumpFullPage';
 import ChartView from './components/ChartView';
+import HabitsView from './components/HabitsView';
 import InboxView from './components/InboxView';
 import TodayView from './components/TodayView';
 import { useAppState } from './hooks/useAppState';
 import { useBrainDump } from './hooks/useBrainDump';
 import { useChartNotes } from './hooks/useChartNotes';
+import { useHabits } from './hooks/useHabits';
 import { useInbox } from './hooks/useInbox';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
@@ -64,7 +66,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today'>('calendar');
+  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today'>('calendar');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -81,8 +83,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today';
-  setActiveView: (v: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => void;
+  activeView: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today';
+  setActiveView: (v: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -118,6 +120,16 @@ function AppMain({
   const stats = useStats(blocks);
   const { notes: chartNotes, createNote: createChartNote, updateNote: updateChartNote, deleteNote: deleteChartNote } = useChartNotes();
   const {
+    habits,
+    createHabit,
+    updateHabit,
+    recordVote,
+    archiveHabit,
+    unarchiveHabit,
+    deleteHabit,
+  } = useHabits();
+
+  const {
     thoughts: inboxThoughts,
     captureThought,
     triageThought,
@@ -132,7 +144,7 @@ function AppMain({
     (t) => t.status === 'inbox' || (t.status === 'future' && !!t.futureSurfaceDate && t.futureSurfaceDate <= todayKey)
   ).length;
 
-  const handleViewChange = (view: 'calendar' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => {
+  const handleViewChange = (view: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -215,6 +227,16 @@ function AppMain({
           onCreateNote={createChartNote}
           onUpdateNote={updateChartNote}
           onDeleteNote={deleteChartNote}
+        />
+      ) : activeView === 'habits' ? (
+        <HabitsView
+          habits={habits}
+          onCreate={createHabit}
+          onUpdate={updateHabit}
+          onRecordVote={recordVote}
+          onArchive={archiveHabit}
+          onUnarchive={unarchiveHabit}
+          onDelete={deleteHabit}
         />
       ) : activeView === 'inbox' ? (
         <InboxView
