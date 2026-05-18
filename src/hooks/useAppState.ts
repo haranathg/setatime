@@ -47,6 +47,7 @@ export function useAppState() {
               brainDump: cloud.brainDump ?? local.brainDump,
               chart: cloud.chart ?? local.chart,
               habits: cloud.habits ?? local.habits,
+              inbox: cloud.inbox ?? local.inbox,
             });
           }
           setSyncError(null);
@@ -106,6 +107,7 @@ export function useAppState() {
           brainDump: cloud.brainDump ?? current.brainDump,
           chart: cloud.chart ?? current.chart,
           habits: cloud.habits ?? current.habits,
+          inbox: cloud.inbox ?? current.inbox,
         });
       }
       setSyncError(null);
@@ -134,9 +136,42 @@ export function useAppState() {
         if (b.id !== blockId) return b;
         return {
           ...b,
-          subTasks: b.subTasks.map((s) =>
-            s.id === subTaskId ? { ...s, completed: !s.completed } : s
-          ),
+          subTasks: b.subTasks.map((s) => {
+            if (s.id !== subTaskId) return s;
+            // If this sub-task has steps, treat its checkbox as a bulk toggle:
+            // mark all steps to match the new state, and roll the parent's
+            // completed flag up so cards that don't read steps stay consistent.
+            if (s.steps && s.steps.length > 0) {
+              const allDone = s.steps.every((st) => st.done);
+              const next = !allDone;
+              return {
+                ...s,
+                completed: next,
+                steps: s.steps.map((st) => ({ ...st, done: next })),
+              };
+            }
+            return { ...s, completed: !s.completed };
+          }),
+        };
+      })
+    );
+  }, []);
+
+  const toggleSubStep = useCallback((blockId: string, subTaskId: string, stepId: string) => {
+    setBlocks((prev) =>
+      prev.map((b) => {
+        if (b.id !== blockId) return b;
+        return {
+          ...b,
+          subTasks: b.subTasks.map((s) => {
+            if (s.id !== subTaskId || !s.steps) return s;
+            const steps = s.steps.map((st) =>
+              st.id === stepId ? { ...st, done: !st.done } : st
+            );
+            // Keep parent.completed in sync with "all steps done" so views that
+            // don't drill into steps still see a correct done state.
+            return { ...s, steps, completed: steps.every((st) => st.done) };
+          }),
         };
       })
     );
@@ -174,6 +209,7 @@ export function useAppState() {
     updateBlock,
     deleteBlock,
     toggleSubTask,
+    toggleSubStep,
     navigateWeek,
     goToToday,
     getBlocksForDate,

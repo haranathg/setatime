@@ -1,9 +1,16 @@
+export interface SubStep {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
 export interface SubTask {
   id: string;
   time: string; // "HH:MM" 24hr format
   label: string;
   completed: boolean;
   date?: string; // Optional override "YYYY-MM-DD" for cross-midnight sub-tasks
+  steps?: SubStep[]; // optional one-level breakdown; when present, `completed` rolls up from steps
 }
 
 export interface TaskBlock {
@@ -67,11 +74,29 @@ export interface HabitsState {
   habits: Habit[];
 }
 
+export type ThoughtStatus = 'inbox' | 'now' | 'future' | 'discarded';
+
+export interface Thought {
+  id: string;
+  text: string;
+  capturedAt: string; // ISO timestamp
+  status: ThoughtStatus;
+  triagedAt?: string; // ISO, set when status moves out of 'inbox'
+  futureSurfaceDate?: string; // "YYYY-MM-DD", for thoughts in 'future' bucket
+  promotedToTaskId?: string; // BrainDumpTask id if user clicked "Send to Dump"
+  tags?: string[];
+}
+
+export interface InboxState {
+  thoughts: Thought[];
+}
+
 export interface AppState {
   blocks: TaskBlock[];
   brainDump?: BrainDumpState;
   chart?: ChartState;
   habits?: HabitsState;
+  inbox?: InboxState;
 }
 
 export interface RenderedBlock {

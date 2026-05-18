@@ -6,10 +6,13 @@ import BrainDumpSidebar from './components/BrainDumpSidebar';
 import BrainDumpFullPage from './components/BrainDumpFullPage';
 import ChartView from './components/ChartView';
 import HabitsView from './components/HabitsView';
+import InboxView from './components/InboxView';
+import TodayView from './components/TodayView';
 import { useAppState } from './hooks/useAppState';
 import { useBrainDump } from './hooks/useBrainDump';
 import { useChartNotes } from './hooks/useChartNotes';
 import { useHabits } from './hooks/useHabits';
+import { useInbox } from './hooks/useInbox';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -28,7 +31,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
   };
 
   return (
-    <div className="h-screen flex items-center justify-center bg-gray-50 font-sans px-4">
+    <div className="h-full flex items-center justify-center bg-gray-50 font-sans px-4">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
         <h1 className="text-2xl font-semibold tracking-tight text-gray-900 text-center mb-1">
           Set<span className="text-indigo-600">A</span>Time
@@ -63,7 +66,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'stats' | 'braindump' | 'chart'>('calendar');
+  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today'>('calendar');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -80,8 +83,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart';
-  setActiveView: (v: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart') => void;
+  activeView: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today';
+  setActiveView: (v: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -92,6 +95,7 @@ function AppMain({
     updateBlock,
     deleteBlock,
     toggleSubTask,
+    toggleSubStep,
     navigateWeek,
     goToToday,
     getBlocksForDate,
@@ -125,7 +129,22 @@ function AppMain({
     deleteHabit,
   } = useHabits();
 
-  const handleViewChange = (view: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart') => {
+  const {
+    thoughts: inboxThoughts,
+    captureThought,
+    triageThought,
+    updateThought: updateInboxThought,
+    deleteThought: deleteInboxThought,
+  } = useInbox();
+
+  // Triage tab count: anything still in 'inbox', plus 'future' thoughts whose
+  // resurface date has arrived. Drives the badge on the Inbox header tab.
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const inboxTriageCount = inboxThoughts.filter(
+    (t) => t.status === 'inbox' || (t.status === 'future' && !!t.futureSurfaceDate && t.futureSurfaceDate <= todayKey)
+  ).length;
+
+  const handleViewChange = (view: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -147,7 +166,7 @@ function AppMain({
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50 font-sans">
+    <div className="h-full flex flex-col bg-gray-50 font-sans">
       <Header
         activeView={activeView}
         onViewChange={handleViewChange}
@@ -156,6 +175,7 @@ function AppMain({
         onRefreshFromCloud={refreshFromCloud}
         onExportICal={() => downloadICS(blocks)}
         unscheduledCount={unscheduledTasks.length}
+        inboxTriageCount={inboxTriageCount}
         blockCount={blocks.length}
       />
 
@@ -217,6 +237,22 @@ function AppMain({
           onArchive={archiveHabit}
           onUnarchive={unarchiveHabit}
           onDelete={deleteHabit}
+        />
+      ) : activeView === 'inbox' ? (
+        <InboxView
+          thoughts={inboxThoughts}
+          onCapture={captureThought}
+          onTriage={triageThought}
+          onUpdate={updateInboxThought}
+          onDelete={deleteInboxThought}
+          onSendToDump={addManualTask}
+        />
+      ) : activeView === 'today' ? (
+        <TodayView
+          todaysBlocks={getBlocksForDate(new Date())}
+          onToggleSubTask={toggleSubTask}
+          onToggleSubStep={toggleSubStep}
+          onSwitchToCalendar={() => setActiveView('calendar')}
         />
       ) : (
         <StatsView stats={stats} />
