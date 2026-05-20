@@ -45,108 +45,22 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
   };
 
   return (
-    <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white sticky top-0 z-30">
-      <div className="flex items-baseline gap-2">
-        <h1 className="text-xl font-semibold tracking-tight text-gray-900">
-          Set<span className="text-indigo-600">A</span>Time
-        </h1>
-        <span
-          className="text-[10px] font-mono text-gray-400 select-all"
-          title={versionTitle}
-        >
-          v{appVersion}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <nav className="flex gap-1 bg-gray-100 rounded-lg p-0.5">
-          <button
-            onClick={() => onViewChange('today')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              activeView === 'today'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-            title="Today's blocks with progress tracking"
+    <header className="flex flex-col border-b border-gray-200 bg-white z-30">
+      <div className="flex items-center justify-between px-4 pt-3 pb-2">
+        <div className="flex items-baseline gap-2">
+          <h1 className="text-xl font-semibold tracking-tight text-gray-900">
+            Set<span className="text-indigo-600">A</span>Time
+          </h1>
+          <span
+            className="text-[10px] font-mono text-gray-400 select-all"
+            title={versionTitle}
           >
-            Today
-          </button>
-          <button
-            onClick={() => onViewChange('calendar')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              activeView === 'calendar'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Calendar
-          </button>
-          <button
-            onClick={() => onViewChange('habits')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              activeView === 'habits'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Habits
-          </button>
-          <button
-            onClick={() => onViewChange('inbox')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors relative ${
-              activeView === 'inbox'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-            title="Triage thoughts: now / future / discard"
-          >
-            Inbox
-            {inboxTriageCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 text-[10px] font-bold bg-amber-500 text-white rounded-full flex items-center justify-center tabular-nums">
-                {inboxTriageCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => onViewChange('braindump')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors relative ${
-              activeView === 'braindump'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Dump
-            {unscheduledCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 text-[10px] font-bold bg-indigo-600 text-white rounded-full flex items-center justify-center tabular-nums">
-                {unscheduledCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => onViewChange('chart')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              activeView === 'chart'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-            title="SOAP-note self check-in"
-          >
-            Chart
-          </button>
-          <button
-            onClick={() => onViewChange('stats')}
-            className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
-              activeView === 'stats'
-                ? 'bg-white text-gray-900 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Stats
-          </button>
-        </nav>
+            v{appVersion}
+          </span>
+        </div>
 
         {/* Sync button */}
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <button
             onClick={() => setShowSync(!showSync)}
             className={`p-2 rounded-lg transition-colors ${
@@ -227,6 +141,92 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           )}
         </div>
       </div>
+
+      <nav className="flex gap-1 bg-gray-100 rounded-lg p-1 mx-4 mb-2 overflow-x-auto no-scrollbar">
+        <button
+          onClick={() => onViewChange('today')}
+          className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            activeView === 'today'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+          title="Today's blocks with progress tracking"
+        >
+          Today
+        </button>
+        <button
+          onClick={() => onViewChange('calendar')}
+          className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            activeView === 'calendar'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Calendar
+        </button>
+        <button
+          onClick={() => onViewChange('habits')}
+          className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            activeView === 'habits'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Habits
+        </button>
+        <button
+          onClick={() => onViewChange('inbox')}
+          className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors relative ${
+            activeView === 'inbox'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+          title="Triage thoughts: now / future / discard"
+        >
+          Inbox
+          {inboxTriageCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 text-[10px] font-bold bg-amber-500 text-white rounded-full flex items-center justify-center tabular-nums">
+              {inboxTriageCount}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => onViewChange('braindump')}
+          className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors relative ${
+            activeView === 'braindump'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Dump
+          {unscheduledCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 text-[10px] font-bold bg-indigo-600 text-white rounded-full flex items-center justify-center tabular-nums">
+              {unscheduledCount}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => onViewChange('chart')}
+          className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            activeView === 'chart'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+          title="SOAP-note self check-in"
+        >
+          Chart
+        </button>
+        <button
+          onClick={() => onViewChange('stats')}
+          className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            activeView === 'stats'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          Stats
+        </button>
+      </nav>
     </header>
   );
 }

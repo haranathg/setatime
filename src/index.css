@@ -48,6 +48,15 @@ body {
   animation: slide-up 0.25s ease-out;
 }
 
+/* Horizontally scrollable tab strip: swipeable, no visible scrollbar. */
+.no-scrollbar {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* WebKit / iOS */
+}
+
 /* Smooth scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
