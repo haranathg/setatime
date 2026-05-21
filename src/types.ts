@@ -91,12 +91,32 @@ export interface InboxState {
   thoughts: Thought[];
 }
 
+export type BookStatus = 'want' | 'reading' | 'finished';
+
+export interface Book {
+  id: string;
+  title: string;
+  author: string;
+  status: BookStatus;
+  currentPage: number; // 0..totalPages; the one number that moves while reading
+  totalPages: number; // 0 if unknown — progress bar hides when unknown
+  notes: string;
+  createdAt: string; // ISO timestamp
+  startedAt?: string; // ISO, stamped when status first becomes 'reading'
+  finishedAt?: string; // ISO, stamped when status becomes 'finished'
+}
+
+export interface BooksState {
+  books: Book[];
+}
+
 export interface AppState {
   blocks: TaskBlock[];
   brainDump?: BrainDumpState;
   chart?: ChartState;
   habits?: HabitsState;
   inbox?: InboxState;
+  books?: BooksState;
 }
 
 export interface RenderedBlock {

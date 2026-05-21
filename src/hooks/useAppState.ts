@@ -48,6 +48,7 @@ export function useAppState() {
               chart: cloud.chart ?? local.chart,
               habits: cloud.habits ?? local.habits,
               inbox: cloud.inbox ?? local.inbox,
+              books: cloud.books ?? local.books,
             });
           }
           setSyncError(null);
@@ -108,6 +109,7 @@ export function useAppState() {
           chart: cloud.chart ?? current.chart,
           habits: cloud.habits ?? current.habits,
           inbox: cloud.inbox ?? current.inbox,
+          books: cloud.books ?? current.books,
         });
       }
       setSyncError(null);
