@@ -6,9 +6,11 @@ import BrainDumpSidebar from './components/BrainDumpSidebar';
 import BrainDumpFullPage from './components/BrainDumpFullPage';
 import ChartView from './components/ChartView';
 import HabitsView from './components/HabitsView';
+import BooksView from './components/BooksView';
 import InboxView from './components/InboxView';
 import TodayView from './components/TodayView';
 import { useAppState } from './hooks/useAppState';
+import { useBooks } from './hooks/useBooks';
 import { useBrainDump } from './hooks/useBrainDump';
 import { useChartNotes } from './hooks/useChartNotes';
 import { useHabits } from './hooks/useHabits';
@@ -66,7 +68,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today'>('calendar');
+  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today'>('calendar');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -83,8 +85,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today';
-  setActiveView: (v: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => void;
+  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today';
+  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -137,6 +139,16 @@ function AppMain({
     deleteThought: deleteInboxThought,
   } = useInbox();
 
+  const {
+    books,
+    addBook,
+    updateBook,
+    updateProgress: updateBookProgress,
+    markReading: markBookReading,
+    markFinished: markBookFinished,
+    deleteBook,
+  } = useBooks();
+
   // Triage tab count: anything still in 'inbox', plus 'future' thoughts whose
   // resurface date has arrived. Drives the badge on the Inbox header tab.
   const todayKey = new Date().toISOString().slice(0, 10);
@@ -144,7 +156,7 @@ function AppMain({
     (t) => t.status === 'inbox' || (t.status === 'future' && !!t.futureSurfaceDate && t.futureSurfaceDate <= todayKey)
   ).length;
 
-  const handleViewChange = (view: 'calendar' | 'habits' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => {
+  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -237,6 +249,16 @@ function AppMain({
           onArchive={archiveHabit}
           onUnarchive={unarchiveHabit}
           onDelete={deleteHabit}
+        />
+      ) : activeView === 'books' ? (
+        <BooksView
+          books={books}
+          onAdd={addBook}
+          onUpdate={updateBook}
+          onUpdateProgress={updateBookProgress}
+          onMarkReading={markBookReading}
+          onMarkFinished={markBookFinished}
+          onDelete={deleteBook}
         />
       ) : activeView === 'inbox' ? (
         <InboxView
