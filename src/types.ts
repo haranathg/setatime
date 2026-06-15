@@ -63,6 +63,7 @@ export interface ChartNote {
   plan: string;
   problems?: Problem[]; // optional — older notes may not have this
   planTasks?: PlanTask[]; // optional — older notes may not have this
+  signedAt?: string; // ISO — set when user signs off the note, undefined while still a draft
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
 }
