@@ -87,13 +87,14 @@ export function useBrainDump() {
     }
   }, []);
 
-  const addManualTask = useCallback((label: string) => {
+  const addManualTask = useCallback((label: string): string => {
     const task: BrainDumpTask = {
       id: uuidv4(),
       label: label.trim(),
       extractedAt: new Date().toISOString(),
     };
     setUnscheduledTasks((prev) => [...prev, task]);
+    return task.id;
   }, []);
 
   const removeScheduledTask = useCallback((taskId: string) => {

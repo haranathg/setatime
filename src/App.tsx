@@ -239,6 +239,7 @@ function AppMain({
           onCreateNote={createChartNote}
           onUpdateNote={updateChartNote}
           onDeleteNote={deleteChartNote}
+          onSendPlanTaskToDump={addManualTask}
         />
       ) : activeView === 'habits' ? (
         <HabitsView

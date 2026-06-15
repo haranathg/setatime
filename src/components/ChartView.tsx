@@ -1,11 +1,13 @@
 import { useState, useMemo } from 'react';
-import type { ChartNote } from '../types';
+import { v4 as uuidv4 } from 'uuid';
+import type { ChartNote, Problem, PlanTask } from '../types';
 
 interface ChartViewProps {
   notes: ChartNote[];
   onCreateNote: (encounterType?: ChartNote['encounterType']) => ChartNote;
   onUpdateNote: (id: string, updates: Partial<Omit<ChartNote, 'id' | 'createdAt'>>) => void;
   onDeleteNote: (id: string) => void;
+  onSendPlanTaskToDump: (label: string) => string;
 }
 
 const ENCOUNTER_LABELS: Record<ChartNote['encounterType'], string> = {
@@ -34,7 +36,7 @@ function previewText(s: string, max = 80): string {
   return trimmed.slice(0, max - 1) + '…';
 }
 
-export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteNote }: ChartViewProps) {
+export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteNote, onSendPlanTaskToDump }: ChartViewProps) {
   const sortedNotes = useMemo(
     () => [...notes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [notes]
@@ -132,7 +134,13 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
         {/* Main note workspace */}
         <main className="flex-1 overflow-y-auto bg-[#e8eef4]">
           {selected ? (
-            <NoteEditor key={selected.id} note={selected} onUpdate={onUpdateNote} onDelete={() => handleDelete(selected.id)} />
+            <NoteEditor
+              key={selected.id}
+              note={selected}
+              onUpdate={onUpdateNote}
+              onDelete={() => handleDelete(selected.id)}
+              onSendPlanTaskToDump={onSendPlanTaskToDump}
+            />
           ) : (
             <div className="h-full flex items-center justify-center">
               <div className="text-center max-w-md p-8 bg-white border border-gray-300 rounded-sm shadow-sm">
@@ -227,10 +235,12 @@ function NoteEditor({
   note,
   onUpdate,
   onDelete,
+  onSendPlanTaskToDump,
 }: {
   note: ChartNote;
   onUpdate: (id: string, updates: Partial<Omit<ChartNote, 'id' | 'createdAt'>>) => void;
   onDelete: () => void;
+  onSendPlanTaskToDump: (label: string) => string;
 }) {
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-3">
@@ -281,6 +291,9 @@ function NoteEditor({
         </div>
       </div>
 
+      {/* Problem list — pinned context that drives both Assessment and Plan */}
+      <ProblemsList note={note} onUpdate={onUpdate} />
+
       {/* SOAP sections */}
       <SoapSection
         letter="S"
@@ -306,14 +319,7 @@ function NoteEditor({
         onChange={(v) => onUpdate(note.id, { assessment: v })}
         rows={6}
       />
-      <SoapSection
-        letter="P"
-        label="Plan"
-        hint="Concrete next steps. What will you do before the next check-in? Goals, experiments, things to monitor or follow up on."
-        value={note.plan}
-        onChange={(v) => onUpdate(note.id, { plan: v })}
-        rows={6}
-      />
+      <PlanSection note={note} onUpdate={onUpdate} onSendToDump={onSendPlanTaskToDump} />
 
       {/* Signature block */}
       <div className="bg-white border border-gray-300 rounded-sm shadow-sm px-4 py-3 flex items-center justify-between text-[11px]">
@@ -371,6 +377,261 @@ function SoapSection({
         placeholder={`Enter ${label.toLowerCase()}…`}
         className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 resize-y focus:outline-none focus:bg-[#fffceb] placeholder:text-gray-300"
       />
+    </section>
+  );
+}
+
+// ---------- Problem list ----------
+
+function ProblemsList({
+  note,
+  onUpdate,
+}: {
+  note: ChartNote;
+  onUpdate: (id: string, updates: Partial<Omit<ChartNote, 'id' | 'createdAt'>>) => void;
+}) {
+  const problems = note.problems || [];
+
+  const addProblem = () => {
+    const next: Problem = {
+      id: uuidv4(),
+      label: '',
+      createdAt: new Date().toISOString(),
+    };
+    onUpdate(note.id, { problems: [...problems, next] });
+  };
+
+  const updateProblem = (id: string, patch: Partial<Problem>) => {
+    onUpdate(note.id, { problems: problems.map((p) => (p.id === id ? { ...p, ...patch } : p)) });
+  };
+
+  const removeProblem = (id: string) => {
+    onUpdate(note.id, { problems: problems.filter((p) => p.id !== id) });
+  };
+
+  const openCount = problems.filter((p) => !p.resolved).length;
+
+  return (
+    <section className="bg-white border border-gray-300 rounded-sm shadow-sm overflow-hidden">
+      <header className="flex items-stretch border-b border-gray-300">
+        <div className="w-10 flex-shrink-0 bg-[#d4a017] text-white flex items-center justify-center text-lg font-bold font-mono">
+          #
+        </div>
+        <div className="flex-1 px-3 py-2 bg-gray-50 flex items-center justify-between">
+          <div>
+            <div className="text-[12px] font-bold uppercase tracking-wider text-gray-800">Problem List</div>
+            <div className="text-[10px] text-gray-500 leading-tight mt-0.5">
+              Active issues you're working on. Shows up in Plan so you can write tasks against each.
+            </div>
+          </div>
+          <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">
+            {openCount} open · {problems.length} total
+          </span>
+        </div>
+      </header>
+      <div className="divide-y divide-gray-100">
+        {problems.length === 0 ? (
+          <div className="px-3 py-3 text-[12px] text-gray-400 italic">
+            No active problems. Click <span className="font-semibold not-italic">+ Problem</span> to add one.
+          </div>
+        ) : (
+          problems.map((p) => (
+            <div key={p.id} className="px-3 py-2 flex items-start gap-2">
+              <input
+                type="checkbox"
+                checked={!!p.resolved}
+                onChange={(e) => updateProblem(p.id, { resolved: e.target.checked })}
+                className="mt-1.5 w-3.5 h-3.5 accent-[#1a4a73]"
+                title={p.resolved ? 'Resolved — uncheck to reopen' : 'Mark resolved'}
+              />
+              <div className="flex-1 min-w-0">
+                <input
+                  type="text"
+                  value={p.label}
+                  onChange={(e) => updateProblem(p.id, { label: e.target.value })}
+                  placeholder="Short label, e.g. Sleep debt"
+                  className={`w-full px-2 py-1 text-[13px] font-mono border border-gray-200 rounded-sm focus:outline-none focus:ring-1 focus:ring-[#1a4a73] focus:border-[#1a4a73] ${
+                    p.resolved ? 'line-through text-gray-400' : 'text-gray-900'
+                  }`}
+                />
+                <input
+                  type="text"
+                  value={p.detail || ''}
+                  onChange={(e) => updateProblem(p.id, { detail: e.target.value })}
+                  placeholder="Optional detail or context…"
+                  className="mt-1 w-full px-2 py-1 text-[11px] text-gray-600 border border-transparent rounded-sm focus:outline-none focus:border-gray-200 focus:bg-gray-50"
+                />
+              </div>
+              <button
+                onClick={() => removeProblem(p.id)}
+                className="mt-1 text-[14px] leading-none text-gray-300 hover:text-red-500 px-1.5 py-1"
+                title="Delete problem"
+              >
+                ×
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
+        <button
+          onClick={addProblem}
+          className="text-[11px] font-semibold uppercase tracking-wider text-[#1a4a73] hover:text-[#0f3557] transition-colors"
+        >
+          + Problem
+        </button>
+      </div>
+    </section>
+  );
+}
+
+// ---------- Plan section: task list above the free-text plan ----------
+
+function PlanSection({
+  note,
+  onUpdate,
+  onSendToDump,
+}: {
+  note: ChartNote;
+  onUpdate: (id: string, updates: Partial<Omit<ChartNote, 'id' | 'createdAt'>>) => void;
+  onSendToDump: (label: string) => string;
+}) {
+  const tasks = note.planTasks || [];
+  const problems = note.problems || [];
+  const openProblems = problems.filter((p) => !p.resolved);
+
+  const addTask = () => {
+    const next: PlanTask = {
+      id: uuidv4(),
+      text: '',
+      done: false,
+      createdAt: new Date().toISOString(),
+    };
+    onUpdate(note.id, { planTasks: [...tasks, next] });
+  };
+
+  const updateTask = (id: string, patch: Partial<PlanTask>) => {
+    onUpdate(note.id, { planTasks: tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)) });
+  };
+
+  const removeTask = (id: string) => {
+    onUpdate(note.id, { planTasks: tasks.filter((t) => t.id !== id) });
+  };
+
+  const pushToDump = (id: string) => {
+    const t = tasks.find((x) => x.id === id);
+    if (!t) return;
+    const label = t.text.trim();
+    if (!label) return;
+    const dumpId = onSendToDump(label);
+    updateTask(id, { dumpTaskId: dumpId });
+  };
+
+  return (
+    <section className="bg-white border border-gray-300 rounded-sm shadow-sm overflow-hidden">
+      <header className="flex items-stretch border-b border-gray-300">
+        <div className="w-10 flex-shrink-0 bg-[#1a4a73] text-white flex items-center justify-center text-lg font-bold font-mono">
+          P
+        </div>
+        <div className="flex-1 px-3 py-2 bg-gray-50">
+          <div className="text-[12px] font-bold uppercase tracking-wider text-gray-800">Plan</div>
+          <div className="text-[10px] text-gray-500 leading-tight mt-0.5">
+            Concrete next steps. Add tasks here and push them into the Dump to schedule later.
+          </div>
+        </div>
+      </header>
+
+      {/* Problem list mirror — passive, so you can see what you're planning against */}
+      {openProblems.length > 0 && (
+        <div className="px-3 py-2 bg-[#fef9e7] border-b border-[#f0e4b8] text-[11px] text-gray-700">
+          <span className="text-[9px] uppercase tracking-wider text-[#1a4a73] font-bold mr-2">Planning against</span>
+          {openProblems.map((p) => (
+            <span
+              key={p.id}
+              className="inline-block mr-1.5 mb-0.5 px-1.5 py-0.5 bg-white border border-gray-300 rounded-sm font-mono"
+            >
+              {p.label || '(unnamed)'}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Task list */}
+      <div className="divide-y divide-gray-100">
+        {tasks.length === 0 ? (
+          <div className="px-3 py-3 text-[12px] text-gray-400 italic">
+            No plan tasks yet. Click <span className="font-semibold not-italic">+ Task</span> to add one — you can push it to the Dump to schedule later.
+          </div>
+        ) : (
+          tasks.map((t) => (
+            <div key={t.id} className="px-3 py-2 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={t.done}
+                onChange={(e) => updateTask(t.id, { done: e.target.checked })}
+                className="w-3.5 h-3.5 accent-[#1a4a73]"
+                title={t.done ? 'Done' : 'Mark done'}
+              />
+              <input
+                type="text"
+                value={t.text}
+                onChange={(e) => updateTask(t.id, { text: e.target.value })}
+                placeholder="What will you do?"
+                className={`flex-1 min-w-0 px-2 py-1 text-[13px] font-mono border border-gray-200 rounded-sm focus:outline-none focus:ring-1 focus:ring-[#1a4a73] focus:border-[#1a4a73] ${
+                  t.done ? 'line-through text-gray-400' : 'text-gray-900'
+                }`}
+              />
+              {t.dumpTaskId ? (
+                <span
+                  className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-green-700 bg-green-50 border border-green-200 rounded-sm"
+                  title="Already pushed to the Dump"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                  In Dump
+                </span>
+              ) : (
+                <button
+                  onClick={() => pushToDump(t.id)}
+                  disabled={!t.text.trim()}
+                  className="flex-shrink-0 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#1a4a73] bg-white border border-[#1a4a73] hover:bg-[#e8eef4] disabled:opacity-30 disabled:cursor-not-allowed rounded-sm transition-colors"
+                  title="Send this task to the Dump so you can schedule it"
+                >
+                  ↗ Send to Dump
+                </button>
+              )}
+              <button
+                onClick={() => removeTask(t.id)}
+                className="flex-shrink-0 text-[14px] leading-none text-gray-300 hover:text-red-500 px-1.5 py-1"
+                title="Delete task"
+              >
+                ×
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
+        <button
+          onClick={addTask}
+          className="text-[11px] font-semibold uppercase tracking-wider text-[#1a4a73] hover:text-[#0f3557] transition-colors"
+        >
+          + Task
+        </button>
+      </div>
+
+      {/* Free-text plan — narrative context */}
+      <div className="border-t border-gray-300">
+        <div className="px-3 py-1.5 bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 font-semibold border-b border-gray-200">
+          Narrative · goals, experiments, things to monitor
+        </div>
+        <textarea
+          value={note.plan}
+          onChange={(e) => onUpdate(note.id, { plan: e.target.value })}
+          rows={5}
+          placeholder="Enter plan narrative…"
+          className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 resize-y focus:outline-none focus:bg-[#fffceb] placeholder:text-gray-300"
+        />
+      </div>
     </section>
   );
 }
