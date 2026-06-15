@@ -37,6 +37,22 @@ export interface BrainDumpState {
   unscheduledTasks: BrainDumpTask[];
 }
 
+export interface Problem {
+  id: string;
+  label: string; // short title, e.g. "Sleep debt", "Q3 launch scope"
+  detail?: string; // optional one-liner of context
+  resolved?: boolean; // checkbox state; doesn't auto-archive, just marks done
+  createdAt: string; // ISO timestamp
+}
+
+export interface PlanTask {
+  id: string;
+  text: string;
+  done: boolean;
+  dumpTaskId?: string; // id of the BrainDumpTask created when user pushed it to the dump
+  createdAt: string; // ISO timestamp
+}
+
 export interface ChartNote {
   id: string;
   date: string; // "YYYY-MM-DD" — encounter date
@@ -45,6 +61,8 @@ export interface ChartNote {
   objective: string;
   assessment: string;
   plan: string;
+  problems?: Problem[]; // optional — older notes may not have this
+  planTasks?: PlanTask[]; // optional — older notes may not have this
   createdAt: string; // ISO timestamp
   updatedAt: string; // ISO timestamp
 }
