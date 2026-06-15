@@ -129,6 +129,25 @@ export interface BooksState {
   books: Book[];
 }
 
+export interface SubTaskTemplate {
+  id: string;
+  label: string;
+  offsetMinutes: number; // minutes from the main-task start; can be negative (cross-midnight earlier)
+}
+
+export interface BlockTemplate {
+  id: string;
+  name: string; // user-facing template name, e.g. "Morning routine"
+  mainTaskLabel: string; // default main-task label applied with the template
+  color?: string; // optional pinned color; falls back to random if absent
+  subTasks: SubTaskTemplate[];
+  createdAt: string; // ISO timestamp
+}
+
+export interface BlockTemplatesState {
+  blockTemplates: BlockTemplate[];
+}
+
 export interface AppState {
   blocks: TaskBlock[];
   brainDump?: BrainDumpState;
@@ -136,6 +155,7 @@ export interface AppState {
   habits?: HabitsState;
   inbox?: InboxState;
   books?: BooksState;
+  templates?: BlockTemplatesState;
 }
 
 export interface RenderedBlock {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { TaskBlock, SubTask, SubStep } from '../types';
+import type { TaskBlock, SubTask, SubStep, BlockTemplate } from '../types';
 import { BLOCK_COLORS_RAW } from '../constants';
 import { formatFullDate, formatTime24to12 } from '../utils/dateHelpers';
 import { parseTaskInput, parseDurationInput, timeToMinutes, minutesToTime } from '../utils/timeParser';
@@ -12,12 +12,22 @@ interface TaskModalProps {
   editingBlock: TaskBlock | null;
   prefillTaskName?: string;
   prefillTime?: string; // "HH:MM" — seeded when the user taps a specific time slot
+  templates: BlockTemplate[];
   onSave: (block: TaskBlock) => void;
+  onSaveTemplate: (input: {
+    name: string;
+    mainTaskLabel: string;
+    color?: string;
+    subTasks: SubTask[];
+    mainTime: string;
+    mainDateKey: string;
+  }) => BlockTemplate;
+  onDeleteTemplate: (id: string) => void;
   onDelete: (id: string) => void;
   onClose: () => void;
 }
 
-export default function TaskModal({ date, editingBlock, prefillTaskName, prefillTime, onSave, onDelete, onClose }: TaskModalProps) {
+export default function TaskModal({ date, editingBlock, prefillTaskName, prefillTime, templates, onSave, onSaveTemplate, onDeleteTemplate, onDelete, onClose }: TaskModalProps) {
   const [mainInput, setMainInput] = useState('');
   const [mainTask, setMainTask] = useState('');
   const [mainTime, setMainTime] = useState('');
@@ -247,6 +257,53 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
     setSubTasks((prev) => [...prev, ...generated]);
   };
 
+  const blockDateKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+
+  // Apply a saved template at the current main time. Replaces the sub-task list
+  // (the user can still tweak before saving). Sub-tasks with negative offsets
+  // that cross midnight backwards get pushed onto the previous day, matching
+  // the existing reschedule / duration-parse logic.
+  const applyTemplate = (tpl: BlockTemplate) => {
+    if (!mainTime) return;
+    if (!mainTask) setMainTask(tpl.mainTaskLabel);
+    const mainMinutes = timeToMinutes(mainTime);
+    const prevDate = new Date(date);
+    prevDate.setDate(prevDate.getDate() - 1);
+    const prevDateKey = `${prevDate.getFullYear()}-${(prevDate.getMonth() + 1).toString().padStart(2, '0')}-${prevDate.getDate().toString().padStart(2, '0')}`;
+
+    const next: SubTask[] = tpl.subTasks.map((s) => {
+      const absMinutes = mainMinutes + s.offsetMinutes;
+      if (absMinutes < 0) {
+        return {
+          id: uuidv4(),
+          time: minutesToTime(absMinutes + 1440),
+          label: s.label,
+          completed: false,
+          date: prevDateKey,
+        };
+      }
+      return {
+        id: uuidv4(),
+        time: minutesToTime(absMinutes % 1440),
+        label: s.label,
+        completed: false,
+      };
+    });
+    setSubTasks(next);
+  };
+
+  const handleSaveAsTemplate = (name: string) => {
+    if (!mainTask || !mainTime) return;
+    onSaveTemplate({
+      name,
+      mainTaskLabel: mainTask,
+      color: editingBlock?.color,
+      subTasks,
+      mainTime,
+      mainDateKey: blockDateKey,
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ height: '100dvh' }}>
       {/* Backdrop */}
@@ -359,15 +416,24 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
           {mainParsed && (
             <>
               <div>
-                <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center justify-between mb-2 gap-2">
                   <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                     Steps to get ready
                   </label>
-                  <AiBreakdownButton
-                    mainTask={mainTask}
-                    mainTime={mainTime}
-                    onSubTasksGenerated={handleAiSubTasks}
-                  />
+                  <div className="flex items-center gap-1.5">
+                    <TemplatesPicker
+                      templates={templates}
+                      canSave={subTasks.length > 0 && !!mainTask && !!mainTime}
+                      onApply={applyTemplate}
+                      onSaveCurrent={handleSaveAsTemplate}
+                      onDelete={onDeleteTemplate}
+                    />
+                    <AiBreakdownButton
+                      mainTask={mainTask}
+                      mainTime={mainTime}
+                      onSubTasksGenerated={handleAiSubTasks}
+                    />
+                  </div>
                 </div>
 
                 {/* Sub-task list */}
@@ -537,6 +603,124 @@ function StepsEditor({
         >
           Cancel
         </button>
+      )}
+    </div>
+  );
+}
+
+// Saved-templates picker. Sits next to the AI breakdown button. Opens a popover
+// listing saved templates (tap to apply, replacing the current sub-task list)
+// plus an inline "Save current as template" row when the user has a draft worth
+// saving. Templates store offsets from main-time so applying them at any time
+// stamps the right sub-task times.
+function TemplatesPicker({
+  templates,
+  canSave,
+  onApply,
+  onSaveCurrent,
+  onDelete,
+}: {
+  templates: BlockTemplate[];
+  canSave: boolean;
+  onApply: (tpl: BlockTemplate) => void;
+  onSaveCurrent: (name: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const popRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (popRef.current && !popRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [open]);
+
+  const submitSave = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    onSaveCurrent(trimmed);
+    setName('');
+    setOpen(false);
+  };
+
+  const hasAny = templates.length > 0;
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 hover:text-indigo-700 px-2 py-1 rounded-md border border-indigo-200 hover:bg-indigo-50 transition-colors"
+        title="Saved templates: apply one or save the current sub-tasks for reuse"
+      >
+        Templates ▾
+      </button>
+      {open && (
+        <div
+          ref={popRef}
+          className="absolute right-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-xl shadow-lg z-40 overflow-hidden"
+        >
+          <div className="px-3 py-2 border-b border-gray-100 bg-gray-50 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+            {hasAny ? 'Apply a template' : 'No saved templates yet'}
+          </div>
+          {hasAny && (
+            <ul className="max-h-48 overflow-y-auto divide-y divide-gray-100">
+              {templates.map((t) => (
+                <li key={t.id} className="flex items-center gap-1 px-2 py-1.5 hover:bg-indigo-50 group">
+                  <button
+                    onClick={() => { onApply(t); setOpen(false); }}
+                    className="flex-1 text-left min-w-0"
+                  >
+                    <div className="text-[12px] font-medium text-gray-900 truncate">{t.name}</div>
+                    <div className="text-[10px] text-gray-500 truncate">
+                      {t.subTasks.length} step{t.subTasks.length === 1 ? '' : 's'} · default: {t.mainTaskLabel}
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Delete template "${t.name}"?`)) onDelete(t.id);
+                    }}
+                    className="text-gray-300 hover:text-red-500 text-base leading-none px-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Delete template"
+                  >
+                    &times;
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="px-3 py-2 border-t border-gray-100 bg-gray-50">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">
+              Save current as template
+            </div>
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && canSave && submitSave()}
+                placeholder='e.g. "Morning routine"'
+                disabled={!canSave}
+                className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-gray-100 disabled:text-gray-400"
+              />
+              <button
+                onClick={submitSave}
+                disabled={!canSave || !name.trim()}
+                className="text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed rounded-md px-2 py-1"
+              >
+                Save
+              </button>
+            </div>
+            {!canSave && (
+              <p className="text-[10px] text-gray-400 mt-1">
+                Add a main task, time, and at least one step first.
+              </p>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

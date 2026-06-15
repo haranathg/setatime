@@ -49,6 +49,7 @@ export function useAppState() {
               habits: cloud.habits ?? local.habits,
               inbox: cloud.inbox ?? local.inbox,
               books: cloud.books ?? local.books,
+              templates: cloud.templates ?? local.templates,
             });
           }
           setSyncError(null);
@@ -110,6 +111,7 @@ export function useAppState() {
           habits: cloud.habits ?? current.habits,
           inbox: cloud.inbox ?? current.inbox,
           books: cloud.books ?? current.books,
+          templates: cloud.templates ?? current.templates,
         });
       }
       setSyncError(null);
