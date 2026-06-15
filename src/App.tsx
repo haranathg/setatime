@@ -11,6 +11,7 @@ import InboxView from './components/InboxView';
 import TodayView from './components/TodayView';
 import { useAppState } from './hooks/useAppState';
 import { useBooks } from './hooks/useBooks';
+import { useBlockTemplates } from './hooks/useBlockTemplates';
 import { useBrainDump } from './hooks/useBrainDump';
 import { useChartNotes } from './hooks/useChartNotes';
 import { useHabits } from './hooks/useHabits';
@@ -120,6 +121,7 @@ function AppMain({
   } = useBrainDump();
 
   const stats = useStats(blocks);
+  const { templates: blockTemplates, saveTemplate: saveBlockTemplate, deleteTemplate: deleteBlockTemplate } = useBlockTemplates();
   const { notes: chartNotes, createNote: createChartNote, updateNote: updateChartNote, deleteNote: deleteChartNote } = useChartNotes();
   const {
     habits,
@@ -203,6 +205,9 @@ function AppMain({
               onUpdateBlock={updateBlock}
               onDeleteBlock={deleteBlock}
               onToggleSubTask={toggleSubTask}
+              templates={blockTemplates}
+              onSaveTemplate={saveBlockTemplate}
+              onDeleteTemplate={deleteBlockTemplate}
               schedulingTask={schedulingTask}
               onScheduleComplete={handleScheduleComplete}
             />

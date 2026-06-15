@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import type { TaskBlock, BrainDumpTask } from '../types';
+import type { TaskBlock, BrainDumpTask, BlockTemplate, SubTask } from '../types';
 import { HOURS, HOUR_HEIGHT_PX, DEFAULT_SCROLL_HOUR, START_HOUR } from '../constants';
 import { getWeekDays, getWeekRangeLabel, formatDayHeader, isToday } from '../utils/dateHelpers';
 import DayColumn from './DayColumn';
@@ -14,6 +14,16 @@ interface WeeklyCalendarProps {
   onUpdateBlock: (block: TaskBlock) => void;
   onDeleteBlock: (id: string) => void;
   onToggleSubTask: (blockId: string, subTaskId: string) => void;
+  templates: BlockTemplate[];
+  onSaveTemplate: (input: {
+    name: string;
+    mainTaskLabel: string;
+    color?: string;
+    subTasks: SubTask[];
+    mainTime: string;
+    mainDateKey: string;
+  }) => BlockTemplate;
+  onDeleteTemplate: (id: string) => void;
   schedulingTask?: BrainDumpTask | null;
   onScheduleComplete?: () => void;
 }
@@ -27,6 +37,9 @@ export default function WeeklyCalendar({
   onUpdateBlock,
   onDeleteBlock,
   onToggleSubTask,
+  templates,
+  onSaveTemplate,
+  onDeleteTemplate,
   schedulingTask,
   onScheduleComplete,
 }: WeeklyCalendarProps) {
@@ -225,7 +238,10 @@ export default function WeeklyCalendar({
           editingBlock={editingBlock}
           prefillTaskName={schedulingTask?.label}
           prefillTime={modalPrefillTime}
+          templates={templates}
           onSave={handleSave}
+          onSaveTemplate={onSaveTemplate}
+          onDeleteTemplate={onDeleteTemplate}
           onDelete={onDeleteBlock}
           onClose={() => { setModalDate(null); setEditingBlock(null); setModalPrefillTime(undefined); }}
         />
