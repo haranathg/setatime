@@ -283,10 +283,17 @@ function NoteEditor({
             <div className="px-2 py-1 text-[12px] text-gray-700 font-mono bg-gray-50 border border-gray-200 rounded-sm">SELF, MD-IN-TRAINING</div>
           </FieldRow>
           <FieldRow label="Status">
-            <div className="px-2 py-1 text-[12px] text-green-700 font-semibold bg-green-50 border border-green-200 rounded-sm flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              Auto-saved · {formatTime(note.updatedAt)}
-            </div>
+            {note.signedAt ? (
+              <div className="px-2 py-1 text-[12px] text-green-700 font-semibold bg-green-50 border border-green-200 rounded-sm flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                Signed · {formatTime(note.signedAt)}
+              </div>
+            ) : (
+              <div className="px-2 py-1 text-[12px] text-amber-700 font-semibold bg-amber-50 border border-amber-200 rounded-sm flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                Draft · auto-saved
+              </div>
+            )}
           </FieldRow>
         </div>
       </div>
@@ -322,15 +329,7 @@ function NoteEditor({
       <PlanSection note={note} onUpdate={onUpdate} onSendToDump={onSendPlanTaskToDump} />
 
       {/* Signature block */}
-      <div className="bg-white border border-gray-300 rounded-sm shadow-sm px-4 py-3 flex items-center justify-between text-[11px]">
-        <div className="font-mono text-gray-700">
-          <span className="text-gray-400 uppercase tracking-wider text-[9px] mr-2">Signed by</span>
-          /s/ Self · {formatLongDate(note.date)}
-        </div>
-        <div className="text-gray-400 text-[10px] font-mono">
-          Created {formatTime(note.createdAt)} · Modified {formatTime(note.updatedAt)}
-        </div>
-      </div>
+      <SignatureBlock note={note} onUpdate={onUpdate} />
     </div>
   );
 }
@@ -378,6 +377,87 @@ function SoapSection({
         className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 resize-y focus:outline-none focus:bg-[#fffceb] placeholder:text-gray-300"
       />
     </section>
+  );
+}
+
+// ---------- Signature block ----------
+
+function formatSignedStamp(iso: string): string {
+  const d = new Date(iso);
+  const datePart = d.toLocaleDateString(undefined, {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+  const timePart = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return `${datePart} · ${timePart}`;
+}
+
+function SignatureBlock({
+  note,
+  onUpdate,
+}: {
+  note: ChartNote;
+  onUpdate: (id: string, updates: Partial<Omit<ChartNote, 'id' | 'createdAt'>>) => void;
+}) {
+  const sign = () => onUpdate(note.id, { signedAt: new Date().toISOString() });
+  const unsign = () => {
+    if (!confirm('Unsign this note? You can re-sign after editing.')) return;
+    onUpdate(note.id, { signedAt: undefined });
+  };
+
+  if (note.signedAt) {
+    return (
+      <div className="bg-white border border-green-300 rounded-sm shadow-sm overflow-hidden">
+        <div className="px-3 py-1.5 bg-green-50 border-b border-green-200 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-green-800">
+            <span className="w-2 h-2 rounded-full bg-green-500" />
+            Signed
+          </div>
+          <button
+            onClick={unsign}
+            className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 hover:text-red-600 transition-colors"
+            title="Clear the signature so you can re-sign after editing"
+          >
+            Unsign
+          </button>
+        </div>
+        <div className="px-4 py-3 flex items-center justify-between text-[11px]">
+          <div className="font-mono text-gray-800">
+            <span className="text-gray-400 uppercase tracking-wider text-[9px] mr-2">Signed by</span>
+            /s/ Self · {formatSignedStamp(note.signedAt)}
+          </div>
+          <div className="text-gray-400 text-[10px] font-mono">
+            Created {formatTime(note.createdAt)} · Modified {formatTime(note.updatedAt)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-amber-300 rounded-sm shadow-sm overflow-hidden">
+      <div className="px-3 py-1.5 bg-amber-50 border-b border-amber-200 flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-amber-800">
+        <span className="w-2 h-2 rounded-full bg-amber-500" />
+        Draft · not yet signed
+      </div>
+      <div className="px-4 py-3 flex items-center justify-between gap-3 text-[11px]">
+        <div className="font-mono text-gray-500 italic">
+          Sign off when you're done reflecting. The timestamp records exactly when you closed this encounter.
+        </div>
+        <button
+          onClick={sign}
+          className="flex-shrink-0 px-4 py-2 text-[12px] font-semibold uppercase tracking-wider text-white bg-[#1a4a73] hover:bg-[#0f3557] rounded-sm transition-colors"
+          title="Stamp this note as signed at the current date and time"
+        >
+          ✓ Sign Note
+        </button>
+      </div>
+      <div className="px-4 py-2 border-t border-gray-100 text-[10px] text-gray-400 font-mono">
+        Created {formatTime(note.createdAt)} · Modified {formatTime(note.updatedAt)}
+      </div>
+    </div>
   );
 }
 
