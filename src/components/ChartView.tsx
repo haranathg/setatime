@@ -7,6 +7,7 @@ interface ChartViewProps {
   onCreateNote: (encounterType?: ChartNote['encounterType']) => ChartNote;
   onUpdateNote: (id: string, updates: Partial<Omit<ChartNote, 'id' | 'createdAt'>>) => void;
   onDeleteNote: (id: string) => void;
+  onCopyForward: () => ChartNote | null;
   onSendPlanTaskToDump: (label: string) => string;
 }
 
@@ -36,7 +37,7 @@ function previewText(s: string, max = 80): string {
   return trimmed.slice(0, max - 1) + '…';
 }
 
-export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteNote, onSendPlanTaskToDump }: ChartViewProps) {
+export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteNote, onCopyForward, onSendPlanTaskToDump }: ChartViewProps) {
   const sortedNotes = useMemo(
     () => [...notes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [notes]
@@ -60,6 +61,13 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
     setSelectedId(note.id);
   };
 
+  const handleCopyForward = () => {
+    const note = onCopyForward();
+    if (note) setSelectedId(note.id);
+  };
+
+  const hasPrior = notes.length > 0;
+
   const handleDelete = (id: string) => {
     if (!confirm('Delete this note? This cannot be undone.')) return;
     onDeleteNote(id);
@@ -77,18 +85,28 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
             <span>Chart Review · Encounters</span>
             <span className="text-[10px] font-normal text-gray-300">{notes.length}</span>
           </div>
-          <div className="px-2 py-2 border-b border-gray-200 flex gap-1">
+          <div className="px-2 py-2 border-b border-gray-200 space-y-1">
+            <div className="flex gap-1">
+              <button
+                onClick={() => handleNew('daily')}
+                className="flex-1 px-2 py-1.5 text-[11px] font-semibold text-white bg-[#1a4a73] hover:bg-[#0f3557] rounded-sm transition-colors"
+              >
+                + Daily
+              </button>
+              <button
+                onClick={() => handleNew('weekly')}
+                className="flex-1 px-2 py-1.5 text-[11px] font-semibold text-[#1a4a73] bg-white border border-[#1a4a73] hover:bg-[#e8eef4] rounded-sm transition-colors"
+              >
+                + Weekly
+              </button>
+            </div>
             <button
-              onClick={() => handleNew('daily')}
-              className="flex-1 px-2 py-1.5 text-[11px] font-semibold text-white bg-[#1a4a73] hover:bg-[#0f3557] rounded-sm transition-colors"
+              onClick={handleCopyForward}
+              disabled={!hasPrior}
+              className="w-full px-2 py-1.5 text-[11px] font-semibold text-[#d4a017] bg-white border border-[#d4a017] hover:bg-[#fef9e7] disabled:opacity-40 disabled:cursor-not-allowed rounded-sm transition-colors"
+              title={hasPrior ? 'Start a new note pre-filled with open problems and incomplete plan tasks from the most recent encounter' : 'Need a prior encounter to copy forward from'}
             >
-              + Daily
-            </button>
-            <button
-              onClick={() => handleNew('weekly')}
-              className="flex-1 px-2 py-1.5 text-[11px] font-semibold text-[#1a4a73] bg-white border border-[#1a4a73] hover:bg-[#e8eef4] rounded-sm transition-colors"
-            >
-              + Weekly
+              ↻ Copy forward
             </button>
           </div>
 
