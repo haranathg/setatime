@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { ChartNote } from '../types';
+import type { ChartNote, Problem, PlanTask } from '../types';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
 
@@ -85,5 +85,47 @@ export function useChartNotes() {
     setNotes((prev) => prev.filter((n) => n.id !== id));
   }, []);
 
-  return { notes, loaded, createNote, updateNote, deleteNote };
+  // Create a new note seeded from the most recent prior note — a check-in
+  // template. Carries forward unresolved problems and incomplete plan tasks
+  // (fresh ids, dumpTaskId cleared). Narrative fields stay empty so the user
+  // writes today's Subjective/Objective/Assessment/Plan fresh.
+  const copyForwardFromLatest = useCallback((): ChartNote | null => {
+    const latest = [...notes].sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    if (!latest) return null;
+    const now = new Date();
+    const carriedProblems: Problem[] = (latest.problems || [])
+      .filter((p) => !p.resolved)
+      .map((p) => ({
+        id: uuidv4(),
+        label: p.label,
+        detail: p.detail,
+        resolved: false,
+        createdAt: now.toISOString(),
+      }));
+    const carriedTasks: PlanTask[] = (latest.planTasks || [])
+      .filter((t) => !t.done)
+      .map((t) => ({
+        id: uuidv4(),
+        text: t.text,
+        done: false,
+        createdAt: now.toISOString(),
+      }));
+    const note: ChartNote = {
+      id: uuidv4(),
+      date: now.toISOString().slice(0, 10),
+      encounterType: latest.encounterType,
+      subjective: '',
+      objective: '',
+      assessment: '',
+      plan: '',
+      problems: carriedProblems.length > 0 ? carriedProblems : undefined,
+      planTasks: carriedTasks.length > 0 ? carriedTasks : undefined,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+    setNotes((prev) => [note, ...prev]);
+    return note;
+  }, [notes]);
+
+  return { notes, loaded, createNote, updateNote, deleteNote, copyForwardFromLatest };
 }

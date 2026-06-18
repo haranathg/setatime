@@ -122,7 +122,7 @@ function AppMain({
 
   const stats = useStats(blocks);
   const { templates: blockTemplates, saveTemplate: saveBlockTemplate, deleteTemplate: deleteBlockTemplate } = useBlockTemplates();
-  const { notes: chartNotes, createNote: createChartNote, updateNote: updateChartNote, deleteNote: deleteChartNote } = useChartNotes();
+  const { notes: chartNotes, createNote: createChartNote, updateNote: updateChartNote, deleteNote: deleteChartNote, copyForwardFromLatest: copyForwardChartNote } = useChartNotes();
   const {
     habits,
     createHabit,
@@ -244,6 +244,7 @@ function AppMain({
           onCreateNote={createChartNote}
           onUpdateNote={updateChartNote}
           onDeleteNote={deleteChartNote}
+          onCopyForward={copyForwardChartNote}
           onSendPlanTaskToDump={addManualTask}
         />
       ) : activeView === 'habits' ? (
