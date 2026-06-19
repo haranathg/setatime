@@ -114,10 +114,13 @@ export function useChartNotes() {
       id: uuidv4(),
       date: now.toISOString().slice(0, 10),
       encounterType: latest.encounterType,
-      subjective: '',
-      objective: '',
-      assessment: '',
-      plan: '',
+      // Carry the four narrative fields forward as a baseline you edit
+      // instead of staring at blank boxes. Tags inside the text get picked
+      // up by the activity logger like any other typed tag.
+      subjective: latest.subjective,
+      objective: latest.objective,
+      assessment: latest.assessment,
+      plan: latest.plan,
       problems: carriedProblems.length > 0 ? carriedProblems : undefined,
       planTasks: carriedTasks.length > 0 ? carriedTasks : undefined,
       createdAt: now.toISOString(),

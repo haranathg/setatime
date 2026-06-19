@@ -148,6 +148,25 @@ export interface BlockTemplatesState {
   blockTemplates: BlockTemplate[];
 }
 
+export type ChartSection = 'subjective' | 'objective' | 'assessment' | 'plan';
+
+// One row per (noteId, section, name). `count` reflects the number of "+name"
+// occurrences in that section's current text. Edited live as the note changes.
+export interface ActivityLogEntry {
+  id: string;
+  name: string; // lowercase tag, e.g. "water", "meditate"
+  noteId: string;
+  section: ChartSection;
+  noteDate: string; // "YYYY-MM-DD" copied from the source note's date
+  count: number;
+  firstLoggedAt: string; // ISO — when this entry first came into being
+  updatedAt: string; // ISO — last reconciliation
+}
+
+export interface ActivitiesState {
+  log: ActivityLogEntry[];
+}
+
 export interface AppState {
   blocks: TaskBlock[];
   brainDump?: BrainDumpState;
@@ -156,6 +175,7 @@ export interface AppState {
   inbox?: InboxState;
   books?: BooksState;
   templates?: BlockTemplatesState;
+  activities?: ActivitiesState;
 }
 
 export interface RenderedBlock {
