@@ -167,6 +167,21 @@ export interface ActivitiesState {
   log: ActivityLogEntry[];
 }
 
+// "Don't forget" pin shown at the top of TodayView. Daily-reset: a pin is
+// considered "checked for today" when `lastCheckedAt`'s local date matches
+// today's date. The next morning it visually unchecks itself without losing
+// history.
+export interface Pin {
+  id: string;
+  label: string;
+  createdAt: string; // ISO timestamp
+  lastCheckedAt?: string; // ISO; presence + date determine today's checked state
+}
+
+export interface PinsState {
+  pins: Pin[];
+}
+
 export interface AppState {
   blocks: TaskBlock[];
   brainDump?: BrainDumpState;
@@ -176,6 +191,7 @@ export interface AppState {
   books?: BooksState;
   templates?: BlockTemplatesState;
   activities?: ActivitiesState;
+  pins?: PinsState;
 }
 
 export interface RenderedBlock {

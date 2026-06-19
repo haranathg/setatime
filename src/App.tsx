@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Header from './components/Header';
+import NowNextBar from './components/NowNextBar';
 import WeeklyCalendar from './components/WeeklyCalendar';
 import StatsView from './components/StatsView';
 import BrainDumpSidebar from './components/BrainDumpSidebar';
@@ -17,6 +18,7 @@ import { useBrainDump } from './hooks/useBrainDump';
 import { useChartNotes } from './hooks/useChartNotes';
 import { useHabits } from './hooks/useHabits';
 import { useInbox } from './hooks/useInbox';
+import { usePins } from './hooks/usePins';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -70,7 +72,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today'>('calendar');
+  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today'>('today');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -125,6 +127,7 @@ function AppMain({
   const { templates: blockTemplates, saveTemplate: saveBlockTemplate, deleteTemplate: deleteBlockTemplate } = useBlockTemplates();
   const { notes: chartNotes, createNote: createChartNote, updateNote: updateChartNote, deleteNote: deleteChartNote, copyForwardFromLatest: copyForwardChartNote } = useChartNotes();
   const { log: activityLog, syncNote: syncNoteActivities, dropForNote: dropNoteActivities } = useActivities();
+  const { pins, addPin, togglePin, editPin, removePin } = usePins();
   const {
     habits,
     createHabit,
@@ -194,6 +197,8 @@ function AppMain({
         inboxTriageCount={inboxTriageCount}
         blockCount={blocks.length}
       />
+
+      <NowNextBar blocks={blocks} onJumpToToday={() => setActiveView('today')} />
 
       {activeView === 'calendar' ? (
         <div className="flex-1 flex overflow-hidden">
@@ -287,6 +292,11 @@ function AppMain({
           onToggleSubTask={toggleSubTask}
           onToggleSubStep={toggleSubStep}
           onSwitchToCalendar={() => setActiveView('calendar')}
+          pins={pins}
+          onAddPin={addPin}
+          onTogglePin={togglePin}
+          onEditPin={editPin}
+          onRemovePin={removePin}
         />
       ) : (
         <StatsView stats={stats} />

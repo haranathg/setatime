@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { TaskBlock, SubTask, SubStep } from '../types';
+import type { TaskBlock, SubTask, SubStep, Pin } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
+import { isCheckedToday } from '../hooks/usePins';
 
 interface TodayViewProps {
   todaysBlocks: TaskBlock[];
   onToggleSubTask: (blockId: string, subTaskId: string) => void;
   onToggleSubStep: (blockId: string, subTaskId: string, stepId: string) => void;
   onSwitchToCalendar: () => void;
+  pins: Pin[];
+  onAddPin: (label: string) => void;
+  onTogglePin: (id: string) => void;
+  onEditPin: (id: string, label: string) => void;
+  onRemovePin: (id: string) => void;
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -32,7 +38,7 @@ interface BlockState {
   doneCount: number;
 }
 
-export default function TodayView({ todaysBlocks, onToggleSubTask, onToggleSubStep, onSwitchToCalendar }: TodayViewProps) {
+export default function TodayView({ todaysBlocks, onToggleSubTask, onToggleSubStep, onSwitchToCalendar, pins, onAddPin, onTogglePin, onEditPin, onRemovePin }: TodayViewProps) {
   // Re-render every minute so 'current' / 'past' / 'upcoming' stays accurate.
   // The tick state value isn't read; setTick just forces a re-render.
   const [, setTick] = useState(0);
@@ -91,8 +97,15 @@ export default function TodayView({ todaysBlocks, onToggleSubTask, onToggleSubSt
   if (states.length === 0) {
     return (
       <div className="flex-1 overflow-y-auto bg-gray-50">
-        <div className="max-w-2xl mx-auto px-4 py-8">
+        <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
           <Header today={today} doneSubTasks={0} totalSubTasks={0} />
+          <PinsStrip
+            pins={pins}
+            onAddPin={onAddPin}
+            onTogglePin={onTogglePin}
+            onEditPin={onEditPin}
+            onRemovePin={onRemovePin}
+          />
           <div className="mt-8 text-center py-16 px-4 border-2 border-dashed border-gray-200 rounded-2xl bg-white">
             <p className="text-base font-semibold text-gray-700">Nothing scheduled for today</p>
             <p className="text-sm text-gray-500 mt-2 mb-4">Add a block in the calendar to start tracking your progress here.</p>
@@ -112,6 +125,14 @@ export default function TodayView({ todaysBlocks, onToggleSubTask, onToggleSubSt
     <div className="flex-1 overflow-y-auto bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
         <Header today={today} doneSubTasks={doneSubTasks} totalSubTasks={totalSubTasks} />
+
+        <PinsStrip
+          pins={pins}
+          onAddPin={onAddPin}
+          onTogglePin={onTogglePin}
+          onEditPin={onEditPin}
+          onRemovePin={onRemovePin}
+        />
 
         {/* Now pin */}
         {current ? (
@@ -431,5 +452,136 @@ function UpNextCard({ state, now }: { state: BlockState; now: number }) {
         </p>
       )}
     </div>
+  );
+}
+
+// "Don't forget" pinned strip. Friction-free todos with daily reset — a sticky
+// note on the fridge. Checked state is derived from `lastCheckedAt`'s local
+// date matching today's, so unchecked items resurface every morning without
+// the user touching anything.
+function PinsStrip({
+  pins,
+  onAddPin,
+  onTogglePin,
+  onEditPin,
+  onRemovePin,
+}: {
+  pins: Pin[];
+  onAddPin: (label: string) => void;
+  onTogglePin: (id: string) => void;
+  onEditPin: (id: string, label: string) => void;
+  onRemovePin: (id: string) => void;
+}) {
+  const [draft, setDraft] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+
+  const submit = () => {
+    const t = draft.trim();
+    if (!t) return;
+    onAddPin(t);
+    setDraft('');
+  };
+
+  const startEdit = (p: Pin) => {
+    setEditingId(p.id);
+    setEditDraft(p.label);
+  };
+
+  const commitEdit = () => {
+    if (editingId) {
+      const t = editDraft.trim();
+      if (t) onEditPin(editingId, t);
+    }
+    setEditingId(null);
+    setEditDraft('');
+  };
+
+  const total = pins.length;
+  const doneCount = pins.filter((p) => isCheckedToday(p)).length;
+
+  return (
+    <section className="bg-white border-2 border-amber-300 rounded-2xl shadow-sm overflow-hidden">
+      <header className="px-4 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-base">📌</span>
+          <h3 className="text-[13px] font-semibold text-amber-900">Don't forget</h3>
+        </div>
+        <span className="text-[10px] uppercase tracking-wider font-bold text-amber-700">
+          {total === 0 ? 'Pin friction-free todos' : `${doneCount}/${total} today`}
+        </span>
+      </header>
+      {pins.length > 0 && (
+        <ul className="divide-y divide-amber-100">
+          {pins.map((p) => {
+            const checked = isCheckedToday(p);
+            return (
+              <li key={p.id} className="flex items-center gap-2 px-3 py-1.5">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onTogglePin(p.id)}
+                  className="w-4 h-4 accent-amber-500 flex-shrink-0"
+                  title={checked ? 'Done for today — uncheck to undo' : 'Mark done for today'}
+                />
+                {editingId === p.id ? (
+                  <input
+                    type="text"
+                    autoFocus
+                    value={editDraft}
+                    onChange={(e) => setEditDraft(e.target.value)}
+                    onBlur={commitEdit}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitEdit();
+                      if (e.key === 'Escape') { setEditingId(null); setEditDraft(''); }
+                    }}
+                    className="flex-1 min-w-0 px-2 py-0.5 text-sm border border-amber-300 rounded-md focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                ) : (
+                  <button
+                    onClick={() => startEdit(p)}
+                    className={`flex-1 min-w-0 text-left text-sm truncate ${
+                      checked ? 'line-through text-gray-400' : 'text-gray-900'
+                    }`}
+                    title="Click to edit"
+                  >
+                    {p.label}
+                  </button>
+                )}
+                <button
+                  onClick={() => onRemovePin(p.id)}
+                  className="flex-shrink-0 text-gray-300 hover:text-red-500 text-base leading-none px-1"
+                  title="Remove pin"
+                >
+                  &times;
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <div className="px-3 py-2 border-t border-amber-100 bg-amber-50/40 flex items-center gap-2">
+        <input
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          placeholder='e.g. "take vitamins", "reply to mom"'
+          className="flex-1 min-w-0 px-2 py-1 text-sm border border-amber-200 rounded-md focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-amber-400"
+        />
+        <button
+          onClick={submit}
+          disabled={!draft.trim()}
+          className="px-3 py-1 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 disabled:bg-amber-200 disabled:cursor-not-allowed rounded-md transition-colors"
+        >
+          Pin
+        </button>
+      </div>
+      {pins.length === 0 && (
+        <div className="px-4 pb-3 text-[11px] text-amber-700 leading-snug">
+          Friction-free todos that just need to be in sight: vitamins, refills, the email you keep forgetting. Resets every morning so you see them again.
+        </div>
+      )}
+    </section>
   );
 }

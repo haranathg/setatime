@@ -51,6 +51,7 @@ export function useAppState() {
               books: cloud.books ?? local.books,
               templates: cloud.templates ?? local.templates,
               activities: cloud.activities ?? local.activities,
+              pins: cloud.pins ?? local.pins,
             });
           }
           setSyncError(null);
@@ -114,6 +115,7 @@ export function useAppState() {
           books: cloud.books ?? current.books,
           templates: cloud.templates ?? current.templates,
           activities: cloud.activities ?? current.activities,
+          pins: cloud.pins ?? current.pins,
         });
       }
       setSyncError(null);
