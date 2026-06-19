@@ -50,6 +50,7 @@ export function useAppState() {
               inbox: cloud.inbox ?? local.inbox,
               books: cloud.books ?? local.books,
               templates: cloud.templates ?? local.templates,
+              activities: cloud.activities ?? local.activities,
             });
           }
           setSyncError(null);
@@ -112,6 +113,7 @@ export function useAppState() {
           inbox: cloud.inbox ?? current.inbox,
           books: cloud.books ?? current.books,
           templates: cloud.templates ?? current.templates,
+          activities: cloud.activities ?? current.activities,
         });
       }
       setSyncError(null);

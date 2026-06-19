@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { ChartNote, Problem, PlanTask } from '../types';
+import type { ChartNote, Problem, PlanTask, ActivityLogEntry, ChartSection } from '../types';
+import { extractActivityTags, countTags } from '../hooks/useActivities';
 
 interface ChartViewProps {
   notes: ChartNote[];
@@ -9,6 +10,9 @@ interface ChartViewProps {
   onDeleteNote: (id: string) => void;
   onCopyForward: () => ChartNote | null;
   onSendPlanTaskToDump: (label: string) => string;
+  activityLog: ActivityLogEntry[];
+  onSyncNoteActivities: (noteId: string, noteDate: string, sections: Record<ChartSection, string>) => void;
+  onDropNoteActivities: (noteId: string) => void;
 }
 
 const ENCOUNTER_LABELS: Record<ChartNote['encounterType'], string> = {
@@ -37,7 +41,7 @@ function previewText(s: string, max = 80): string {
   return trimmed.slice(0, max - 1) + '…';
 }
 
-export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteNote, onCopyForward, onSendPlanTaskToDump }: ChartViewProps) {
+export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteNote, onCopyForward, onSendPlanTaskToDump, activityLog, onSyncNoteActivities, onDropNoteActivities }: ChartViewProps) {
   const sortedNotes = useMemo(
     () => [...notes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [notes]
@@ -71,6 +75,7 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
   const handleDelete = (id: string) => {
     if (!confirm('Delete this note? This cannot be undone.')) return;
     onDeleteNote(id);
+    onDropNoteActivities(id);
   };
 
   return (
@@ -147,6 +152,9 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
               </ul>
             )}
           </div>
+
+          {/* Activity log roll-up: totals across every note, opens a per-tag history */}
+          <ActivityLogPanel log={activityLog} notes={notes} />
         </aside>
 
         {/* Main note workspace */}
@@ -158,6 +166,7 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
               onUpdate={onUpdateNote}
               onDelete={() => handleDelete(selected.id)}
               onSendPlanTaskToDump={onSendPlanTaskToDump}
+              onSyncActivities={onSyncNoteActivities}
             />
           ) : (
             <div className="h-full flex items-center justify-center">
@@ -254,12 +263,26 @@ function NoteEditor({
   onUpdate,
   onDelete,
   onSendPlanTaskToDump,
+  onSyncActivities,
 }: {
   note: ChartNote;
   onUpdate: (id: string, updates: Partial<Omit<ChartNote, 'id' | 'createdAt'>>) => void;
   onDelete: () => void;
   onSendPlanTaskToDump: (label: string) => string;
+  onSyncActivities: (noteId: string, noteDate: string, sections: Record<ChartSection, string>) => void;
 }) {
+  // Reconcile the activity log against the note's current text whenever any
+  // of the four narrative fields change. The hook itself dedupes — no entry
+  // moves unless its count actually changed.
+  useEffect(() => {
+    onSyncActivities(note.id, note.date, {
+      subjective: note.subjective,
+      objective: note.objective,
+      assessment: note.assessment,
+      plan: note.plan,
+    });
+  }, [note.id, note.date, note.subjective, note.objective, note.assessment, note.plan, onSyncActivities]);
+
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-3">
       {/* Note header */}
@@ -376,6 +399,8 @@ function SoapSection({
   onChange: (v: string) => void;
   rows: number;
 }) {
+  // Derived live from the text so the chips track every keystroke.
+  const tagCounts = useMemo(() => countTags(extractActivityTags(value)), [value]);
   return (
     <section className="bg-white border border-gray-300 rounded-sm shadow-sm overflow-hidden">
       <header className="flex items-stretch border-b border-gray-300">
@@ -387,11 +412,31 @@ function SoapSection({
           <div className="text-[10px] text-gray-500 leading-tight mt-0.5">{hint}</div>
         </div>
       </header>
+      {tagCounts.size > 0 && (
+        <div className="px-3 py-1.5 bg-emerald-50 border-b border-emerald-100 flex flex-wrap items-center gap-1.5">
+          <span className="text-[9px] uppercase tracking-wider font-bold text-emerald-700 mr-1">Logged</span>
+          {[...tagCounts.entries()]
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+            .map(([name, count]) => (
+              <span
+                key={name}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-mono text-emerald-800 bg-white border border-emerald-200 rounded-sm"
+              >
+                +{name}
+                {count > 1 && (
+                  <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-100 px-1 rounded-sm">
+                    ×{count}
+                  </span>
+                )}
+              </span>
+            ))}
+        </div>
+      )}
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
-        placeholder={`Enter ${label.toLowerCase()}…`}
+        placeholder={`Enter ${label.toLowerCase()}… (tip: type +water, +coffee, etc. to log activities)`}
         className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 resize-y focus:outline-none focus:bg-[#fffceb] placeholder:text-gray-300"
       />
     </section>
@@ -722,14 +767,185 @@ function PlanSection({
         <div className="px-3 py-1.5 bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 font-semibold border-b border-gray-200">
           Narrative · goals, experiments, things to monitor
         </div>
-        <textarea
-          value={note.plan}
-          onChange={(e) => onUpdate(note.id, { plan: e.target.value })}
-          rows={5}
-          placeholder="Enter plan narrative…"
-          className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 resize-y focus:outline-none focus:bg-[#fffceb] placeholder:text-gray-300"
-        />
+        <PlanNarrativeTextarea value={note.plan} onChange={(v) => onUpdate(note.id, { plan: v })} />
       </div>
     </section>
+  );
+}
+
+// Plan narrative textarea with the same +tag chip strip as the SoapSection textareas.
+function PlanNarrativeTextarea({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const tagCounts = useMemo(() => countTags(extractActivityTags(value)), [value]);
+  return (
+    <>
+      {tagCounts.size > 0 && (
+        <div className="px-3 py-1.5 bg-emerald-50 border-b border-emerald-100 flex flex-wrap items-center gap-1.5">
+          <span className="text-[9px] uppercase tracking-wider font-bold text-emerald-700 mr-1">Logged</span>
+          {[...tagCounts.entries()]
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+            .map(([name, count]) => (
+              <span
+                key={name}
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-mono text-emerald-800 bg-white border border-emerald-200 rounded-sm"
+              >
+                +{name}
+                {count > 1 && (
+                  <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-100 px-1 rounded-sm">
+                    ×{count}
+                  </span>
+                )}
+              </span>
+            ))}
+        </div>
+      )}
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={5}
+        placeholder="Enter plan narrative… (tip: type +water, +coffee, etc. to log activities)"
+        className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 resize-y focus:outline-none focus:bg-[#fffceb] placeholder:text-gray-300"
+      />
+    </>
+  );
+}
+
+// ---------- Activity log sidebar panel + per-tag history modal ----------
+
+function ActivityLogPanel({ log, notes }: { log: ActivityLogEntry[]; notes: ChartNote[] }) {
+  const [openTag, setOpenTag] = useState<string | null>(null);
+
+  // Aggregate totals across every entry.
+  const totals = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of log) m.set(e.name, (m.get(e.name) || 0) + e.count);
+    return [...m.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  }, [log]);
+
+  return (
+    <div className="border-t-2 border-gray-300 flex flex-col" style={{ maxHeight: '40%' }}>
+      <div className="px-3 py-2 bg-[#1a4a73] text-white text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between flex-shrink-0">
+        <span>Activity Log</span>
+        <span className="text-[10px] font-normal text-gray-300">{totals.length} tag{totals.length === 1 ? '' : 's'}</span>
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {totals.length === 0 ? (
+          <div className="p-3 text-[11px] text-gray-500 leading-snug">
+            Type <span className="font-mono text-emerald-700">+water</span>,{' '}
+            <span className="font-mono text-emerald-700">+coffee</span>, etc. inside any S/O/A/P box to log activities. They'll roll up here.
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {totals.map(([name, total]) => (
+              <li key={name}>
+                <button
+                  onClick={() => setOpenTag(name)}
+                  className="w-full text-left px-3 py-1.5 flex items-center justify-between hover:bg-emerald-50 transition-colors"
+                >
+                  <span className="text-[12px] font-mono text-emerald-800">+{name}</span>
+                  <span className="text-[11px] font-semibold text-gray-600 bg-emerald-50 border border-emerald-200 rounded-sm px-1.5">
+                    {total}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {openTag && (
+        <ActivityHistoryModal
+          tag={openTag}
+          log={log}
+          notes={notes}
+          onClose={() => setOpenTag(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ActivityHistoryModal({
+  tag,
+  log,
+  notes,
+  onClose,
+}: {
+  tag: string;
+  log: ActivityLogEntry[];
+  notes: ChartNote[];
+  onClose: () => void;
+}) {
+  const SECTION_LETTER: Record<ChartSection, string> = {
+    subjective: 'S',
+    objective: 'O',
+    assessment: 'A',
+    plan: 'P',
+  };
+  const noteById = useMemo(() => new Map(notes.map((n) => [n.id, n])), [notes]);
+  const entries = useMemo(
+    () =>
+      log
+        .filter((e) => e.name === tag)
+        .sort((a, b) => b.noteDate.localeCompare(a.noteDate) || b.updatedAt.localeCompare(a.updatedAt)),
+    [log, tag]
+  );
+  const total = entries.reduce((acc, e) => acc + e.count, 0);
+  const dayCount = new Set(entries.map((e) => e.noteDate)).size;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="bg-white border border-gray-300 rounded-sm shadow-xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-4 py-2 bg-[#1a4a73] text-white flex items-center justify-between">
+          <div className="text-[11px] font-bold uppercase tracking-wider">Activity · +{tag}</div>
+          <button
+            onClick={onClose}
+            className="text-[18px] leading-none text-white/70 hover:text-white"
+          >
+            &times;
+          </button>
+        </div>
+        <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between text-[11px] font-mono text-emerald-900">
+          <div>
+            <span className="text-emerald-700 uppercase tracking-wider text-[9px] mr-1">Total</span>
+            {total}
+          </div>
+          <div>
+            <span className="text-emerald-700 uppercase tracking-wider text-[9px] mr-1">Across</span>
+            {dayCount} day{dayCount === 1 ? '' : 's'}
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {entries.length === 0 ? (
+            <div className="p-4 text-[12px] text-gray-500 italic">No entries.</div>
+          ) : (
+            <ul className="divide-y divide-gray-100">
+              {entries.map((e) => {
+                const n = noteById.get(e.noteId);
+                return (
+                  <li key={e.id} className="px-4 py-2 flex items-center justify-between text-[12px]">
+                    <div className="font-mono text-gray-800">
+                      {formatLongDate(e.noteDate)}
+                      <span className="ml-2 text-[10px] uppercase tracking-wider text-gray-500">
+                        {n ? ENCOUNTER_LABELS[n.encounterType] : 'Encounter removed'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-wider text-[#1a4a73] font-bold">
+                        {SECTION_LETTER[e.section]}
+                      </span>
+                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-sm px-1.5">
+                        ×{e.count}
+                      </span>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }

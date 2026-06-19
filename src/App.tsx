@@ -11,6 +11,7 @@ import InboxView from './components/InboxView';
 import TodayView from './components/TodayView';
 import { useAppState } from './hooks/useAppState';
 import { useBooks } from './hooks/useBooks';
+import { useActivities } from './hooks/useActivities';
 import { useBlockTemplates } from './hooks/useBlockTemplates';
 import { useBrainDump } from './hooks/useBrainDump';
 import { useChartNotes } from './hooks/useChartNotes';
@@ -123,6 +124,7 @@ function AppMain({
   const stats = useStats(blocks);
   const { templates: blockTemplates, saveTemplate: saveBlockTemplate, deleteTemplate: deleteBlockTemplate } = useBlockTemplates();
   const { notes: chartNotes, createNote: createChartNote, updateNote: updateChartNote, deleteNote: deleteChartNote, copyForwardFromLatest: copyForwardChartNote } = useChartNotes();
+  const { log: activityLog, syncNote: syncNoteActivities, dropForNote: dropNoteActivities } = useActivities();
   const {
     habits,
     createHabit,
@@ -246,6 +248,9 @@ function AppMain({
           onDeleteNote={deleteChartNote}
           onCopyForward={copyForwardChartNote}
           onSendPlanTaskToDump={addManualTask}
+          activityLog={activityLog}
+          onSyncNoteActivities={syncNoteActivities}
+          onDropNoteActivities={dropNoteActivities}
         />
       ) : activeView === 'habits' ? (
         <HabitsView
