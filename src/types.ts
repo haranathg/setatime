@@ -253,6 +253,48 @@ export interface PredictionLabState {
   entries: PredictionEntry[];
 }
 
+// ---------- Today dashboard ("car dashboard" of daily basics) ----------
+//
+// Iconified indicators on TodayView — hydration, shower, meals, etc. State is
+// derived from a time-series of `BasicLog` events plus the indicator's own
+// thresholds. Defaults are anchored to the South Asian Heart Center's MEDS
+// framework (Meals, Exercise, Destress, Sleep) — an evidence-based metabolic
+// and cardiovascular health protocol (Sinha, El Camino) — alongside hydration
+// and shower from the user's original ask. All defaults are toggleable, and
+// users can add custom indicators with their own thresholds.
+
+// `daily` = a single tap-per-day indicator (e.g., shower, sleep). State is
+//   "green" once logged; "amber"/"red" after warn/urgent hour-of-day if not.
+// `counter` = multi-tap with a daily target (e.g., hydration, meals). State
+//   is "amber"/"red" by time-since-last-log (or 7am start if no logs yet).
+export type IndicatorMode = 'daily' | 'counter';
+
+export interface BasicIndicator {
+  id: string;
+  name: string;
+  icon: string;     // emoji
+  hint?: string;    // tiny line of guidance (e.g., "8 cups a day", "plant-forward")
+  mode: IndicatorMode;
+  enabled: boolean;
+  preset?: string;  // preset key when seeded from defaults
+  dailyTarget?: number;          // counter: ideal count per day (used in display)
+  warnAfterMinutes?: number;     // counter: stale-time → amber
+  urgentAfterMinutes?: number;   // counter: stale-time → red+pulse
+  warnAfterHourOfDay?: number;   // daily: amber after this local hour if no log
+  urgentAfterHourOfDay?: number; // daily: red+pulse after this local hour
+}
+
+export interface BasicLog {
+  id: string;
+  indicatorId: string;
+  loggedAt: string; // ISO
+}
+
+export interface DashboardState {
+  indicators: BasicIndicator[];
+  logs: BasicLog[];
+}
+
 export interface AppState {
   blocks: TaskBlock[];
   brainDump?: BrainDumpState;
@@ -264,6 +306,7 @@ export interface AppState {
   activities?: ActivitiesState;
   pins?: PinsState;
   predictions?: PredictionLabState;
+  dashboard?: DashboardState;
 }
 
 export interface RenderedBlock {

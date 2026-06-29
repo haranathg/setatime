@@ -15,6 +15,7 @@ import { useAppState } from './hooks/useAppState';
 import { useBooks } from './hooks/useBooks';
 import { useActivities } from './hooks/useActivities';
 import { useBlockTemplates } from './hooks/useBlockTemplates';
+import { useDashboard } from './hooks/useDashboard';
 import { useBrainDump } from './hooks/useBrainDump';
 import { useChartNotes } from './hooks/useChartNotes';
 import { useHabits } from './hooks/useHabits';
@@ -130,6 +131,15 @@ function AppMain({
   const { notes: chartNotes, createNote: createChartNote, updateNote: updateChartNote, deleteNote: deleteChartNote, copyForwardFromLatest: copyForwardChartNote } = useChartNotes();
   const { log: activityLog, syncNote: syncNoteActivities, dropForNote: dropNoteActivities } = useActivities();
   const { pins, addPin, togglePin, editPin, removePin } = usePins();
+  const {
+    indicators: dashboardIndicators,
+    views: dashboardViews,
+    logIndicator,
+    undoLastLog: undoLastIndicatorLog,
+    toggleEnabled: toggleIndicatorEnabled,
+    addCustomIndicator,
+    removeIndicator,
+  } = useDashboard();
   const {
     entries: predictionEntries,
     stats: predictionStats,
@@ -315,6 +325,14 @@ function AppMain({
             setReflectPredictionId(id);
             setActiveView('predictions');
           }}
+          dashboardIndicators={dashboardIndicators}
+          dashboardViews={dashboardViews}
+          onLogIndicator={logIndicator}
+          onUndoLastIndicatorLog={undoLastIndicatorLog}
+          onToggleIndicatorEnabled={toggleIndicatorEnabled}
+          onAddCustomIndicator={addCustomIndicator}
+          onRemoveIndicator={removeIndicator}
+          onPushIndicatorToDump={addManualTask}
         />
       ) : activeView === 'predictions' ? (
         <PredictionLabView

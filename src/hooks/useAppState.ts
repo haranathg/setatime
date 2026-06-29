@@ -53,6 +53,7 @@ export function useAppState() {
               activities: cloud.activities ?? local.activities,
               pins: cloud.pins ?? local.pins,
               predictions: cloud.predictions ?? local.predictions,
+              dashboard: cloud.dashboard ?? local.dashboard,
             });
           }
           setSyncError(null);
@@ -118,6 +119,7 @@ export function useAppState() {
           activities: cloud.activities ?? current.activities,
           pins: cloud.pins ?? current.pins,
           predictions: cloud.predictions ?? current.predictions,
+          dashboard: cloud.dashboard ?? current.dashboard,
         });
       }
       setSyncError(null);
