@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { TaskBlock, SubTask, SubStep, Pin } from '../types';
+import type { TaskBlock, SubTask, SubStep, Pin, PredictionEntry } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
 import { isCheckedToday } from '../hooks/usePins';
 
@@ -13,6 +13,8 @@ interface TodayViewProps {
   onTogglePin: (id: string) => void;
   onEditPin: (id: string, label: string) => void;
   onRemovePin: (id: string) => void;
+  overduePredictions: PredictionEntry[];
+  onReflectPrediction: (id: string) => void;
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -38,7 +40,7 @@ interface BlockState {
   doneCount: number;
 }
 
-export default function TodayView({ todaysBlocks, onToggleSubTask, onToggleSubStep, onSwitchToCalendar, pins, onAddPin, onTogglePin, onEditPin, onRemovePin }: TodayViewProps) {
+export default function TodayView({ todaysBlocks, onToggleSubTask, onToggleSubStep, onSwitchToCalendar, pins, onAddPin, onTogglePin, onEditPin, onRemovePin, overduePredictions, onReflectPrediction }: TodayViewProps) {
   // Re-render every minute so 'current' / 'past' / 'upcoming' stays accurate.
   // The tick state value isn't read; setTick just forces a re-render.
   const [, setTick] = useState(0);
@@ -99,6 +101,10 @@ export default function TodayView({ todaysBlocks, onToggleSubTask, onToggleSubSt
       <div className="flex-1 overflow-y-auto bg-gray-50">
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
           <Header today={today} doneSubTasks={0} totalSubTasks={0} />
+          <OverduePredictionsStrip
+            overdue={overduePredictions}
+            onReflect={onReflectPrediction}
+          />
           <PinsStrip
             pins={pins}
             onAddPin={onAddPin}
@@ -125,6 +131,11 @@ export default function TodayView({ todaysBlocks, onToggleSubTask, onToggleSubSt
     <div className="flex-1 overflow-y-auto bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
         <Header today={today} doneSubTasks={doneSubTasks} totalSubTasks={totalSubTasks} />
+
+        <OverduePredictionsStrip
+          overdue={overduePredictions}
+          onReflect={onReflectPrediction}
+        />
 
         <PinsStrip
           pins={pins}
@@ -584,4 +595,58 @@ function PinsStrip({
       )}
     </section>
   );
+}
+
+// Overdue Prediction-Lab reflections surfaced on Today. Closes the calibration
+// loop visibly so unreflected predictions don't quietly die. Tapping a row
+// jumps to the Lab's reflection wizard for that specific entry.
+function OverduePredictionsStrip({
+  overdue,
+  onReflect,
+}: {
+  overdue: PredictionEntry[];
+  onReflect: (id: string) => void;
+}) {
+  if (overdue.length === 0) return null;
+  return (
+    <section className="bg-white border-2 border-indigo-300 rounded-2xl shadow-sm overflow-hidden">
+      <header className="px-4 py-2 bg-indigo-50 border-b border-indigo-200 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-base">🔍</span>
+          <h3 className="text-[13px] font-semibold text-indigo-900">Close the loop</h3>
+        </div>
+        <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-700">
+          {overdue.length} prediction{overdue.length === 1 ? '' : 's'} ready to reflect on
+        </span>
+      </header>
+      <ul className="divide-y divide-indigo-50">
+        {overdue.slice(0, 5).map((e) => (
+          <li key={e.id}>
+            <button
+              onClick={() => onReflect(e.id)}
+              className="w-full text-left px-3 py-2 hover:bg-indigo-50/60 transition-colors flex items-center gap-3"
+            >
+              <span className="flex-1 min-w-0">
+                <span className="block text-sm text-gray-900 truncate">{e.prediction}</span>
+                <span className="block text-[10px] text-gray-500 mt-0.5">
+                  Predicted {formatRelativeDays(e.createdAt)} · {e.confidence}% confidence
+                </span>
+              </span>
+              <span className="flex-shrink-0 text-[10px] uppercase tracking-wider font-bold text-indigo-700">
+                Reflect ›
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function formatRelativeDays(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(ms / (24 * 60 * 60 * 1000));
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  return `${days}d ago`;
 }
