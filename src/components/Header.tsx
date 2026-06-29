@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { getSecretKey, setSecretKey, clearSecretKey } from '../services/syncService';
 
 interface HeaderProps {
-  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today';
-  onViewChange: (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => void;
+  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions';
+  onViewChange: (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions') => void;
   syncing?: boolean;
   syncError?: string | null;
   onRefreshFromCloud?: () => void;
@@ -226,6 +226,17 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           title="SOAP-note self check-in"
         >
           Chart
+        </button>
+        <button
+          onClick={() => onViewChange('predictions')}
+          className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            activeView === 'predictions'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+          title="Prediction Lab: test forecasts against reality"
+        >
+          Lab
         </button>
         <button
           onClick={() => onViewChange('stats')}

@@ -182,6 +182,77 @@ export interface PinsState {
   pins: Pin[];
 }
 
+// ---------- Prediction Lab ----------
+//
+// A calibration-loop journal: capture a prediction with a confidence number,
+// reflect on it later, compare imagination to reality. The goal is to make
+// subconscious affective forecasts visible so they can be tested rather than
+// silently driving behavior.
+//
+// Quick mode (3 prompts: prediction+confidence, emotion+intensity, first move)
+// is for in-the-moment use. Deep mode adds CBT/ACT-style evidence, behavioral
+// pull, values check, and a structured experiment with an implementation
+// intention. Reflection is filed later from a Don't-forget-style pin on Today.
+
+export type PredictionMode = 'quick' | 'deep';
+
+export type PredictionEmotion =
+  | 'anxiety'
+  | 'shame'
+  | 'overwhelm'
+  | 'uncertainty'
+  | 'sadness'
+  | 'anger'
+  | 'curiosity'
+  | 'excitement'
+  | 'guilt'
+  | 'resistance';
+
+export type PredictionAccuracy = 'yes' | 'partly' | 'no';
+export type TrustShift = 'more' | 'less' | 'same';
+
+export interface PredictionEntry {
+  id: string;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+  mode: PredictionMode;
+
+  // Capture + prediction (always required)
+  situation: string;
+  prediction: string;
+  confidence: number; // 0–100; user's stated belief that the prediction will hold
+
+  // Emotion (always)
+  emotions: PredictionEmotion[];
+  emotionIntensity: number; // 0–100
+
+  // First physical move — the smallest body action that breaks inertia
+  firstMove: string;
+
+  // Deep-mode optional fields
+  evidenceFor?: string;
+  evidenceAgainst?: string;
+  behavioralPull?: string;     // what the emotion is encouraging you to do
+  oneYearProjection?: string;  // where that pull leads in a year
+  valuesAction?: string;       // what the version of you you're becoming would do
+  experiment?: string;         // small, low-risk probe of the prediction
+  experimentWhenWhere?: string; // implementation intention: when + where
+
+  // Reflection — filed later from a TodayView pin
+  reflectionDueAt: string;     // ISO; defaults to createdAt + 24h
+  reflectedAt?: string;        // ISO; presence marks the loop as closed
+  outcome?: string;            // what actually happened
+  predictionAccurate?: PredictionAccuracy;
+  shouldHaveBeenConfidence?: number; // 0–100; user's retro-rating of "right confidence"
+  surprise?: number;           // 0–100; how surprising was the outcome
+  insight?: string;            // one-line takeaway
+  trustFuturePredictionsMore?: TrustShift;
+}
+
+export interface PredictionLabState {
+  entries: PredictionEntry[];
+}
+
 export interface AppState {
   blocks: TaskBlock[];
   brainDump?: BrainDumpState;
@@ -192,6 +263,7 @@ export interface AppState {
   templates?: BlockTemplatesState;
   activities?: ActivitiesState;
   pins?: PinsState;
+  predictions?: PredictionLabState;
 }
 
 export interface RenderedBlock {

@@ -9,6 +9,7 @@ import ChartView from './components/ChartView';
 import HabitsView from './components/HabitsView';
 import BooksView from './components/BooksView';
 import InboxView from './components/InboxView';
+import PredictionLabView from './components/PredictionLabView';
 import TodayView from './components/TodayView';
 import { useAppState } from './hooks/useAppState';
 import { useBooks } from './hooks/useBooks';
@@ -19,6 +20,7 @@ import { useChartNotes } from './hooks/useChartNotes';
 import { useHabits } from './hooks/useHabits';
 import { useInbox } from './hooks/useInbox';
 import { usePins } from './hooks/usePins';
+import { usePredictions } from './hooks/usePredictions';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -72,7 +74,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today'>('today');
+  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions'>('today');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -89,8 +91,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today';
-  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => void;
+  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions';
+  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -129,6 +131,17 @@ function AppMain({
   const { log: activityLog, syncNote: syncNoteActivities, dropForNote: dropNoteActivities } = useActivities();
   const { pins, addPin, togglePin, editPin, removePin } = usePins();
   const {
+    entries: predictionEntries,
+    stats: predictionStats,
+    overdueReflections: overduePredictions,
+    addEntry: addPrediction,
+    recordReflection: recordPredictionReflection,
+    deleteEntry: deletePrediction,
+  } = usePredictions();
+  // When TodayView surfaces an overdue reflection, set this to jump Lab
+  // straight into the reflection wizard for that entry.
+  const [reflectPredictionId, setReflectPredictionId] = useState<string | null>(null);
+  const {
     habits,
     createHabit,
     updateHabit,
@@ -163,7 +176,7 @@ function AppMain({
     (t) => t.status === 'inbox' || (t.status === 'future' && !!t.futureSurfaceDate && t.futureSurfaceDate <= todayKey)
   ).length;
 
-  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today') => {
+  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -297,6 +310,22 @@ function AppMain({
           onTogglePin={togglePin}
           onEditPin={editPin}
           onRemovePin={removePin}
+          overduePredictions={overduePredictions}
+          onReflectPrediction={(id) => {
+            setReflectPredictionId(id);
+            setActiveView('predictions');
+          }}
+        />
+      ) : activeView === 'predictions' ? (
+        <PredictionLabView
+          entries={predictionEntries}
+          stats={predictionStats}
+          overdueReflections={overduePredictions}
+          initialReflectId={reflectPredictionId}
+          onConsumedInitialReflectId={() => setReflectPredictionId(null)}
+          onAddEntry={addPrediction}
+          onRecordReflection={recordPredictionReflection}
+          onDeleteEntry={deletePrediction}
         />
       ) : (
         <StatsView stats={stats} />

@@ -52,6 +52,7 @@ export function useAppState() {
               templates: cloud.templates ?? local.templates,
               activities: cloud.activities ?? local.activities,
               pins: cloud.pins ?? local.pins,
+              predictions: cloud.predictions ?? local.predictions,
             });
           }
           setSyncError(null);
@@ -116,6 +117,7 @@ export function useAppState() {
           templates: cloud.templates ?? current.templates,
           activities: cloud.activities ?? current.activities,
           pins: cloud.pins ?? current.pins,
+          predictions: cloud.predictions ?? current.predictions,
         });
       }
       setSyncError(null);
