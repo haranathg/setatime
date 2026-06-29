@@ -13,6 +13,7 @@ export const DEFAULT_INDICATORS: BasicIndicator[] = [
   {
     id: 'preset-hydration',
     preset: 'hydration',
+    iconKey: 'hydration',
     name: 'Hydration',
     icon: '💧',
     hint: '~8 cups · sip every few hours',
@@ -25,6 +26,7 @@ export const DEFAULT_INDICATORS: BasicIndicator[] = [
   {
     id: 'preset-shower',
     preset: 'shower',
+    iconKey: 'shower',
     name: 'Shower',
     icon: '🚿',
     hint: 'Once a day',
@@ -36,6 +38,7 @@ export const DEFAULT_INDICATORS: BasicIndicator[] = [
   {
     id: 'preset-meals',
     preset: 'meals',
+    iconKey: 'meals',
     name: 'Meals',
     icon: '🍽',
     hint: 'MEDS · plant-forward, lower refined carbs',
@@ -48,6 +51,7 @@ export const DEFAULT_INDICATORS: BasicIndicator[] = [
   {
     id: 'preset-exercise',
     preset: 'exercise',
+    iconKey: 'exercise',
     name: 'Exercise',
     icon: '🏃',
     hint: 'MEDS · ~30 min movement',
@@ -59,6 +63,7 @@ export const DEFAULT_INDICATORS: BasicIndicator[] = [
   {
     id: 'preset-destress',
     preset: 'destress',
+    iconKey: 'destress',
     name: 'Destress',
     icon: '🧘',
     hint: 'MEDS · meditation, breath, walk',
@@ -70,6 +75,7 @@ export const DEFAULT_INDICATORS: BasicIndicator[] = [
   {
     id: 'preset-sleep',
     preset: 'sleep',
+    iconKey: 'sleep',
     name: 'Sleep',
     icon: '🛏',
     hint: 'MEDS · 7-8 hr · log when you turn in',

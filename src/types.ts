@@ -272,7 +272,8 @@ export type IndicatorMode = 'daily' | 'counter';
 export interface BasicIndicator {
   id: string;
   name: string;
-  icon: string;     // emoji
+  icon: string;     // emoji — used as fallback when no iconKey is set
+  iconKey?: string; // SVG glyph key (looked up in the IndicatorIcons registry)
   hint?: string;    // tiny line of guidance (e.g., "8 cups a day", "plant-forward")
   mode: IndicatorMode;
   enabled: boolean;
