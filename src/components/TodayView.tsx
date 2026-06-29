@@ -3,6 +3,7 @@ import type { TaskBlock, SubTask, SubStep, Pin, PredictionEntry, BasicIndicator,
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
 import { isCheckedToday } from '../hooks/usePins';
 import type { IndicatorView } from '../hooks/useDashboard';
+import { IndicatorIcon } from './IndicatorIcons';
 
 interface TodayViewProps {
   todaysBlocks: TaskBlock[];
@@ -794,11 +795,17 @@ function BasicsDashboard({
   );
 }
 
-const STATE_STYLES: Record<IndicatorView['state'], string> = {
-  cold: 'bg-gray-50 border-gray-200 text-gray-500',
-  green: 'bg-emerald-50 border-emerald-300 text-emerald-800',
-  amber: 'bg-amber-50 border-amber-300 text-amber-800',
-  red: 'bg-red-50 border-red-300 text-red-800 animate-pulse',
+// Background gradient + ring per state. Simulates a warning-light "lamp"
+// rather than a flat block: soft inner gradient, ring acts as bezel, the
+// glyph picks up the state color via currentColor.
+const TILE_STYLES: Record<IndicatorView['state'], string> = {
+  cold: 'bg-gradient-to-br from-gray-50 to-gray-100 ring-1 ring-gray-200 text-gray-400',
+  green:
+    'bg-gradient-to-br from-emerald-50 to-emerald-100 ring-1 ring-emerald-200 text-emerald-700',
+  amber:
+    'bg-gradient-to-br from-amber-50 to-amber-100 ring-1 ring-amber-300 text-amber-700 shadow-[inset_0_0_0_1px_rgba(217,119,6,0.15)]',
+  red:
+    'bg-gradient-to-br from-red-50 to-red-100 ring-2 ring-red-300 text-red-700 shadow-[inset_0_0_18px_rgba(239,68,68,0.25)] animate-pulse',
 };
 
 function IndicatorTile({
@@ -837,18 +844,18 @@ function IndicatorTile({
     <div className="relative">
       <button
         onClick={onLog}
-        className={`w-full aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-0.5 px-1 transition-colors ${STATE_STYLES[state]}`}
+        className={`w-full aspect-square rounded-[22px] flex flex-col items-center justify-center gap-1 px-1.5 pt-2 pb-1 transition-all ${TILE_STYLES[state]}`}
         title={ind.hint || ind.name}
       >
-        <div className="text-2xl leading-none">{ind.icon}</div>
-        <div className="text-[11px] font-semibold leading-tight">{ind.name}</div>
-        <div className="text-[10px] font-mono leading-tight">{sub}</div>
-        {microLine && <div className="text-[9px] opacity-70 leading-tight">{microLine}</div>}
+        <IndicatorIcon indicator={ind} size={30} />
+        <div className="text-[11px] font-semibold tracking-tight leading-tight">{ind.name}</div>
+        <div className="text-[10px] font-mono leading-tight opacity-90">{sub}</div>
+        {microLine && <div className="text-[9px] opacity-60 leading-tight">{microLine}</div>}
       </button>
       {todayCount > 0 && (
         <button
           onClick={onUndoLast}
-          className="absolute top-1 left-1 text-[10px] leading-none w-5 h-5 rounded-full bg-white/80 backdrop-blur border border-gray-200 text-gray-400 hover:text-red-500 transition-colors"
+          className="absolute top-1 left-1 text-[10px] leading-none w-5 h-5 rounded-full bg-white/80 backdrop-blur ring-1 ring-gray-200 text-gray-400 hover:text-red-500 transition-colors"
           title="Undo last log"
         >
           ↩
@@ -857,7 +864,7 @@ function IndicatorTile({
       {showEscalation && (
         <button
           onClick={onPushToDump}
-          className="absolute top-1 right-1 text-[10px] uppercase tracking-wider font-bold leading-none px-1.5 py-1 rounded-md bg-white border border-current shadow-sm hover:bg-red-500 hover:text-white transition-colors"
+          className="absolute top-1 right-1 text-[10px] uppercase tracking-wider font-bold leading-none px-1.5 py-1 rounded-md bg-white ring-1 ring-current shadow-sm hover:bg-red-500 hover:text-white hover:ring-red-500 transition-colors"
           title="Push as an urgent task to the dump"
         >
           ↗
@@ -928,7 +935,9 @@ function IndicatorSettingsModal({
           <ul className="divide-y divide-gray-100">
             {indicators.map((ind) => (
               <li key={ind.id} className="py-2 flex items-center gap-3">
-                <span className="text-xl">{ind.icon}</span>
+                <span className="w-7 h-7 flex items-center justify-center text-gray-600">
+                  <IndicatorIcon indicator={ind} size={22} />
+                </span>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-gray-900">{ind.name}</div>
                   {ind.hint && (
