@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { TaskBlock, SubTask, SubStep, Pin, PredictionEntry } from '../types';
+import type { TaskBlock, SubTask, SubStep, Pin, PredictionEntry, BasicIndicator, IndicatorMode } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
 import { isCheckedToday } from '../hooks/usePins';
+import type { IndicatorView } from '../hooks/useDashboard';
 
 interface TodayViewProps {
   todaysBlocks: TaskBlock[];
@@ -15,6 +16,25 @@ interface TodayViewProps {
   onRemovePin: (id: string) => void;
   overduePredictions: PredictionEntry[];
   onReflectPrediction: (id: string) => void;
+  // Car-dashboard tiles
+  dashboardIndicators: BasicIndicator[];
+  dashboardViews: IndicatorView[];
+  onLogIndicator: (id: string) => void;
+  onUndoLastIndicatorLog: (id: string) => void;
+  onToggleIndicatorEnabled: (id: string) => void;
+  onAddCustomIndicator: (input: {
+    name: string;
+    icon: string;
+    mode: IndicatorMode;
+    hint?: string;
+    dailyTarget?: number;
+    warnAfterMinutes?: number;
+    urgentAfterMinutes?: number;
+    warnAfterHourOfDay?: number;
+    urgentAfterHourOfDay?: number;
+  }) => BasicIndicator;
+  onRemoveIndicator: (id: string) => void;
+  onPushIndicatorToDump: (label: string) => void;
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -40,7 +60,27 @@ interface BlockState {
   doneCount: number;
 }
 
-export default function TodayView({ todaysBlocks, onToggleSubTask, onToggleSubStep, onSwitchToCalendar, pins, onAddPin, onTogglePin, onEditPin, onRemovePin, overduePredictions, onReflectPrediction }: TodayViewProps) {
+export default function TodayView({
+  todaysBlocks,
+  onToggleSubTask,
+  onToggleSubStep,
+  onSwitchToCalendar,
+  pins,
+  onAddPin,
+  onTogglePin,
+  onEditPin,
+  onRemovePin,
+  overduePredictions,
+  onReflectPrediction,
+  dashboardIndicators,
+  dashboardViews,
+  onLogIndicator,
+  onUndoLastIndicatorLog,
+  onToggleIndicatorEnabled,
+  onAddCustomIndicator,
+  onRemoveIndicator,
+  onPushIndicatorToDump,
+}: TodayViewProps) {
   // Re-render every minute so 'current' / 'past' / 'upcoming' stays accurate.
   // The tick state value isn't read; setTick just forces a re-render.
   const [, setTick] = useState(0);
@@ -101,6 +141,16 @@ export default function TodayView({ todaysBlocks, onToggleSubTask, onToggleSubSt
       <div className="flex-1 overflow-y-auto bg-gray-50">
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
           <Header today={today} doneSubTasks={0} totalSubTasks={0} />
+          <BasicsDashboard
+            indicators={dashboardIndicators}
+            views={dashboardViews}
+            onLog={onLogIndicator}
+            onUndoLast={onUndoLastIndicatorLog}
+            onToggle={onToggleIndicatorEnabled}
+            onAddCustom={onAddCustomIndicator}
+            onRemove={onRemoveIndicator}
+            onPushToDump={onPushIndicatorToDump}
+          />
           <OverduePredictionsStrip
             overdue={overduePredictions}
             onReflect={onReflectPrediction}
@@ -131,6 +181,17 @@ export default function TodayView({ todaysBlocks, onToggleSubTask, onToggleSubSt
     <div className="flex-1 overflow-y-auto bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
         <Header today={today} doneSubTasks={doneSubTasks} totalSubTasks={totalSubTasks} />
+
+        <BasicsDashboard
+          indicators={dashboardIndicators}
+          views={dashboardViews}
+          onLog={onLogIndicator}
+          onUndoLast={onUndoLastIndicatorLog}
+          onToggle={onToggleIndicatorEnabled}
+          onAddCustom={onAddCustomIndicator}
+          onRemove={onRemoveIndicator}
+          onPushToDump={onPushIndicatorToDump}
+        />
 
         <OverduePredictionsStrip
           overdue={overduePredictions}
@@ -649,4 +710,390 @@ function formatRelativeDays(iso: string): string {
   if (days <= 0) return 'today';
   if (days === 1) return 'yesterday';
   return `${days}d ago`;
+}
+
+// ---------- Car-dashboard tiles ----------
+//
+// Iconified daily basics. Tap to log. Tiles flow green → amber → red+pulse
+// the longer they go unlogged; in amber/red an ↗ shortcut appears to push
+// the indicator into the BrainDump as an urgent task so it gets done.
+function BasicsDashboard({
+  indicators,
+  views,
+  onLog,
+  onUndoLast,
+  onToggle,
+  onAddCustom,
+  onRemove,
+  onPushToDump,
+}: {
+  indicators: BasicIndicator[];
+  views: IndicatorView[];
+  onLog: (id: string) => void;
+  onUndoLast: (id: string) => void;
+  onToggle: (id: string) => void;
+  onAddCustom: TodayViewProps['onAddCustomIndicator'];
+  onRemove: (id: string) => void;
+  onPushToDump: (label: string) => void;
+}) {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Disabled indicators don't appear in `views` — render only the live tiles.
+  if (views.length === 0 && !settingsOpen) {
+    return (
+      <section className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+        <header className="flex items-center justify-between">
+          <h3 className="text-[13px] font-semibold text-gray-800">Daily basics</h3>
+          <button
+            onClick={() => setSettingsOpen(true)}
+            className="text-[11px] uppercase tracking-wider text-gray-400 hover:text-gray-700"
+          >
+            ⚙ Configure
+          </button>
+        </header>
+        <p className="text-[11px] text-gray-500 mt-2">
+          No active indicators. Open settings to turn on hydration, meals, exercise, sleep, etc.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+        <h3 className="text-[13px] font-semibold text-gray-800">Daily basics</h3>
+        <button
+          onClick={() => setSettingsOpen(true)}
+          className="text-[10px] uppercase tracking-wider text-gray-400 hover:text-gray-700"
+          title="Manage indicators"
+        >
+          ⚙
+        </button>
+      </header>
+      <div className="grid grid-cols-3 gap-2 p-3">
+        {views.map((v) => (
+          <IndicatorTile
+            key={v.indicator.id}
+            view={v}
+            onLog={() => onLog(v.indicator.id)}
+            onUndoLast={() => onUndoLast(v.indicator.id)}
+            onPushToDump={() => onPushToDump(`Log ${v.indicator.name.toLowerCase()}`)}
+          />
+        ))}
+      </div>
+      {settingsOpen && (
+        <IndicatorSettingsModal
+          indicators={indicators}
+          onToggle={onToggle}
+          onAddCustom={onAddCustom}
+          onRemove={onRemove}
+          onClose={() => setSettingsOpen(false)}
+        />
+      )}
+    </section>
+  );
+}
+
+const STATE_STYLES: Record<IndicatorView['state'], string> = {
+  cold: 'bg-gray-50 border-gray-200 text-gray-500',
+  green: 'bg-emerald-50 border-emerald-300 text-emerald-800',
+  amber: 'bg-amber-50 border-amber-300 text-amber-800',
+  red: 'bg-red-50 border-red-300 text-red-800 animate-pulse',
+};
+
+function IndicatorTile({
+  view,
+  onLog,
+  onUndoLast,
+  onPushToDump,
+}: {
+  view: IndicatorView;
+  onLog: () => void;
+  onUndoLast: () => void;
+  onPushToDump: () => void;
+}) {
+  const { indicator: ind, state, todayCount, minutesSinceLast } = view;
+  const sub = (() => {
+    if (ind.mode === 'counter') {
+      const target = ind.dailyTarget ? `/${ind.dailyTarget}` : '';
+      return `${todayCount}${target}`;
+    }
+    return todayCount > 0 ? 'Done today' : 'Not yet';
+  })();
+  const microLine = (() => {
+    if (ind.mode === 'counter' && minutesSinceLast != null) {
+      if (minutesSinceLast < 60) return `${minutesSinceLast}m ago`;
+      const h = Math.floor(minutesSinceLast / 60);
+      const m = minutesSinceLast % 60;
+      return m === 0 ? `${h}h ago` : `${h}h${m}m ago`;
+    }
+    if (ind.mode === 'counter' && minutesSinceLast == null) return 'Not yet today';
+    return null;
+  })();
+
+  const showEscalation = state === 'amber' || state === 'red';
+
+  return (
+    <div className="relative">
+      <button
+        onClick={onLog}
+        className={`w-full aspect-square rounded-2xl border-2 flex flex-col items-center justify-center gap-0.5 px-1 transition-colors ${STATE_STYLES[state]}`}
+        title={ind.hint || ind.name}
+      >
+        <div className="text-2xl leading-none">{ind.icon}</div>
+        <div className="text-[11px] font-semibold leading-tight">{ind.name}</div>
+        <div className="text-[10px] font-mono leading-tight">{sub}</div>
+        {microLine && <div className="text-[9px] opacity-70 leading-tight">{microLine}</div>}
+      </button>
+      {todayCount > 0 && (
+        <button
+          onClick={onUndoLast}
+          className="absolute top-1 left-1 text-[10px] leading-none w-5 h-5 rounded-full bg-white/80 backdrop-blur border border-gray-200 text-gray-400 hover:text-red-500 transition-colors"
+          title="Undo last log"
+        >
+          ↩
+        </button>
+      )}
+      {showEscalation && (
+        <button
+          onClick={onPushToDump}
+          className="absolute top-1 right-1 text-[10px] uppercase tracking-wider font-bold leading-none px-1.5 py-1 rounded-md bg-white border border-current shadow-sm hover:bg-red-500 hover:text-white transition-colors"
+          title="Push as an urgent task to the dump"
+        >
+          ↗
+        </button>
+      )}
+    </div>
+  );
+}
+
+function IndicatorSettingsModal({
+  indicators,
+  onToggle,
+  onAddCustom,
+  onRemove,
+  onClose,
+}: {
+  indicators: BasicIndicator[];
+  onToggle: (id: string) => void;
+  onAddCustom: TodayViewProps['onAddCustomIndicator'];
+  onRemove: (id: string) => void;
+  onClose: () => void;
+}) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [name, setName] = useState('');
+  const [icon, setIcon] = useState('⚪');
+  const [mode, setMode] = useState<IndicatorMode>('daily');
+  const [warnH, setWarnH] = useState(20);
+  const [urgentH, setUrgentH] = useState(23);
+  const [warnM, setWarnM] = useState(180);
+  const [urgentM, setUrgentM] = useState(300);
+  const [target, setTarget] = useState(8);
+
+  const submit = () => {
+    if (!name.trim()) return;
+    onAddCustom({
+      name: name.trim(),
+      icon: icon.trim() || '⚪',
+      mode,
+      ...(mode === 'daily'
+        ? { warnAfterHourOfDay: warnH, urgentAfterHourOfDay: urgentH }
+        : {
+            warnAfterMinutes: warnM,
+            urgentAfterMinutes: urgentM,
+            dailyTarget: target,
+          }),
+    });
+    setName('');
+    setIcon('⚪');
+    setShowAdd(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <header className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900">Daily basics</h3>
+          <button
+            onClick={onClose}
+            className="text-xl leading-none text-gray-400 hover:text-gray-700"
+          >
+            &times;
+          </button>
+        </header>
+        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+          <ul className="divide-y divide-gray-100">
+            {indicators.map((ind) => (
+              <li key={ind.id} className="py-2 flex items-center gap-3">
+                <span className="text-xl">{ind.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900">{ind.name}</div>
+                  {ind.hint && (
+                    <div className="text-[10px] text-gray-500 truncate">{ind.hint}</div>
+                  )}
+                </div>
+                <button
+                  onClick={() => onToggle(ind.id)}
+                  className={`w-10 h-6 rounded-full border-2 transition-colors flex items-center ${
+                    ind.enabled
+                      ? 'bg-indigo-600 border-indigo-600 justify-end'
+                      : 'bg-white border-gray-300 justify-start'
+                  }`}
+                  title={ind.enabled ? 'Disable' : 'Enable'}
+                >
+                  <span className="w-4 h-4 bg-white rounded-full shadow-sm mx-0.5" />
+                </button>
+                {!ind.preset && (
+                  <button
+                    onClick={() => {
+                      if (confirm(`Remove ${ind.name}? Its history will be cleared.`)) {
+                        onRemove(ind.id);
+                      }
+                    }}
+                    className="text-[16px] leading-none text-gray-300 hover:text-red-500"
+                    title="Remove custom indicator"
+                  >
+                    &times;
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+
+          {showAdd ? (
+            <div className="border-t border-gray-100 pt-3 space-y-2">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+                Add custom indicator
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={icon}
+                  onChange={(e) => setIcon(e.target.value.slice(0, 4))}
+                  placeholder="🔆"
+                  className="w-14 px-2 py-2 text-center text-xl border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Name (e.g. Sunlight)"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setMode('daily')}
+                  className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border ${
+                    mode === 'daily'
+                      ? 'bg-indigo-50 border-indigo-400 text-indigo-700'
+                      : 'bg-white border-gray-200 text-gray-700'
+                  }`}
+                >
+                  Once a day
+                </button>
+                <button
+                  onClick={() => setMode('counter')}
+                  className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border ${
+                    mode === 'counter'
+                      ? 'bg-indigo-50 border-indigo-400 text-indigo-700'
+                      : 'bg-white border-gray-200 text-gray-700'
+                  }`}
+                >
+                  Multi-tap with target
+                </button>
+              </div>
+              {mode === 'daily' ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="text-[10px] uppercase tracking-wider text-gray-500">
+                    Amber after (hour)
+                    <input
+                      type="number"
+                      min={0}
+                      max={24}
+                      value={warnH}
+                      onChange={(e) => setWarnH(Number(e.target.value))}
+                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </label>
+                  <label className="text-[10px] uppercase tracking-wider text-gray-500">
+                    Red after (hour)
+                    <input
+                      type="number"
+                      min={0}
+                      max={26}
+                      value={urgentH}
+                      onChange={(e) => setUrgentH(Number(e.target.value))}
+                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </label>
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  <label className="text-[10px] uppercase tracking-wider text-gray-500">
+                    Target/day
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={target}
+                      onChange={(e) => setTarget(Number(e.target.value))}
+                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </label>
+                  <label className="text-[10px] uppercase tracking-wider text-gray-500">
+                    Amber (min)
+                    <input
+                      type="number"
+                      min={1}
+                      max={1440}
+                      value={warnM}
+                      onChange={(e) => setWarnM(Number(e.target.value))}
+                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </label>
+                  <label className="text-[10px] uppercase tracking-wider text-gray-500">
+                    Red (min)
+                    <input
+                      type="number"
+                      min={1}
+                      max={1440}
+                      value={urgentM}
+                      onChange={(e) => setUrgentM(Number(e.target.value))}
+                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                    />
+                  </label>
+                </div>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={submit}
+                  disabled={!name.trim()}
+                  className="flex-1 px-3 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:cursor-not-allowed rounded-lg transition-colors"
+                >
+                  Add indicator
+                </button>
+                <button
+                  onClick={() => setShowAdd(false)}
+                  className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAdd(true)}
+              className="w-full px-3 py-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 border-2 border-dashed border-indigo-200 hover:border-indigo-400 rounded-lg transition-colors"
+            >
+              + Add custom indicator
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
