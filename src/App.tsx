@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import Header from './components/Header';
 import NowNextBar from './components/NowNextBar';
 import WeeklyCalendar from './components/WeeklyCalendar';
@@ -139,7 +139,20 @@ function AppMain({
     toggleEnabled: toggleIndicatorEnabled,
     addCustomIndicator,
     removeIndicator,
+    setCadence: setIndicatorCadence,
+    setSchedule: setIndicatorSchedule,
+    setPause: setIndicatorPause,
+    skipOccurrence: skipSpiralOccurrence,
+    materializeForDate: materializeSpiralsForDate,
   } = useDashboard();
+
+  // Wrap getBlocksForDate so the calendar + Today see real blocks AND virtual
+  // spiral blocks together. Virtual blocks carry `virtualSpiral` so consumers
+  // can dispatch differently on tap.
+  const getBlocksForDateWithSpirals = useCallback(
+    (date: Date) => [...getBlocksForDate(date), ...materializeSpiralsForDate(date)],
+    [getBlocksForDate, materializeSpiralsForDate]
+  );
   const {
     entries: predictionEntries,
     stats: predictionStats,
@@ -228,7 +241,9 @@ function AppMain({
           <div className={`flex-1 flex flex-col transition-all ${sidebarOpen ? 'sm:mr-80' : ''}`}>
             <WeeklyCalendar
               currentWeekStart={currentWeekStart}
-              getBlocksForDate={getBlocksForDate}
+              getBlocksForDate={getBlocksForDateWithSpirals}
+              onSkipSpiralOccurrence={skipSpiralOccurrence}
+              onOpenSpiralSettings={() => setActiveView('today')}
               onNavigateWeek={navigateWeek}
               onGoToToday={goToToday}
               onAddBlock={addBlock}
@@ -311,7 +326,7 @@ function AppMain({
         />
       ) : activeView === 'today' ? (
         <TodayView
-          todaysBlocks={getBlocksForDate(new Date())}
+          todaysBlocks={getBlocksForDateWithSpirals(new Date())}
           onToggleSubTask={toggleSubTask}
           onToggleSubStep={toggleSubStep}
           onSwitchToCalendar={() => setActiveView('calendar')}
@@ -333,6 +348,9 @@ function AppMain({
           onAddCustomIndicator={addCustomIndicator}
           onRemoveIndicator={removeIndicator}
           onPushIndicatorToDump={addManualTask}
+          onSetCadence={setIndicatorCadence}
+          onSetSchedule={setIndicatorSchedule}
+          onSetPause={setIndicatorPause}
         />
       ) : activeView === 'predictions' ? (
         <PredictionLabView

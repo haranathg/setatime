@@ -1,5 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { TaskBlock, SubTask, SubStep, Pin, PredictionEntry, BasicIndicator, IndicatorMode } from '../types';
+import type {
+  TaskBlock,
+  SubTask,
+  SubStep,
+  Pin,
+  PredictionEntry,
+  BasicIndicator,
+  IndicatorMode,
+  SpiralCadence,
+  SpiralSchedule,
+} from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
 import { isCheckedToday } from '../hooks/usePins';
 import type { IndicatorView } from '../hooks/useDashboard';
@@ -17,7 +27,7 @@ interface TodayViewProps {
   onRemovePin: (id: string) => void;
   overduePredictions: PredictionEntry[];
   onReflectPrediction: (id: string) => void;
-  // Car-dashboard tiles
+  // Upward Spirals (formerly "daily basics")
   dashboardIndicators: BasicIndicator[];
   dashboardViews: IndicatorView[];
   onLogIndicator: (id: string) => void;
@@ -36,6 +46,9 @@ interface TodayViewProps {
   }) => BasicIndicator;
   onRemoveIndicator: (id: string) => void;
   onPushIndicatorToDump: (label: string) => void;
+  onSetCadence: (id: string, cadence: SpiralCadence, daysOfWeek?: number[]) => void;
+  onSetSchedule: (id: string, schedule: SpiralSchedule | null) => void;
+  onSetPause: (id: string, until: string | null | undefined) => void;
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -81,7 +94,18 @@ export default function TodayView({
   onAddCustomIndicator,
   onRemoveIndicator,
   onPushIndicatorToDump,
+  onSetCadence,
+  onSetSchedule,
+  onSetPause,
 }: TodayViewProps) {
+  // Gmail-style "Logged · Undo" toast at the bottom; auto-dismisses after 5s.
+  const [undoToast, setUndoToast] = useState<{ id: string; spiralId: string; label: string } | null>(null);
+  useEffect(() => {
+    if (!undoToast) return;
+    const id = setTimeout(() => setUndoToast(null), 5000);
+    return () => clearTimeout(id);
+  }, [undoToast]);
+
   // Re-render every minute so 'current' / 'past' / 'upcoming' stays accurate.
   // The tick state value isn't read; setTick just forces a re-render.
   const [, setTick] = useState(0);
@@ -145,12 +169,19 @@ export default function TodayView({
           <BasicsDashboard
             indicators={dashboardIndicators}
             views={dashboardViews}
-            onLog={onLogIndicator}
+            onLog={(id) => {
+              onLogIndicator(id);
+              const ind = dashboardIndicators.find((i) => i.id === id);
+              if (ind) setUndoToast({ id: `t-${Date.now()}`, spiralId: id, label: ind.name });
+            }}
             onUndoLast={onUndoLastIndicatorLog}
             onToggle={onToggleIndicatorEnabled}
             onAddCustom={onAddCustomIndicator}
             onRemove={onRemoveIndicator}
             onPushToDump={onPushIndicatorToDump}
+            onSetCadence={onSetCadence}
+            onSetSchedule={onSetSchedule}
+            onSetPause={onSetPause}
           />
           <OverduePredictionsStrip
             overdue={overduePredictions}
@@ -174,6 +205,7 @@ export default function TodayView({
             </button>
           </div>
         </div>
+        <UndoLogToast toast={undoToast} onUndo={(spiralId) => { onUndoLastIndicatorLog(spiralId); setUndoToast(null); }} onDismiss={() => setUndoToast(null)} />
       </div>
     );
   }
@@ -186,12 +218,19 @@ export default function TodayView({
         <BasicsDashboard
           indicators={dashboardIndicators}
           views={dashboardViews}
-          onLog={onLogIndicator}
+          onLog={(id) => {
+            onLogIndicator(id);
+            const ind = dashboardIndicators.find((i) => i.id === id);
+            if (ind) setUndoToast({ id: `t-${Date.now()}`, spiralId: id, label: ind.name });
+          }}
           onUndoLast={onUndoLastIndicatorLog}
           onToggle={onToggleIndicatorEnabled}
           onAddCustom={onAddCustomIndicator}
           onRemove={onRemoveIndicator}
           onPushToDump={onPushIndicatorToDump}
+          onSetCadence={onSetCadence}
+          onSetSchedule={onSetSchedule}
+          onSetPause={onSetPause}
         />
 
         <OverduePredictionsStrip
@@ -257,6 +296,7 @@ export default function TodayView({
           </Section>
         )}
       </div>
+      <UndoLogToast toast={undoToast} onUndo={(spiralId) => { onUndoLastIndicatorLog(spiralId); setUndoToast(null); }} onDismiss={() => setUndoToast(null)} />
     </div>
   );
 }
@@ -713,11 +753,256 @@ function formatRelativeDays(iso: string): string {
   return `${days}d ago`;
 }
 
-// ---------- Car-dashboard tiles ----------
+// ---------- Spiral editor (cadence + schedule + pause) ----------
+
+const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+function cadenceLabel(ind: BasicIndicator): string {
+  const cad = ind.cadence ?? 'daily';
+  if (cad === 'daily') return 'Every day';
+  if (cad === 'weekdays') return 'Weekdays';
+  if (cad === 'specific') {
+    const days = ind.daysOfWeek ?? [];
+    if (days.length === 0) return 'No days selected';
+    return days
+      .slice()
+      .sort()
+      .map((d) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d])
+      .join('·');
+  }
+  return 'Every day';
+}
+
+function SpiralEditor({
+  ind,
+  paused,
+  onSetCadence,
+  onSetSchedule,
+  onSetPause,
+}: {
+  ind: BasicIndicator;
+  paused: boolean;
+  onSetCadence: TodayViewProps['onSetCadence'];
+  onSetSchedule: TodayViewProps['onSetSchedule'];
+  onSetPause: TodayViewProps['onSetPause'];
+}) {
+  const cad: SpiralCadence = ind.cadence ?? 'daily';
+  const daysOfWeek = ind.daysOfWeek ?? [];
+  const scheduleOn = !!ind.schedule;
+  return (
+    <div className="mt-2 ml-10 pl-3 border-l-2 border-indigo-100 space-y-3">
+      {/* Cadence */}
+      <div>
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+          Cadence
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {(['daily', 'weekdays', 'specific'] as SpiralCadence[]).map((c) => (
+            <button
+              key={c}
+              onClick={() => onSetCadence(ind.id, c, c === 'specific' ? daysOfWeek : undefined)}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-lg border ${
+                cad === c
+                  ? 'bg-indigo-50 border-indigo-400 text-indigo-700'
+                  : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-200'
+              }`}
+            >
+              {c === 'daily' ? 'Every day' : c === 'weekdays' ? 'Weekdays' : 'Pick days'}
+            </button>
+          ))}
+        </div>
+        {cad === 'specific' && (
+          <div className="mt-2 flex gap-1">
+            {DAY_LABELS.map((label, i) => {
+              const active = daysOfWeek.includes(i);
+              return (
+                <button
+                  key={i}
+                  onClick={() => {
+                    const next = active
+                      ? daysOfWeek.filter((d) => d !== i)
+                      : [...daysOfWeek, i];
+                    onSetCadence(ind.id, 'specific', next);
+                  }}
+                  className={`w-7 h-7 text-xs font-bold rounded-full transition-colors ${
+                    active
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white text-gray-500 border border-gray-200 hover:border-indigo-300'
+                  }`}
+                  title={['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i]}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Schedule */}
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+            Schedule on the calendar
+          </div>
+          <button
+            onClick={() =>
+              scheduleOn
+                ? onSetSchedule(ind.id, null)
+                : onSetSchedule(ind.id, { time: '09:00', durationMinutes: 30 })
+            }
+            className={`w-10 h-5 rounded-full border-2 transition-colors flex items-center ${
+              scheduleOn
+                ? 'bg-indigo-600 border-indigo-600 justify-end'
+                : 'bg-white border-gray-300 justify-start'
+            }`}
+            title={scheduleOn ? 'Disable schedule' : 'Schedule on calendar'}
+          >
+            <span className="w-3 h-3 bg-white rounded-full shadow-sm mx-0.5" />
+          </button>
+        </div>
+        {scheduleOn && ind.schedule && (
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] text-gray-500 flex items-center gap-1.5">
+              At
+              <input
+                type="time"
+                value={ind.schedule.time}
+                onChange={(e) =>
+                  onSetSchedule(ind.id, {
+                    time: e.target.value,
+                    durationMinutes: ind.schedule!.durationMinutes ?? 30,
+                  })
+                }
+                className="px-2 py-1 text-sm border border-gray-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+            </label>
+            <label className="text-[10px] text-gray-500 flex items-center gap-1.5">
+              For
+              <input
+                type="number"
+                min={5}
+                max={480}
+                step={5}
+                value={ind.schedule.durationMinutes ?? 30}
+                onChange={(e) =>
+                  onSetSchedule(ind.id, {
+                    time: ind.schedule!.time,
+                    durationMinutes: Math.max(5, Number(e.target.value) || 30),
+                  })
+                }
+                className="w-16 px-2 py-1 text-sm border border-gray-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+              />
+              min
+            </label>
+          </div>
+        )}
+        {scheduleOn && (
+          <p className="text-[10px] text-gray-400 mt-1.5">
+            Auto-renders as a virtual block on every active day. Tap the block in the
+            calendar to log, skip, or open these settings.
+          </p>
+        )}
+      </div>
+
+      {/* Pause */}
+      <div>
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+          Pause
+        </div>
+        <div className="flex gap-1.5 flex-wrap">
+          {paused ? (
+            <button
+              onClick={() => onSetPause(ind.id, null)}
+              className="px-2.5 py-1 text-xs font-semibold rounded-lg border bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100"
+            >
+              Resume
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={() => {
+                  const d = new Date();
+                  d.setDate(d.getDate() + 7);
+                  onSetPause(ind.id, d.toISOString());
+                }}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg border bg-white border-gray-200 text-gray-700 hover:border-amber-300"
+              >
+                For a week
+              </button>
+              <button
+                onClick={() => {
+                  const d = new Date();
+                  d.setMonth(d.getMonth() + 1);
+                  onSetPause(ind.id, d.toISOString());
+                }}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg border bg-white border-gray-200 text-gray-700 hover:border-amber-300"
+              >
+                For a month
+              </button>
+              <button
+                onClick={() => onSetPause(ind.id, undefined)}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg border bg-white border-gray-200 text-gray-700 hover:border-amber-300"
+              >
+                Indefinitely
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Undo-last-log toast ----------
 //
-// Iconified daily basics. Tap to log. Tiles flow green → amber → red+pulse
-// the longer they go unlogged; in amber/red an ↗ shortcut appears to push
-// the indicator into the BrainDump as an urgent task so it gets done.
+// Mounted once at the root of TodayView. Fades into the bottom for ~5s after
+// the user taps a spiral tile so accidental logs are one-tap reversible.
+
+function UndoLogToast({
+  toast,
+  onUndo,
+  onDismiss,
+}: {
+  toast: { id: string; spiralId: string; label: string } | null;
+  onUndo: (spiralId: string) => void;
+  onDismiss: () => void;
+}) {
+  if (!toast) return null;
+  return (
+    <div
+      key={toast.id}
+      className="fixed left-1/2 -translate-x-1/2 bottom-6 z-50 flex items-center gap-3 px-4 py-2 bg-gray-900 text-white rounded-full shadow-xl text-sm animate-[fadeIn_120ms_ease-out]"
+      style={{ paddingBottom: `calc(0.5rem + env(safe-area-inset-bottom, 0px))` }}
+    >
+      <span className="text-emerald-300">✓</span>
+      <span className="font-medium">
+        Logged <span className="text-gray-300">·</span> {toast.label}
+      </span>
+      <button
+        onClick={() => onUndo(toast.spiralId)}
+        className="ml-2 text-amber-300 hover:text-amber-200 font-semibold uppercase tracking-wider text-xs"
+      >
+        Undo
+      </button>
+      <button
+        onClick={onDismiss}
+        className="text-gray-400 hover:text-gray-200 text-base leading-none"
+        title="Dismiss"
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+// ---------- Upward Spirals (car-dashboard tiles) ----------
+//
+// Iconified recurring commitments (formerly "Daily basics"). Tap to log.
+// Tiles flow green → amber → red+pulse the longer they go unlogged; in
+// amber/red an ↗ shortcut appears to push the indicator into the BrainDump
+// as an urgent task. When a spiral has a schedule, the calendar renders a
+// virtual block on its cadence.
 function BasicsDashboard({
   indicators,
   views,
@@ -727,6 +1012,9 @@ function BasicsDashboard({
   onAddCustom,
   onRemove,
   onPushToDump,
+  onSetCadence,
+  onSetSchedule,
+  onSetPause,
 }: {
   indicators: BasicIndicator[];
   views: IndicatorView[];
@@ -736,6 +1024,9 @@ function BasicsDashboard({
   onAddCustom: TodayViewProps['onAddCustomIndicator'];
   onRemove: (id: string) => void;
   onPushToDump: (label: string) => void;
+  onSetCadence: TodayViewProps['onSetCadence'];
+  onSetSchedule: TodayViewProps['onSetSchedule'];
+  onSetPause: TodayViewProps['onSetPause'];
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -744,7 +1035,7 @@ function BasicsDashboard({
     return (
       <section className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
         <header className="flex items-center justify-between">
-          <h3 className="text-[13px] font-semibold text-gray-800">Daily basics</h3>
+          <h3 className="text-[13px] font-semibold text-gray-800">Upward spirals</h3>
           <button
             onClick={() => setSettingsOpen(true)}
             className="text-[11px] uppercase tracking-wider text-gray-400 hover:text-gray-700"
@@ -789,6 +1080,9 @@ function BasicsDashboard({
           onAddCustom={onAddCustom}
           onRemove={onRemove}
           onClose={() => setSettingsOpen(false)}
+          onSetCadence={onSetCadence}
+          onSetSchedule={onSetSchedule}
+          onSetPause={onSetPause}
         />
       )}
     </section>
@@ -880,13 +1174,20 @@ function IndicatorSettingsModal({
   onAddCustom,
   onRemove,
   onClose,
+  onSetCadence,
+  onSetSchedule,
+  onSetPause,
 }: {
   indicators: BasicIndicator[];
   onToggle: (id: string) => void;
   onAddCustom: TodayViewProps['onAddCustomIndicator'];
   onRemove: (id: string) => void;
   onClose: () => void;
+  onSetCadence: TodayViewProps['onSetCadence'];
+  onSetSchedule: TodayViewProps['onSetSchedule'];
+  onSetPause: TodayViewProps['onSetPause'];
 }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('⚪');
@@ -933,43 +1234,74 @@ function IndicatorSettingsModal({
         </header>
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
           <ul className="divide-y divide-gray-100">
-            {indicators.map((ind) => (
-              <li key={ind.id} className="py-2 flex items-center gap-3">
-                <span className="w-7 h-7 flex items-center justify-center text-gray-600">
-                  <IndicatorIcon indicator={ind} size={22} />
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900">{ind.name}</div>
-                  {ind.hint && (
-                    <div className="text-[10px] text-gray-500 truncate">{ind.hint}</div>
+            {indicators.map((ind) => {
+              const isExpanded = expandedId === ind.id;
+              const paused = !!ind.pausedUntil && new Date(ind.pausedUntil).getTime() > Date.now();
+              return (
+                <li key={ind.id} className="py-2">
+                  <div className="flex items-center gap-3">
+                    <span className="w-7 h-7 flex items-center justify-center text-gray-600">
+                      <IndicatorIcon indicator={ind} size={22} />
+                    </span>
+                    <button
+                      onClick={() => setExpandedId(isExpanded ? null : ind.id)}
+                      className="flex-1 min-w-0 text-left"
+                    >
+                      <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                        {ind.name}
+                        {paused && (
+                          <span className="text-[9px] uppercase tracking-wider font-bold text-gray-500 bg-gray-100 rounded px-1.5 py-0.5">
+                            Paused
+                          </span>
+                        )}
+                        {ind.schedule && (
+                          <span className="text-[9px] uppercase tracking-wider font-semibold text-indigo-600 bg-indigo-50 rounded px-1.5 py-0.5">
+                            {ind.schedule.time}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[10px] text-gray-500 truncate">
+                        {cadenceLabel(ind)}
+                        {ind.hint ? ` · ${ind.hint}` : ''}
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => onToggle(ind.id)}
+                      className={`w-10 h-6 rounded-full border-2 transition-colors flex items-center ${
+                        ind.enabled
+                          ? 'bg-indigo-600 border-indigo-600 justify-end'
+                          : 'bg-white border-gray-300 justify-start'
+                      }`}
+                      title={ind.enabled ? 'Disable' : 'Enable'}
+                    >
+                      <span className="w-4 h-4 bg-white rounded-full shadow-sm mx-0.5" />
+                    </button>
+                    {!ind.preset && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Remove ${ind.name}? Its history will be cleared.`)) {
+                            onRemove(ind.id);
+                          }
+                        }}
+                        className="text-[16px] leading-none text-gray-300 hover:text-red-500"
+                        title="Remove custom indicator"
+                      >
+                        &times;
+                      </button>
+                    )}
+                  </div>
+                  {isExpanded && (
+                    <SpiralEditor
+                      ind={ind}
+                      paused={paused}
+                      onSetCadence={onSetCadence}
+                      onSetSchedule={onSetSchedule}
+                      onSetPause={onSetPause}
+                    />
                   )}
-                </div>
-                <button
-                  onClick={() => onToggle(ind.id)}
-                  className={`w-10 h-6 rounded-full border-2 transition-colors flex items-center ${
-                    ind.enabled
-                      ? 'bg-indigo-600 border-indigo-600 justify-end'
-                      : 'bg-white border-gray-300 justify-start'
-                  }`}
-                  title={ind.enabled ? 'Disable' : 'Enable'}
-                >
-                  <span className="w-4 h-4 bg-white rounded-full shadow-sm mx-0.5" />
-                </button>
-                {!ind.preset && (
-                  <button
-                    onClick={() => {
-                      if (confirm(`Remove ${ind.name}? Its history will be cleared.`)) {
-                        onRemove(ind.id);
-                      }
-                    }}
-                    className="text-[16px] leading-none text-gray-300 hover:text-red-500"
-                    title="Remove custom indicator"
-                  >
-                    &times;
-                  </button>
-                )}
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
 
           {showAdd ? (

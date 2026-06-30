@@ -24,6 +24,8 @@ interface WeeklyCalendarProps {
     mainDateKey: string;
   }) => BlockTemplate;
   onDeleteTemplate: (id: string) => void;
+  onSkipSpiralOccurrence: (spiralId: string, dateKey: string) => void;
+  onOpenSpiralSettings: () => void;
   schedulingTask?: BrainDumpTask | null;
   onScheduleComplete?: () => void;
 }
@@ -40,12 +42,17 @@ export default function WeeklyCalendar({
   templates,
   onSaveTemplate,
   onDeleteTemplate,
+  onSkipSpiralOccurrence,
+  onOpenSpiralSettings,
   schedulingTask,
   onScheduleComplete,
 }: WeeklyCalendarProps) {
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [modalPrefillTime, setModalPrefillTime] = useState<string | undefined>(undefined);
   const [editingBlock, setEditingBlock] = useState<TaskBlock | null>(null);
+  // When a virtual spiral block is tapped we open a small popover instead of
+  // the regular TaskModal (which expects real, editable TaskBlocks).
+  const [spiralPopover, setSpiralPopover] = useState<TaskBlock | null>(null);
   const [mobileSelectedDay, setMobileSelectedDay] = useState<number>(() => new Date().getDay() === 0 ? 6 : new Date().getDay() - 1);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -65,6 +72,12 @@ export default function WeeklyCalendar({
   };
 
   const handleBlockClick = (block: TaskBlock) => {
+    if (block.virtualSpiral) {
+      // Virtual spiral instances aren't real, editable TaskBlocks. Show a
+      // small popover with Log / Skip / open spiral Settings instead.
+      setSpiralPopover(block);
+      return;
+    }
     const blockDate = new Date(block.date + 'T00:00:00');
     setModalDate(blockDate);
     setModalPrefillTime(undefined);
@@ -246,6 +259,89 @@ export default function WeeklyCalendar({
           onClose={() => { setModalDate(null); setEditingBlock(null); setModalPrefillTime(undefined); }}
         />
       )}
+
+      {/* Virtual-spiral popover */}
+      {spiralPopover && spiralPopover.virtualSpiral && (
+        <SpiralPopover
+          block={spiralPopover}
+          onSkip={() => {
+            const ref = spiralPopover.virtualSpiral!;
+            onSkipSpiralOccurrence(ref.spiralId, ref.dateKey);
+            setSpiralPopover(null);
+          }}
+          onOpenSettings={() => {
+            setSpiralPopover(null);
+            onOpenSpiralSettings();
+          }}
+          onClose={() => setSpiralPopover(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ---------- Virtual-spiral popover ----------
+//
+// Tapping a recurring spiral's calendar block opens this. v1 actions: skip
+// this occurrence, or open the spiral's settings (which lives on TodayView).
+// Direct "log it" lives on the dashboard tile; we don't duplicate it here
+// because most logging flows naturally through the tile face.
+function SpiralPopover({
+  block,
+  onSkip,
+  onOpenSettings,
+  onClose,
+}: {
+  block: TaskBlock;
+  onSkip: () => void;
+  onOpenSettings: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      style={{ height: '100dvh' }}
+    >
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl shadow-xl flex flex-col animate-slide-up"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+      >
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-indigo-600 font-bold">
+              ↻ Recurring spiral
+            </div>
+            <h3 className="text-base font-semibold text-gray-900 mt-0.5">{block.mainTask}</h3>
+            <div className="text-[11px] text-gray-500 mt-0.5 font-mono">
+              {block.mainTime} · {block.date}
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">
+            &times;
+          </button>
+        </div>
+        <div className="px-5 py-3 space-y-2">
+          <button
+            onClick={onSkip}
+            className="w-full text-left px-4 py-3 bg-white border border-gray-200 hover:border-amber-300 hover:bg-amber-50 rounded-xl transition-colors"
+          >
+            <div className="text-sm font-semibold text-gray-900">Skip just this day</div>
+            <div className="text-[11px] text-gray-500 mt-0.5">
+              The block disappears from this date only. Future occurrences are unaffected.
+            </div>
+          </button>
+          <button
+            onClick={onOpenSettings}
+            className="w-full text-left px-4 py-3 bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 rounded-xl transition-colors"
+          >
+            <div className="text-sm font-semibold text-gray-900">Open spiral settings</div>
+            <div className="text-[11px] text-gray-500 mt-0.5">
+              Change cadence, time, duration, or pause this spiral.
+            </div>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
