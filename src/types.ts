@@ -21,6 +21,11 @@ export interface TaskBlock {
   subTasks: SubTask[];
   color: string;
   createdAt: string; // ISO timestamp
+  // When present, this block was synthesized from a dashboard spiral with a
+  // schedule. It is not stored in the `blocks` slice — it's expanded at read
+  // time. Callers must NOT pass virtual blocks back through addBlock/updateBlock.
+  virtualSpiral?: { spiralId: string; dateKey: string };
+  durationMinutes?: number; // optional; used by virtual spirals + future block editing
 }
 
 export type EisenhowerPriority = 'do-first' | 'schedule' | 'delegate' | 'drop';
@@ -269,6 +274,29 @@ export interface PredictionLabState {
 //   is "amber"/"red" by time-since-last-log (or 7am start if no logs yet).
 export type IndicatorMode = 'daily' | 'counter';
 
+// When does this spiral apply? Daily = every day. Weekdays = Mon-Fri only.
+// Specific = pick days via `daysOfWeek`. Backward-compat: missing cadence
+// behaves as 'daily' so pre-cadence data renders unchanged.
+export type SpiralCadence = 'daily' | 'weekdays' | 'specific';
+
+// When set on an indicator, the dashboard tile materializes a virtual block
+// on the calendar at this time on every active day. The block is non-editable
+// in v1 — tapping opens a small popover with Log / Skip-today / open Settings.
+export interface SpiralSchedule {
+  time: string;              // "HH:MM" 24-hour
+  durationMinutes?: number;  // optional; defaults to 30 for visual size
+}
+
+// A per-occurrence override on a scheduled spiral. v1 only supports
+// 'skipped' (the virtual block disappears from that single day). Future
+// override kinds (rescheduled, edited) can be added without migration.
+export interface SpiralOccurrenceException {
+  id: string;
+  spiralId: string;
+  dateKey: string; // "YYYY-MM-DD" of the skipped occurrence
+  kind: 'skipped';
+}
+
 export interface BasicIndicator {
   id: string;
   name: string;
@@ -283,6 +311,11 @@ export interface BasicIndicator {
   urgentAfterMinutes?: number;   // counter: stale-time → red+pulse
   warnAfterHourOfDay?: number;   // daily: amber after this local hour if no log
   urgentAfterHourOfDay?: number; // daily: red+pulse after this local hour
+  // Recurrence + scheduling (all optional for back-compat)
+  cadence?: SpiralCadence;       // when this spiral applies (default 'daily')
+  daysOfWeek?: number[];         // 0=Sun..6=Sat; required when cadence='specific'
+  schedule?: SpiralSchedule;     // optional time-of-day → virtual calendar block
+  pausedUntil?: string;          // ISO timestamp; while in the future tile & block both hide
 }
 
 export interface BasicLog {
@@ -294,6 +327,7 @@ export interface BasicLog {
 export interface DashboardState {
   indicators: BasicIndicator[];
   logs: BasicLog[];
+  occurrenceExceptions?: SpiralOccurrenceException[];
 }
 
 export interface AppState {

@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { BasicIndicator, BasicLog, IndicatorMode } from '../types';
+import type {
+  BasicIndicator,
+  BasicLog,
+  IndicatorMode,
+  SpiralCadence,
+  SpiralSchedule,
+  SpiralOccurrenceException,
+  TaskBlock,
+} from '../types';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
 
@@ -19,6 +27,7 @@ export const DEFAULT_INDICATORS: BasicIndicator[] = [
     hint: '~8 cups · sip every few hours',
     mode: 'counter',
     enabled: true,
+    cadence: 'daily',
     dailyTarget: 8,
     warnAfterMinutes: 180,
     urgentAfterMinutes: 300,
@@ -103,6 +112,29 @@ function localDateKey(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+function cadenceOf(ind: BasicIndicator): SpiralCadence {
+  return ind.cadence ?? 'daily';
+}
+
+function isPaused(ind: BasicIndicator, now: Date = new Date()): boolean {
+  if (!ind.pausedUntil) return false;
+  return new Date(ind.pausedUntil).getTime() > now.getTime();
+}
+
+// Does this spiral apply on the given date (per its cadence + days-of-week)?
+// Pause does NOT affect this — pause is checked separately so the calendar
+// can decide whether a virtual block should render.
+export function isActiveOnDate(ind: BasicIndicator, date: Date = new Date()): boolean {
+  const cad = cadenceOf(ind);
+  if (cad === 'daily') return true;
+  const dow = date.getDay();
+  if (cad === 'weekdays') return dow >= 1 && dow <= 5;
+  if (cad === 'specific') return (ind.daysOfWeek ?? []).includes(dow);
+  return true;
+}
+
+const SCHEDULE_DEFAULT_DURATION = 30;
+
 function startOfTodayAt(hour: number): Date {
   const d = new Date();
   d.setHours(hour, 0, 0, 0);
@@ -164,6 +196,7 @@ export function computeIndicatorState(
 export function useDashboard() {
   const [indicators, setIndicators] = useState<BasicIndicator[]>([]);
   const [logs, setLogs] = useState<BasicLog[]>([]);
+  const [exceptions, setExceptions] = useState<SpiralOccurrenceException[]>([]);
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -180,9 +213,11 @@ export function useDashboard() {
       const local = loadState();
       const localInds = local.dashboard?.indicators;
       const localLogs = local.dashboard?.logs || [];
+      const localExceptions = local.dashboard?.occurrenceExceptions || [];
       // First-run seeding: if no indicators have ever been saved, plant the defaults.
       setIndicators(localInds && localInds.length > 0 ? localInds : DEFAULT_INDICATORS);
       setLogs(localLogs);
+      setExceptions(localExceptions);
       setLoaded(true);
 
       const key = getSecretKey();
@@ -200,6 +235,12 @@ export function useDashboard() {
             for (const l of localLogs) if (!merged.has(l.id)) merged.set(l.id, l);
             setLogs(Array.from(merged.values()));
           }
+          if (cloud.dashboard?.occurrenceExceptions) {
+            const merged = new Map<string, SpiralOccurrenceException>();
+            for (const x of cloud.dashboard.occurrenceExceptions) merged.set(x.id, x);
+            for (const x of localExceptions) if (!merged.has(x.id)) merged.set(x.id, x);
+            setExceptions(Array.from(merged.values()));
+          }
         } catch {
           // sync errors handled elsewhere
         }
@@ -211,7 +252,10 @@ export function useDashboard() {
   useEffect(() => {
     if (!loaded) return;
     const state = loadState();
-    const updated = { ...state, dashboard: { indicators, logs } };
+    const updated = {
+      ...state,
+      dashboard: { indicators, logs, occurrenceExceptions: exceptions },
+    };
     saveState(updated);
 
     const key = getSecretKey();
@@ -225,7 +269,7 @@ export function useDashboard() {
         }
       }, 1500);
     }
-  }, [indicators, logs, loaded]);
+  }, [indicators, logs, exceptions, loaded]);
 
   const logIndicator = useCallback((indicatorId: string) => {
     const entry: BasicLog = {
@@ -304,16 +348,113 @@ export function useDashboard() {
     setLogs((prev) => prev.filter((l) => l.indicatorId !== id));
   }, []);
 
+  // View list: only enabled, not-paused, and active-on-today indicators. Once
+  // a spiral has a cadence (e.g., weekdays only) it stops cluttering the
+  // dashboard on inactive days.
   const views = useMemo(() => {
     const now = new Date();
     return indicators
       .filter((i) => i.enabled)
+      .filter((i) => !isPaused(i, now))
+      .filter((i) => isActiveOnDate(i, now))
       .map((i) => computeIndicatorState(i, logs, now));
   }, [indicators, logs]);
+
+  // ---------- Scheduling / cadence actions ----------
+
+  const setCadence = useCallback(
+    (id: string, cadence: SpiralCadence, daysOfWeek?: number[]) => {
+      setIndicators((prev) =>
+        prev.map((i) =>
+          i.id === id
+            ? {
+                ...i,
+                cadence,
+                daysOfWeek: cadence === 'specific' ? daysOfWeek ?? [] : undefined,
+              }
+            : i
+        )
+      );
+    },
+    []
+  );
+
+  const setSchedule = useCallback((id: string, schedule: SpiralSchedule | null) => {
+    setIndicators((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, schedule: schedule ?? undefined } : i))
+    );
+  }, []);
+
+  // Pause until a date. Pass null to unpause; pass undefined to pause
+  // indefinitely (until = year 9999).
+  const setPause = useCallback((id: string, until: string | null | undefined) => {
+    let value: string | undefined;
+    if (until === null) value = undefined;
+    else if (until === undefined) value = '9999-12-31T23:59:59.000Z';
+    else value = until;
+    setIndicators((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, pausedUntil: value } : i))
+    );
+  }, []);
+
+  const skipOccurrence = useCallback((spiralId: string, dateKey: string) => {
+    setExceptions((prev) => {
+      if (prev.some((x) => x.spiralId === spiralId && x.dateKey === dateKey && x.kind === 'skipped')) {
+        return prev;
+      }
+      return [
+        ...prev,
+        { id: uuidv4(), spiralId, dateKey, kind: 'skipped' },
+      ];
+    });
+  }, []);
+
+  const unskipOccurrence = useCallback((spiralId: string, dateKey: string) => {
+    setExceptions((prev) =>
+      prev.filter((x) => !(x.spiralId === spiralId && x.dateKey === dateKey && x.kind === 'skipped'))
+    );
+  }, []);
+
+  // Materialize virtual calendar blocks for any scheduled, enabled, not-paused,
+  // active-on-date, not-skipped spirals on the given local date. Returns plain
+  // TaskBlocks with `virtualSpiral` set so the calendar render path doesn't
+  // need to know about spirals.
+  const materializeForDate = useCallback(
+    (date: Date): TaskBlock[] => {
+      const dateKey = localDateKey(date);
+      const skippedKeys = new Set(
+        exceptions
+          .filter((x) => x.kind === 'skipped' && x.dateKey === dateKey)
+          .map((x) => x.spiralId)
+      );
+      const out: TaskBlock[] = [];
+      for (const ind of indicators) {
+        if (!ind.enabled) continue;
+        if (!ind.schedule) continue;
+        if (isPaused(ind, date)) continue;
+        if (!isActiveOnDate(ind, date)) continue;
+        if (skippedKeys.has(ind.id)) continue;
+        out.push({
+          id: `spiral::${ind.id}::${dateKey}`,
+          date: dateKey,
+          mainTask: ind.name,
+          mainTime: ind.schedule.time,
+          subTasks: [],
+          color: 'sky',
+          createdAt: new Date(0).toISOString(),
+          durationMinutes: ind.schedule.durationMinutes ?? SCHEDULE_DEFAULT_DURATION,
+          virtualSpiral: { spiralId: ind.id, dateKey },
+        });
+      }
+      return out;
+    },
+    [indicators, exceptions]
+  );
 
   return {
     indicators,
     logs,
+    exceptions,
     views,
     loaded,
     logIndicator,
@@ -322,5 +463,11 @@ export function useDashboard() {
     addCustomIndicator,
     updateIndicator,
     removeIndicator,
+    setCadence,
+    setSchedule,
+    setPause,
+    skipOccurrence,
+    unskipOccurrence,
+    materializeForDate,
   };
 }
