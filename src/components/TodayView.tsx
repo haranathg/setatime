@@ -9,10 +9,12 @@ import type {
   IndicatorMode,
   SpiralCadence,
   SpiralSchedule,
+  NorthStar,
 } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
 import { isCheckedToday } from '../hooks/usePins';
 import type { IndicatorView } from '../hooks/useDashboard';
+import { colorFor } from '../hooks/useNorthStars';
 import { IndicatorIcon } from './IndicatorIcons';
 
 interface TodayViewProps {
@@ -49,6 +51,11 @@ interface TodayViewProps {
   onSetCadence: (id: string, cadence: SpiralCadence, daysOfWeek?: number[]) => void;
   onSetSchedule: (id: string, schedule: SpiralSchedule | null) => void;
   onSetPause: (id: string, until: string | null | undefined) => void;
+  // North Stars
+  northStars: NorthStar[];
+  onOpenStar: (id: string) => void;
+  onOpenAllStars: () => void;
+  onToggleIndicatorStar: (indicatorId: string, starId: string) => void;
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -97,6 +104,10 @@ export default function TodayView({
   onSetCadence,
   onSetSchedule,
   onSetPause,
+  northStars,
+  onOpenStar,
+  onOpenAllStars,
+  onToggleIndicatorStar,
 }: TodayViewProps) {
   // Gmail-style "Logged · Undo" toast at the bottom; auto-dismisses after 5s.
   const [undoToast, setUndoToast] = useState<{ id: string; spiralId: string; label: string } | null>(null);
@@ -166,6 +177,11 @@ export default function TodayView({
       <div className="flex-1 overflow-y-auto bg-gray-50">
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
           <Header today={today} doneSubTasks={0} totalSubTasks={0} />
+          <NorthStarsStrip
+            stars={northStars}
+            onOpenStar={onOpenStar}
+            onOpenAll={onOpenAllStars}
+          />
           <BasicsDashboard
             indicators={dashboardIndicators}
             views={dashboardViews}
@@ -182,6 +198,8 @@ export default function TodayView({
             onSetCadence={onSetCadence}
             onSetSchedule={onSetSchedule}
             onSetPause={onSetPause}
+            northStars={northStars}
+            onToggleIndicatorStar={onToggleIndicatorStar}
           />
           <OverduePredictionsStrip
             overdue={overduePredictions}
@@ -215,6 +233,12 @@ export default function TodayView({
       <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
         <Header today={today} doneSubTasks={doneSubTasks} totalSubTasks={totalSubTasks} />
 
+        <NorthStarsStrip
+          stars={northStars}
+          onOpenStar={onOpenStar}
+          onOpenAll={onOpenAllStars}
+        />
+
         <BasicsDashboard
           indicators={dashboardIndicators}
           views={dashboardViews}
@@ -231,6 +255,8 @@ export default function TodayView({
           onSetCadence={onSetCadence}
           onSetSchedule={onSetSchedule}
           onSetPause={onSetPause}
+          northStars={northStars}
+          onToggleIndicatorStar={onToggleIndicatorStar}
         />
 
         <OverduePredictionsStrip
@@ -779,13 +805,19 @@ function SpiralEditor({
   onSetCadence,
   onSetSchedule,
   onSetPause,
+  northStars,
+  onToggleIndicatorStar,
 }: {
   ind: BasicIndicator;
   paused: boolean;
   onSetCadence: TodayViewProps['onSetCadence'];
   onSetSchedule: TodayViewProps['onSetSchedule'];
   onSetPause: TodayViewProps['onSetPause'];
+  northStars: NorthStar[];
+  onToggleIndicatorStar: (indicatorId: string, starId: string) => void;
 }) {
+  const activeStars = northStars.filter((s) => !s.archivedAt);
+  const tagged = new Set(ind.northStarIds ?? []);
   const cad: SpiralCadence = ind.cadence ?? 'daily';
   const daysOfWeek = ind.daysOfWeek ?? [];
   const scheduleOn = !!ind.schedule;
@@ -950,6 +982,38 @@ function SpiralEditor({
           )}
         </div>
       </div>
+
+      {/* North Star tags */}
+      {activeStars.length > 0 && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+            Feeds North Star
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {activeStars.map((star) => {
+              const on = tagged.has(star.id);
+              const c = colorFor(star.color);
+              return (
+                <button
+                  key={star.id}
+                  onClick={() => onToggleIndicatorStar(ind.id, star.id)}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors ${
+                    on
+                      ? `${c.bg} ${c.text} border-transparent`
+                      : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: c.hex, opacity: on ? 1 : 0.5 }}
+                  />
+                  {star.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1015,6 +1079,8 @@ function BasicsDashboard({
   onSetCadence,
   onSetSchedule,
   onSetPause,
+  northStars,
+  onToggleIndicatorStar,
 }: {
   indicators: BasicIndicator[];
   views: IndicatorView[];
@@ -1027,6 +1093,8 @@ function BasicsDashboard({
   onSetCadence: TodayViewProps['onSetCadence'];
   onSetSchedule: TodayViewProps['onSetSchedule'];
   onSetPause: TodayViewProps['onSetPause'];
+  northStars: NorthStar[];
+  onToggleIndicatorStar: (indicatorId: string, starId: string) => void;
 }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -1067,6 +1135,7 @@ function BasicsDashboard({
           <IndicatorTile
             key={v.indicator.id}
             view={v}
+            stars={northStars}
             onLog={() => onLog(v.indicator.id)}
             onUndoLast={() => onUndoLast(v.indicator.id)}
             onPushToDump={() => onPushToDump(`Log ${v.indicator.name.toLowerCase()}`)}
@@ -1083,6 +1152,8 @@ function BasicsDashboard({
           onSetCadence={onSetCadence}
           onSetSchedule={onSetSchedule}
           onSetPause={onSetPause}
+          northStars={northStars}
+          onToggleIndicatorStar={onToggleIndicatorStar}
         />
       )}
     </section>
@@ -1104,16 +1175,21 @@ const TILE_STYLES: Record<IndicatorView['state'], string> = {
 
 function IndicatorTile({
   view,
+  stars,
   onLog,
   onUndoLast,
   onPushToDump,
 }: {
   view: IndicatorView;
+  stars: NorthStar[];
   onLog: () => void;
   onUndoLast: () => void;
   onPushToDump: () => void;
 }) {
   const { indicator: ind, state, todayCount, minutesSinceLast } = view;
+  const taggedStars = (ind.northStarIds ?? [])
+    .map((id) => stars.find((s) => s.id === id))
+    .filter((s): s is NorthStar => !!s && !s.archivedAt);
   const sub = (() => {
     if (ind.mode === 'counter') {
       const target = ind.dailyTarget ? `/${ind.dailyTarget}` : '';
@@ -1145,6 +1221,18 @@ function IndicatorTile({
         <div className="text-[11px] font-semibold tracking-tight leading-tight">{ind.name}</div>
         <div className="text-[10px] font-mono leading-tight opacity-90">{sub}</div>
         {microLine && <div className="text-[9px] opacity-60 leading-tight">{microLine}</div>}
+        {taggedStars.length > 0 && (
+          <div className="absolute bottom-1 left-1 flex items-center gap-0.5">
+            {taggedStars.slice(0, 3).map((s) => (
+              <span
+                key={s.id}
+                title={s.name}
+                className="w-1.5 h-1.5 rounded-full ring-1 ring-white/70"
+                style={{ backgroundColor: colorFor(s.color).hex }}
+              />
+            ))}
+          </div>
+        )}
       </button>
       {todayCount > 0 && (
         <button
@@ -1177,6 +1265,8 @@ function IndicatorSettingsModal({
   onSetCadence,
   onSetSchedule,
   onSetPause,
+  northStars,
+  onToggleIndicatorStar,
 }: {
   indicators: BasicIndicator[];
   onToggle: (id: string) => void;
@@ -1186,6 +1276,8 @@ function IndicatorSettingsModal({
   onSetCadence: TodayViewProps['onSetCadence'];
   onSetSchedule: TodayViewProps['onSetSchedule'];
   onSetPause: TodayViewProps['onSetPause'];
+  northStars: NorthStar[];
+  onToggleIndicatorStar: (indicatorId: string, starId: string) => void;
 }) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
@@ -1297,6 +1389,8 @@ function IndicatorSettingsModal({
                       onSetCadence={onSetCadence}
                       onSetSchedule={onSetSchedule}
                       onSetPause={onSetPause}
+                      northStars={northStars}
+                      onToggleIndicatorStar={onToggleIndicatorStar}
                     />
                   )}
                 </li>
@@ -1436,5 +1530,82 @@ function IndicatorSettingsModal({
         </div>
       </div>
     </div>
+  );
+}
+
+// ---------- North Stars strip ----------
+//
+// Persistent macro-layer visibility: the 1-3 anchors surface at the top of
+// TodayView every launch. Same visibility pattern as pinned todos, one level
+// up. Tap a star to jump to its detail page; tap "+ Add" or the empty state
+// to open the Stars tab.
+function NorthStarsStrip({
+  stars,
+  onOpenStar,
+  onOpenAll,
+}: {
+  stars: NorthStar[];
+  onOpenStar: (id: string) => void;
+  onOpenAll: () => void;
+}) {
+  const active = stars.filter((s) => !s.archivedAt);
+  if (active.length === 0) {
+    return (
+      <button
+        onClick={onOpenAll}
+        className="w-full text-left bg-white border-2 border-dashed border-gray-200 hover:border-indigo-300 rounded-2xl px-4 py-3 transition-colors"
+      >
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+          North Stars · 0 anchors
+        </div>
+        <div className="text-sm text-gray-700 mt-1 leading-snug">
+          Pick 1–3 long-term anchors. Everything you do here can attribute to them.
+        </div>
+      </button>
+    );
+  }
+  return (
+    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 flex items-center justify-between border-b border-gray-100">
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+          North Stars · steering toward
+        </div>
+        <button
+          onClick={onOpenAll}
+          className="text-[10px] uppercase tracking-wider font-semibold text-indigo-600 hover:text-indigo-700"
+        >
+          Manage ›
+        </button>
+      </header>
+      <ul className="divide-y divide-gray-50">
+        {active.map((star) => {
+          const c = colorFor(star.color);
+          return (
+            <li key={star.id}>
+              <button
+                onClick={() => onOpenStar(star.id)}
+                className="w-full text-left px-4 py-2 flex items-center gap-3 hover:bg-gray-50 transition-colors"
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: c.hex }}
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-gray-900 truncate">{star.name}</div>
+                  {star.direction && (
+                    <div className="text-[11px] text-gray-500 italic truncate">
+                      {star.direction}
+                    </div>
+                  )}
+                </div>
+                <span className="text-[10px] uppercase tracking-wider text-gray-400 flex-shrink-0">
+                  Open ›
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

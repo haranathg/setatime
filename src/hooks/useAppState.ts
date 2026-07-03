@@ -54,6 +54,7 @@ export function useAppState() {
               pins: cloud.pins ?? local.pins,
               predictions: cloud.predictions ?? local.predictions,
               dashboard: cloud.dashboard ?? local.dashboard,
+              northStars: cloud.northStars ?? local.northStars,
             });
           }
           setSyncError(null);
@@ -120,6 +121,7 @@ export function useAppState() {
           pins: cloud.pins ?? current.pins,
           predictions: cloud.predictions ?? current.predictions,
           dashboard: cloud.dashboard ?? current.dashboard,
+          northStars: cloud.northStars ?? current.northStars,
         });
       }
       setSyncError(null);

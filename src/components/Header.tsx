@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { getSecretKey, setSecretKey, clearSecretKey } from '../services/syncService';
 
 interface HeaderProps {
-  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions';
-  onViewChange: (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions') => void;
+  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars';
+  onViewChange: (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars') => void;
   syncing?: boolean;
   syncError?: string | null;
   onRefreshFromCloud?: () => void;
@@ -153,6 +153,17 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           title="Today's blocks with progress tracking"
         >
           Today
+        </button>
+        <button
+          onClick={() => onViewChange('stars')}
+          className={`flex-shrink-0 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+            activeView === 'stars'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+          title="North Stars: 1–3 long-term anchors"
+        >
+          Stars
         </button>
         <button
           onClick={() => onViewChange('calendar')}
