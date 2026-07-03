@@ -26,6 +26,14 @@ interface WeeklyCalendarProps {
   onDeleteTemplate: (id: string) => void;
   onSkipSpiralOccurrence: (spiralId: string, dateKey: string) => void;
   onOpenSpiralSettings: () => void;
+  // Initial "schedule this" jump payload from another surface (Lab experiment,
+  // Chart plan task, aged dump task). Opens the TaskModal pre-filled once.
+  initialPrefill?: {
+    taskName?: string;
+    time?: string;
+    dateKey?: string;
+  } | null;
+  onConsumedInitialPrefill?: () => void;
   schedulingTask?: BrainDumpTask | null;
   onScheduleComplete?: () => void;
 }
@@ -44,11 +52,14 @@ export default function WeeklyCalendar({
   onDeleteTemplate,
   onSkipSpiralOccurrence,
   onOpenSpiralSettings,
+  initialPrefill,
+  onConsumedInitialPrefill,
   schedulingTask,
   onScheduleComplete,
 }: WeeklyCalendarProps) {
   const [modalDate, setModalDate] = useState<Date | null>(null);
   const [modalPrefillTime, setModalPrefillTime] = useState<string | undefined>(undefined);
+  const [modalPrefillTaskName, setModalPrefillTaskName] = useState<string | undefined>(undefined);
   const [editingBlock, setEditingBlock] = useState<TaskBlock | null>(null);
   // When a virtual spiral block is tapped we open a small popover instead of
   // the regular TaskModal (which expects real, editable TaskBlocks).
@@ -64,6 +75,21 @@ export default function WeeklyCalendar({
       scrollRef.current.scrollTop = (DEFAULT_SCROLL_HOUR - START_HOUR) * HOUR_HEIGHT_PX;
     }
   }, []);
+
+  // If another surface handed us a "schedule this" payload, open the TaskModal
+  // pre-filled once, then clear the parent's state.
+  useEffect(() => {
+    if (!initialPrefill) return;
+    const date = initialPrefill.dateKey
+      ? new Date(initialPrefill.dateKey + 'T00:00:00')
+      : new Date();
+    setModalDate(date);
+    setModalPrefillTime(initialPrefill.time);
+    setModalPrefillTaskName(initialPrefill.taskName);
+    setEditingBlock(null);
+    onConsumedInitialPrefill?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPrefill]);
 
   const handleDayClick = (date: Date, prefillTime?: string) => {
     setModalDate(date);
@@ -249,14 +275,19 @@ export default function WeeklyCalendar({
         <TaskModal
           date={modalDate}
           editingBlock={editingBlock}
-          prefillTaskName={schedulingTask?.label}
+          prefillTaskName={schedulingTask?.label ?? modalPrefillTaskName}
           prefillTime={modalPrefillTime}
           templates={templates}
           onSave={handleSave}
           onSaveTemplate={onSaveTemplate}
           onDeleteTemplate={onDeleteTemplate}
           onDelete={onDeleteBlock}
-          onClose={() => { setModalDate(null); setEditingBlock(null); setModalPrefillTime(undefined); }}
+          onClose={() => {
+            setModalDate(null);
+            setEditingBlock(null);
+            setModalPrefillTime(undefined);
+            setModalPrefillTaskName(undefined);
+          }}
         />
       )}
 

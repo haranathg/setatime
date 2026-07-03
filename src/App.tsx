@@ -160,6 +160,25 @@ function AppMain({
     deleteStar,
   } = useNorthStars();
   const [focusStarId, setFocusStarId] = useState<string | null>(null);
+  // "Schedule this" flow: any surface can prefill a calendar block and jump.
+  const [calendarPrefill, setCalendarPrefill] = useState<{
+    taskName?: string;
+    time?: string;
+    dateKey?: string;
+  } | null>(null);
+  const scheduleThis = useCallback((prefill: { taskName?: string; time?: string; dateKey?: string }) => {
+    setCalendarPrefill(prefill);
+    setActiveView('calendar');
+  }, [setActiveView]);
+
+  // A dump task counts as "aged" once it's been sitting for AGED_DAYS or more.
+  // Surfaces on TodayView with schedule/drop shortcuts so long-lived intent
+  // doesn't quietly rot in the dump.
+  const AGED_DAYS = 5;
+  const agedDumpTasks = unscheduledTasks.filter((t) => {
+    const ageMs = Date.now() - new Date(t.extractedAt).getTime();
+    return ageMs >= AGED_DAYS * 24 * 60 * 60 * 1000;
+  });
 
   // Wrap getBlocksForDate so the calendar + Today see real blocks AND virtual
   // spiral blocks together. Virtual blocks carry `virtualSpiral` so consumers
@@ -259,6 +278,8 @@ function AppMain({
               getBlocksForDate={getBlocksForDateWithSpirals}
               onSkipSpiralOccurrence={skipSpiralOccurrence}
               onOpenSpiralSettings={() => setActiveView('today')}
+              initialPrefill={calendarPrefill}
+              onConsumedInitialPrefill={() => setCalendarPrefill(null)}
               onNavigateWeek={navigateWeek}
               onGoToToday={goToToday}
               onAddBlock={addBlock}
@@ -306,6 +327,7 @@ function AppMain({
           onDeleteNote={deleteChartNote}
           onCopyForward={copyForwardChartNote}
           onSendPlanTaskToDump={addManualTask}
+          onScheduleThis={scheduleThis}
           activityLog={activityLog}
           onSyncNoteActivities={syncNoteActivities}
           onDropNoteActivities={dropNoteActivities}
@@ -373,6 +395,15 @@ function AppMain({
           }}
           onOpenAllStars={() => setActiveView('stars')}
           onToggleIndicatorStar={toggleIndicatorStar}
+          agedDumpTasks={agedDumpTasks}
+          onScheduleDumpTask={(task) => {
+            // Route through scheduleThis with the task's label; user picks the
+            // time. Remove the task from the dump on save (which happens inside
+            // handleScheduleComplete via schedulingTask).
+            startScheduling(task);
+            scheduleThis({ taskName: task.label });
+          }}
+          onDropDumpTask={(id) => deleteTask(id)}
         />
       ) : activeView === 'predictions' ? (
         <PredictionLabView
@@ -384,6 +415,7 @@ function AppMain({
           onAddEntry={addPrediction}
           onRecordReflection={recordPredictionReflection}
           onDeleteEntry={deletePrediction}
+          onScheduleThis={scheduleThis}
         />
       ) : activeView === 'stars' ? (
         <NorthStarsView

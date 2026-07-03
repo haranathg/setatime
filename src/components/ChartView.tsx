@@ -10,6 +10,7 @@ interface ChartViewProps {
   onDeleteNote: (id: string) => void;
   onCopyForward: () => ChartNote | null;
   onSendPlanTaskToDump: (label: string) => string;
+  onScheduleThis: (prefill: { taskName?: string; time?: string; dateKey?: string }) => void;
   activityLog: ActivityLogEntry[];
   onSyncNoteActivities: (noteId: string, noteDate: string, sections: Record<ChartSection, string>) => void;
   onDropNoteActivities: (noteId: string) => void;
@@ -41,7 +42,7 @@ function previewText(s: string, max = 80): string {
   return trimmed.slice(0, max - 1) + '…';
 }
 
-export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteNote, onCopyForward, onSendPlanTaskToDump, activityLog, onSyncNoteActivities, onDropNoteActivities }: ChartViewProps) {
+export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteNote, onCopyForward, onSendPlanTaskToDump, onScheduleThis, activityLog, onSyncNoteActivities, onDropNoteActivities }: ChartViewProps) {
   const sortedNotes = useMemo(
     () => [...notes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [notes]
@@ -166,6 +167,7 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
               onUpdate={onUpdateNote}
               onDelete={() => handleDelete(selected.id)}
               onSendPlanTaskToDump={onSendPlanTaskToDump}
+              onScheduleThis={onScheduleThis}
               onSyncActivities={onSyncNoteActivities}
             />
           ) : (
@@ -263,12 +265,14 @@ function NoteEditor({
   onUpdate,
   onDelete,
   onSendPlanTaskToDump,
+  onScheduleThis,
   onSyncActivities,
 }: {
   note: ChartNote;
   onUpdate: (id: string, updates: Partial<Omit<ChartNote, 'id' | 'createdAt'>>) => void;
   onDelete: () => void;
   onSendPlanTaskToDump: (label: string) => string;
+  onScheduleThis: (prefill: { taskName?: string; time?: string; dateKey?: string }) => void;
   onSyncActivities: (noteId: string, noteDate: string, sections: Record<ChartSection, string>) => void;
 }) {
   // Reconcile the activity log against the note's current text whenever any
@@ -367,7 +371,7 @@ function NoteEditor({
         onChange={(v) => onUpdate(note.id, { assessment: v })}
         rows={6}
       />
-      <PlanSection note={note} onUpdate={onUpdate} onSendToDump={onSendPlanTaskToDump} />
+      <PlanSection note={note} onUpdate={onUpdate} onSendToDump={onSendPlanTaskToDump} onScheduleThis={onScheduleThis} />
 
       {/* Signature block */}
       <SignatureBlock note={note} onUpdate={onUpdate} />
@@ -634,10 +638,12 @@ function PlanSection({
   note,
   onUpdate,
   onSendToDump,
+  onScheduleThis,
 }: {
   note: ChartNote;
   onUpdate: (id: string, updates: Partial<Omit<ChartNote, 'id' | 'createdAt'>>) => void;
   onSendToDump: (label: string) => string;
+  onScheduleThis: (prefill: { taskName?: string; time?: string; dateKey?: string }) => void;
 }) {
   const tasks = note.planTasks || [];
   const problems = note.problems || [];
@@ -724,6 +730,17 @@ function PlanSection({
                   t.done ? 'line-through text-gray-400' : 'text-gray-900'
                 }`}
               />
+              <button
+                onClick={() => {
+                  const label = t.text.trim();
+                  if (label) onScheduleThis({ taskName: label });
+                }}
+                disabled={!t.text.trim()}
+                className="flex-shrink-0 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-700 bg-white border border-sky-700 hover:bg-sky-50 disabled:opacity-30 disabled:cursor-not-allowed rounded-sm transition-colors"
+                title="Jump to the calendar with this task pre-filled"
+              >
+                ↳ Schedule
+              </button>
               {t.dumpTaskId ? (
                 <span
                   className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-green-700 bg-green-50 border border-green-200 rounded-sm"
