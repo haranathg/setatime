@@ -316,6 +316,7 @@ export interface BasicIndicator {
   daysOfWeek?: number[];         // 0=Sun..6=Sat; required when cadence='specific'
   schedule?: SpiralSchedule;     // optional time-of-day → virtual calendar block
   pausedUntil?: string;          // ISO timestamp; while in the future tile & block both hide
+  northStarIds?: string[];       // which North Stars this spiral is contributing to
 }
 
 export interface BasicLog {
@@ -342,6 +343,34 @@ export interface AppState {
   pins?: PinsState;
   predictions?: PredictionLabState;
   dashboard?: DashboardState;
+  northStars?: NorthStarsState;
+}
+
+// ---------- North Stars ----------
+//
+// The macro layer of the app: 1-3 long-term anchors ("Metabolic efficiency",
+// "Creative practice") that everything else attributes to. Hard-capped at 3
+// active stars because behavior-change research (Locke, Baumeister) shows
+// pursuit dilutes past that. Micro-actions on the dashboard, calendar, and
+// chart can each tag one or more stars via optional id arrays; the star's
+// detail page rolls up its attributed activity.
+//
+// "Why" is a short paragraph — the user's own words about why this matters.
+// "Direction" is an optional short phrase in ACT-style values framing ("live
+// in a way that respects my body"). Both optional; name is enough for v1.
+export interface NorthStar {
+  id: string;
+  name: string;
+  why?: string;
+  direction?: string;
+  color: string;          // one of a small palette; used for the strip accent + spiral tag dots
+  createdAt: string;
+  updatedAt: string;
+  archivedAt?: string;    // soft delete; archived stars stop counting toward the 3-cap
+}
+
+export interface NorthStarsState {
+  stars: NorthStar[];
 }
 
 export interface RenderedBlock {

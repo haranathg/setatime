@@ -415,6 +415,23 @@ export function useDashboard() {
     );
   }, []);
 
+  // Toggle a North Star tag on a spiral. Attribution is opt-in and can carry
+  // multiple stars per spiral (e.g., Meditation might feed both a metabolic
+  // and a creative anchor).
+  const toggleIndicatorStar = useCallback((indicatorId: string, starId: string) => {
+    setIndicators((prev) =>
+      prev.map((i) => {
+        if (i.id !== indicatorId) return i;
+        const current = i.northStarIds ?? [];
+        const on = current.includes(starId);
+        return {
+          ...i,
+          northStarIds: on ? current.filter((x) => x !== starId) : [...current, starId],
+        };
+      })
+    );
+  }, []);
+
   // Materialize virtual calendar blocks for any scheduled, enabled, not-paused,
   // active-on-date, not-skipped spirals on the given local date. Returns plain
   // TaskBlocks with `virtualSpiral` set so the calendar render path doesn't
@@ -468,6 +485,7 @@ export function useDashboard() {
     setPause,
     skipOccurrence,
     unskipOccurrence,
+    toggleIndicatorStar,
     materializeForDate,
   };
 }

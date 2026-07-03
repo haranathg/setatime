@@ -9,6 +9,7 @@ import ChartView from './components/ChartView';
 import HabitsView from './components/HabitsView';
 import BooksView from './components/BooksView';
 import InboxView from './components/InboxView';
+import NorthStarsView from './components/NorthStarsView';
 import PredictionLabView from './components/PredictionLabView';
 import TodayView from './components/TodayView';
 import { useAppState } from './hooks/useAppState';
@@ -20,6 +21,7 @@ import { useBrainDump } from './hooks/useBrainDump';
 import { useChartNotes } from './hooks/useChartNotes';
 import { useHabits } from './hooks/useHabits';
 import { useInbox } from './hooks/useInbox';
+import { useNorthStars } from './hooks/useNorthStars';
 import { usePins } from './hooks/usePins';
 import { usePredictions } from './hooks/usePredictions';
 import { useStats } from './hooks/useStats';
@@ -75,7 +77,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions'>('today');
+  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars'>('today');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -92,8 +94,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions';
-  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions') => void;
+  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars';
+  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -143,8 +145,21 @@ function AppMain({
     setSchedule: setIndicatorSchedule,
     setPause: setIndicatorPause,
     skipOccurrence: skipSpiralOccurrence,
+    toggleIndicatorStar,
+    logs: indicatorLogs,
     materializeForDate: materializeSpiralsForDate,
   } = useDashboard();
+
+  const {
+    active: activeStars,
+    stars: allStars,
+    addStar,
+    updateStar,
+    archiveStar,
+    unarchiveStar,
+    deleteStar,
+  } = useNorthStars();
+  const [focusStarId, setFocusStarId] = useState<string | null>(null);
 
   // Wrap getBlocksForDate so the calendar + Today see real blocks AND virtual
   // spiral blocks together. Virtual blocks carry `virtualSpiral` so consumers
@@ -199,7 +214,7 @@ function AppMain({
     (t) => t.status === 'inbox' || (t.status === 'future' && !!t.futureSurfaceDate && t.futureSurfaceDate <= todayKey)
   ).length;
 
-  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions') => {
+  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -351,6 +366,13 @@ function AppMain({
           onSetCadence={setIndicatorCadence}
           onSetSchedule={setIndicatorSchedule}
           onSetPause={setIndicatorPause}
+          northStars={activeStars}
+          onOpenStar={(id) => {
+            setFocusStarId(id);
+            setActiveView('stars');
+          }}
+          onOpenAllStars={() => setActiveView('stars')}
+          onToggleIndicatorStar={toggleIndicatorStar}
         />
       ) : activeView === 'predictions' ? (
         <PredictionLabView
@@ -362,6 +384,20 @@ function AppMain({
           onAddEntry={addPrediction}
           onRecordReflection={recordPredictionReflection}
           onDeleteEntry={deletePrediction}
+        />
+      ) : activeView === 'stars' ? (
+        <NorthStarsView
+          stars={allStars}
+          indicators={dashboardIndicators}
+          logs={indicatorLogs}
+          initialFocusId={focusStarId}
+          onConsumedInitialFocusId={() => setFocusStarId(null)}
+          onAddStar={addStar}
+          onUpdateStar={updateStar}
+          onArchiveStar={archiveStar}
+          onUnarchiveStar={unarchiveStar}
+          onDeleteStar={deleteStar}
+          onToggleIndicatorStar={toggleIndicatorStar}
         />
       ) : (
         <StatsView stats={stats} />
