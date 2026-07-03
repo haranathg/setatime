@@ -10,6 +10,7 @@ import type {
   SpiralCadence,
   SpiralSchedule,
   NorthStar,
+  BrainDumpTask,
 } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
 import { isCheckedToday } from '../hooks/usePins';
@@ -56,6 +57,10 @@ interface TodayViewProps {
   onOpenStar: (id: string) => void;
   onOpenAllStars: () => void;
   onToggleIndicatorStar: (indicatorId: string, starId: string) => void;
+  // Aged BrainDump tasks (>= 5 days old) surfaced for schedule-or-drop triage
+  agedDumpTasks: BrainDumpTask[];
+  onScheduleDumpTask: (task: BrainDumpTask) => void;
+  onDropDumpTask: (id: string) => void;
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -108,6 +113,9 @@ export default function TodayView({
   onOpenStar,
   onOpenAllStars,
   onToggleIndicatorStar,
+  agedDumpTasks,
+  onScheduleDumpTask,
+  onDropDumpTask,
 }: TodayViewProps) {
   // Gmail-style "Logged · Undo" toast at the bottom; auto-dismisses after 5s.
   const [undoToast, setUndoToast] = useState<{ id: string; spiralId: string; label: string } | null>(null);
@@ -205,6 +213,11 @@ export default function TodayView({
             overdue={overduePredictions}
             onReflect={onReflectPrediction}
           />
+          <AgedDumpStrip
+            tasks={agedDumpTasks}
+            onSchedule={onScheduleDumpTask}
+            onDrop={onDropDumpTask}
+          />
           <PinsStrip
             pins={pins}
             onAddPin={onAddPin}
@@ -262,6 +275,12 @@ export default function TodayView({
         <OverduePredictionsStrip
           overdue={overduePredictions}
           onReflect={onReflectPrediction}
+        />
+
+        <AgedDumpStrip
+          tasks={agedDumpTasks}
+          onSchedule={onScheduleDumpTask}
+          onDrop={onDropDumpTask}
         />
 
         <PinsStrip
@@ -1601,6 +1620,71 @@ function NorthStarsStrip({
                 <span className="text-[10px] uppercase tracking-wider text-gray-400 flex-shrink-0">
                   Open ›
                 </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+// ---------- Aged-dump strip ----------
+//
+// BrainDump tasks that have been sitting for 5+ days surface here so long-lived
+// intent doesn't quietly rot in the dump. Schedule now (jumps to the calendar
+// with the task pre-filled) or drop.
+function AgedDumpStrip({
+  tasks,
+  onSchedule,
+  onDrop,
+}: {
+  tasks: BrainDumpTask[];
+  onSchedule: (task: BrainDumpTask) => void;
+  onDrop: (id: string) => void;
+}) {
+  if (tasks.length === 0) return null;
+  return (
+    <section className="bg-white border-2 border-sky-300 rounded-2xl shadow-sm overflow-hidden">
+      <header className="px-4 py-2 bg-sky-50 border-b border-sky-200 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-base">📥</span>
+          <h3 className="text-[13px] font-semibold text-sky-900">Aging in the dump</h3>
+        </div>
+        <span className="text-[10px] uppercase tracking-wider font-bold text-sky-700">
+          {tasks.length} task{tasks.length === 1 ? '' : 's'} · schedule or drop
+        </span>
+      </header>
+      <ul className="divide-y divide-sky-50">
+        {tasks.slice(0, 5).map((t) => {
+          const ageDays = Math.floor(
+            (Date.now() - new Date(t.extractedAt).getTime()) / (24 * 60 * 60 * 1000)
+          );
+          return (
+            <li key={t.id} className="px-3 py-2 flex items-center gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="text-sm text-gray-900 truncate">{t.label}</div>
+                <div className="text-[10px] text-gray-500 mt-0.5">
+                  {ageDays}d ago
+                </div>
+              </div>
+              <button
+                onClick={() => onSchedule(t)}
+                className="flex-shrink-0 px-2.5 py-1 text-[11px] font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-md transition-colors"
+                title="Schedule this task on the calendar"
+              >
+                ↳ Schedule
+              </button>
+              <button
+                onClick={() => {
+                  if (confirm(`Drop "${t.label}"? It'll be removed from the dump.`)) {
+                    onDrop(t.id);
+                  }
+                }}
+                className="flex-shrink-0 text-[14px] leading-none text-gray-300 hover:text-red-500 px-1.5 py-1"
+                title="Drop this task"
+              >
+                &times;
               </button>
             </li>
           );

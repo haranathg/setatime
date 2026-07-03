@@ -36,6 +36,7 @@ interface PredictionLabViewProps {
   onConsumedInitialReflectId?: () => void;
   onAddEntry: (input: NewEntryInput) => PredictionEntry;
   onRecordReflection: (id: string, input: ReflectionInput) => void;
+  onScheduleThis: (prefill: { taskName?: string; time?: string; dateKey?: string }) => void;
   onDeleteEntry: (id: string) => void;
 }
 
@@ -105,6 +106,7 @@ export default function PredictionLabView({
   onAddEntry,
   onRecordReflection,
   onDeleteEntry,
+  onScheduleThis,
 }: PredictionLabViewProps) {
   const [flow, setFlow] = useState<Flow>({ kind: 'none' });
 
@@ -228,6 +230,7 @@ export default function PredictionLabView({
               setFlow({ kind: 'none' });
             }
           }}
+          onScheduleThis={onScheduleThis}
         />
       </Shell>
     );
@@ -1149,10 +1152,12 @@ function EntryDetail({
   entry,
   onReflect,
   onDelete,
+  onScheduleThis,
 }: {
   entry: PredictionEntry;
   onReflect: () => void;
   onDelete: () => void;
+  onScheduleThis: (prefill: { taskName?: string; time?: string; dateKey?: string }) => void;
 }) {
   return (
     <div className="space-y-5 py-2">
@@ -1200,7 +1205,22 @@ function EntryDetail({
       {entry.valuesAction && (
         <DetailSection label="Values move">{entry.valuesAction}</DetailSection>
       )}
-      {entry.experiment && <DetailSection label="Experiment">{entry.experiment}</DetailSection>}
+      {entry.experiment && (
+        <div>
+          <DetailSection label="Experiment">{entry.experiment}</DetailSection>
+          <button
+            onClick={() =>
+              onScheduleThis({
+                taskName: entry.experiment,
+              })
+            }
+            className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg transition-colors"
+            title="Jump to the calendar with this experiment pre-filled — Gollwitzer's research says a real time slot roughly doubles follow-through vs an intention without one"
+          >
+            ↳ Schedule this experiment
+          </button>
+        </div>
+      )}
       {entry.experimentWhenWhere && (
         <DetailSection label="When and where">{entry.experimentWhenWhere}</DetailSection>
       )}
