@@ -1,12 +1,16 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { NorthStar } from '../types';
+import type { NorthStar, Target, TargetStatus } from '../types';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
 
 // Cap active stars at 3. Research on goal pursuit (Locke, Gollwitzer, Baumeister)
 // converges on 1-3 concurrent goals — more, and follow-through dilutes.
 export const MAX_ACTIVE_STARS = 3;
+// Same principle one rung down. Three concrete measurable targets per star
+// is enough to be real (multiple angles under one anchor) and few enough to
+// stay in view.
+export const MAX_ACTIVE_TARGETS_PER_STAR = 3;
 
 // A small, cohesive palette. Cool + warm mix so three active stars are
 // visually distinguishable without shouting.
@@ -136,6 +140,96 @@ export function useNorthStars() {
     setStars((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
+  // ---------- Target CRUD ----------
+
+  const addTarget = useCallback(
+    (starId: string, title: string): Target | null => {
+      const trimmed = title.trim();
+      if (!trimmed) return null;
+      let created: Target | null = null;
+      setStars((prev) =>
+        prev.map((s) => {
+          if (s.id !== starId) return s;
+          const targets = s.targets ?? [];
+          const activeCount = targets.filter((t) => t.status === 'active').length;
+          if (activeCount >= MAX_ACTIVE_TARGETS_PER_STAR) return s;
+          const now = new Date().toISOString();
+          const target: Target = {
+            id: uuidv4(),
+            title: trimmed,
+            status: 'active',
+            createdAt: now,
+            updatedAt: now,
+          };
+          created = target;
+          return { ...s, targets: [...targets, target], updatedAt: now };
+        })
+      );
+      return created;
+    },
+    []
+  );
+
+  const updateTarget = useCallback(
+    (starId: string, targetId: string, patch: Partial<Omit<Target, 'id' | 'createdAt'>>) => {
+      const now = new Date().toISOString();
+      setStars((prev) =>
+        prev.map((s) => {
+          if (s.id !== starId) return s;
+          const targets = (s.targets ?? []).map((t) =>
+            t.id === targetId ? { ...t, ...patch, updatedAt: now } : t
+          );
+          return { ...s, targets, updatedAt: now };
+        })
+      );
+    },
+    []
+  );
+
+  const setTargetStatus = useCallback(
+    (starId: string, targetId: string, status: TargetStatus) => {
+      const now = new Date().toISOString();
+      setStars((prev) =>
+        prev.map((s) => {
+          if (s.id !== starId) return s;
+          const targets = (s.targets ?? []).map((t) => {
+            if (t.id !== targetId) return t;
+            if (status === 'achieved') {
+              return { ...t, status, achievedAt: now, updatedAt: now };
+            }
+            // Reactivating drops any prior achievedAt so accidental completions
+            // don't linger as ghost timestamps.
+            if (status === 'active') {
+              const { achievedAt: _achievedAt, ...rest } = t;
+              return { ...rest, status, updatedAt: now };
+            }
+            return { ...t, status, updatedAt: now };
+          });
+          return { ...s, targets, updatedAt: now };
+        })
+      );
+    },
+    []
+  );
+
+  const deleteTarget = useCallback((starId: string, targetId: string) => {
+    const now = new Date().toISOString();
+    setStars((prev) =>
+      prev.map((s) => {
+        if (s.id !== starId) return s;
+        const targets = (s.targets ?? []).filter((t) => t.id !== targetId);
+        return { ...s, targets, updatedAt: now };
+      })
+    );
+  }, []);
+
+  const setNextStep = useCallback(
+    (starId: string, targetId: string, text: string) => {
+      updateTarget(starId, targetId, { nextStep: text.trim() || undefined });
+    },
+    [updateTarget]
+  );
+
   return {
     stars,
     active,
@@ -145,5 +239,10 @@ export function useNorthStars() {
     archiveStar,
     unarchiveStar,
     deleteStar,
+    addTarget,
+    updateTarget,
+    setTargetStatus,
+    deleteTarget,
+    setNextStep,
   };
 }

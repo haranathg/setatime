@@ -158,6 +158,11 @@ function AppMain({
     archiveStar,
     unarchiveStar,
     deleteStar,
+    addTarget: addStarTarget,
+    updateTarget: updateStarTarget,
+    setTargetStatus: setStarTargetStatus,
+    deleteTarget: deleteStarTarget,
+    setNextStep: setStarTargetNextStep,
   } = useNorthStars();
   const [focusStarId, setFocusStarId] = useState<string | null>(null);
   // "Schedule this" flow: any surface can prefill a calendar block and jump.
@@ -430,6 +435,13 @@ function AppMain({
           onUnarchiveStar={unarchiveStar}
           onDeleteStar={deleteStar}
           onToggleIndicatorStar={toggleIndicatorStar}
+          onAddTarget={addStarTarget}
+          onUpdateTarget={updateStarTarget}
+          onSetTargetStatus={setStarTargetStatus}
+          onDeleteTarget={deleteStarTarget}
+          onSetNextStep={setStarTargetNextStep}
+          onScheduleThis={scheduleThis}
+          onSendToDump={addManualTask}
         />
       ) : (
         <StatsView stats={stats} />
