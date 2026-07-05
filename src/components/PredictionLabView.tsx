@@ -5,6 +5,10 @@ import type {
   PredictionMode,
   PredictionAccuracy,
   TrustShift,
+  LeapReversibility,
+  LeapDecisionOutcome,
+  LeapOutcomeVsExpectation,
+  LeapFearProportion,
 } from '../types';
 import type { NewEntryInput, ReflectionInput } from '../hooks/usePredictions';
 
@@ -61,13 +65,25 @@ interface Draft {
   valuesAction: string;
   experiment: string;
   experimentWhenWhere: string;
+  // Leap-mode fields
+  leapReversibility: LeapReversibility | '';
+  leapUpside: string;
+  leapBridgeCost: string;
+  leapRegret: string;
+  leapDecision: string;
 }
 
 interface ReflectDraft {
   outcome: string;
+  // Prediction-mode
   predictionAccurate: PredictionAccuracy | '';
   shouldHaveBeenConfidence: number;
   surprise: number;
+  // Leap-mode
+  leapTookIt: LeapDecisionOutcome | '';
+  leapOutcomeVsExpectation: LeapOutcomeVsExpectation | '';
+  leapFearProportion: LeapFearProportion | '';
+  // Shared
   insight: string;
   trustFuturePredictionsMore: TrustShift | '';
 }
@@ -86,6 +102,11 @@ const EMPTY_DRAFT: Draft = {
   valuesAction: '',
   experiment: '',
   experimentWhenWhere: '',
+  leapReversibility: '',
+  leapUpside: '',
+  leapBridgeCost: '',
+  leapRegret: '',
+  leapDecision: '',
 };
 
 const EMPTY_REFLECT: ReflectDraft = {
@@ -93,6 +114,9 @@ const EMPTY_REFLECT: ReflectDraft = {
   predictionAccurate: '',
   shouldHaveBeenConfidence: 50,
   surprise: 50,
+  leapTookIt: '',
+  leapOutcomeVsExpectation: '',
+  leapFearProportion: '',
   insight: '',
   trustFuturePredictionsMore: '',
 };
@@ -150,14 +174,16 @@ export default function PredictionLabView({
           onNext={() => setFlow({ ...flow, step: flow.step + 1 })}
           onFinish={() => {
             const d = flow.draft;
+            const isLeap = flow.mode === 'leap';
             onAddEntry({
               mode: flow.mode,
               situation: d.situation.trim(),
-              prediction: d.prediction.trim(),
-              confidence: d.confidence,
-              emotions: d.emotions,
-              emotionIntensity: d.emotionIntensity,
               firstMove: d.firstMove.trim(),
+              // Prediction fields (quick/deep). Leap omits these entirely.
+              prediction: isLeap ? undefined : d.prediction.trim(),
+              confidence: isLeap ? undefined : d.confidence,
+              emotions: isLeap ? undefined : d.emotions,
+              emotionIntensity: isLeap ? undefined : d.emotionIntensity,
               evidenceFor: emptyToUndef(d.evidenceFor),
               evidenceAgainst: emptyToUndef(d.evidenceAgainst),
               behavioralPull: emptyToUndef(d.behavioralPull),
@@ -165,6 +191,12 @@ export default function PredictionLabView({
               valuesAction: emptyToUndef(d.valuesAction),
               experiment: emptyToUndef(d.experiment),
               experimentWhenWhere: emptyToUndef(d.experimentWhenWhere),
+              // Leap fields
+              leapReversibility: d.leapReversibility || undefined,
+              leapUpside: emptyToUndef(d.leapUpside),
+              leapBridgeCost: emptyToUndef(d.leapBridgeCost),
+              leapRegret: emptyToUndef(d.leapRegret),
+              leapDecision: emptyToUndef(d.leapDecision),
             });
             setFlow({ kind: 'none' });
           }}
@@ -194,11 +226,19 @@ export default function PredictionLabView({
           onNext={() => setFlow({ ...flow, step: flow.step + 1 })}
           onFinish={() => {
             const d = flow.draft;
+            const isLeap = entry.mode === 'leap';
             onRecordReflection(entry.id, {
               outcome: d.outcome.trim(),
-              predictionAccurate: (d.predictionAccurate || 'partly') as PredictionAccuracy,
-              shouldHaveBeenConfidence: d.shouldHaveBeenConfidence,
-              surprise: d.surprise,
+              // Prediction-mode reflection fields
+              predictionAccurate: isLeap
+                ? undefined
+                : ((d.predictionAccurate || 'partly') as PredictionAccuracy),
+              shouldHaveBeenConfidence: isLeap ? undefined : d.shouldHaveBeenConfidence,
+              surprise: isLeap ? undefined : d.surprise,
+              // Leap-mode reflection fields
+              leapTookIt: isLeap ? (d.leapTookIt || undefined) as LeapDecisionOutcome | undefined : undefined,
+              leapOutcomeVsExpectation: isLeap ? (d.leapOutcomeVsExpectation || undefined) as LeapOutcomeVsExpectation | undefined : undefined,
+              leapFearProportion: isLeap ? (d.leapFearProportion || undefined) as LeapFearProportion | undefined : undefined,
               insight: emptyToUndef(d.insight),
               trustFuturePredictionsMore: (d.trustFuturePredictionsMore || undefined) as
                 | TrustShift
@@ -330,7 +370,7 @@ function Dashboard({
                     className="w-full text-left px-3 py-2 bg-white border border-amber-200 hover:border-amber-400 rounded-xl transition-colors flex items-center justify-between gap-3"
                   >
                     <span className="flex-1 min-w-0 truncate text-sm text-gray-800">
-                      {e.prediction || e.situation || '(empty entry)'}
+                      {(e.mode === 'leap' ? e.leapDecision : e.prediction) || e.situation || '(empty entry)'}
                     </span>
                     <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-700 flex-shrink-0">
                       Reflect ›
@@ -423,56 +463,109 @@ function EmptyHint({ onNew }: { onNew: () => void }) {
 }
 
 function EntryRow({ entry, onOpen }: { entry: PredictionEntry; onOpen: () => void }) {
-  const accClass = (() => {
+  const isLeap = entry.mode === 'leap';
+
+  // Prediction-mode badge: awaiting / off-target / partly / on-target.
+  // Leap-mode badge: awaiting / took / did-not-take / partial.
+  const badgeClass = (() => {
     if (!entry.reflectedAt) return 'bg-amber-50 text-amber-700 border-amber-200';
+    if (isLeap) {
+      if (entry.leapTookIt === 'took') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      if (entry.leapTookIt === 'partial') return 'bg-sky-50 text-sky-700 border-sky-200';
+      return 'bg-gray-100 text-gray-600 border-gray-200';
+    }
     if (entry.predictionAccurate === 'no') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
     if (entry.predictionAccurate === 'partly') return 'bg-sky-50 text-sky-700 border-sky-200';
     return 'bg-gray-100 text-gray-600 border-gray-200';
   })();
-  const accLabel = !entry.reflectedAt
-    ? 'Awaiting'
-    : entry.predictionAccurate === 'no'
-    ? 'Off-target'
-    : entry.predictionAccurate === 'partly'
-    ? 'Partly'
-    : entry.predictionAccurate === 'yes'
-    ? 'On-target'
-    : 'Reflected';
+  const badgeLabel = (() => {
+    if (!entry.reflectedAt) return 'Awaiting';
+    if (isLeap) {
+      if (entry.leapTookIt === 'took') return 'Took it';
+      if (entry.leapTookIt === 'did-not-take') return 'Held back';
+      if (entry.leapTookIt === 'partial') return 'Partial';
+      return 'Reflected';
+    }
+    if (entry.predictionAccurate === 'no') return 'Off-target';
+    if (entry.predictionAccurate === 'partly') return 'Partly';
+    if (entry.predictionAccurate === 'yes') return 'On-target';
+    return 'Reflected';
+  })();
+  const modeLabel = isLeap ? 'Leap' : capitalize(entry.mode);
+  const modeAccent = isLeap ? 'text-amber-600' : 'text-gray-400';
+  const primaryLine = isLeap
+    ? entry.leapDecision || entry.situation
+    : entry.prediction;
+  const secondaryLine = isLeap ? entry.situation : entry.situation;
 
   return (
     <li>
       <button
         onClick={onOpen}
-        className="w-full text-left bg-white border border-gray-200 hover:border-indigo-300 hover:shadow-sm rounded-2xl px-4 py-3 transition-all"
+        className={`w-full text-left bg-white border border-gray-200 hover:shadow-sm rounded-2xl px-4 py-3 transition-all ${
+          isLeap ? 'hover:border-amber-300' : 'hover:border-indigo-300'
+        }`}
       >
         <div className="flex items-baseline justify-between gap-3 mb-1">
-          <span className="text-[10px] uppercase tracking-wider text-gray-400 font-mono">
-            {formatDate(entry.createdAt)} · {capitalize(entry.mode)}
+          <span className={`text-[10px] uppercase tracking-wider font-mono ${modeAccent}`}>
+            {formatDate(entry.createdAt)} · {modeLabel}
           </span>
           <span
-            className={`text-[10px] uppercase tracking-wider font-bold border rounded-sm px-1.5 py-0.5 ${accClass}`}
+            className={`text-[10px] uppercase tracking-wider font-bold border rounded-sm px-1.5 py-0.5 ${badgeClass}`}
           >
-            {accLabel}
+            {badgeLabel}
           </span>
         </div>
-        <div className="text-sm font-medium text-gray-900 line-clamp-2">{entry.prediction}</div>
-        {entry.situation && (
-          <div className="text-[12px] text-gray-500 mt-1 line-clamp-1">{entry.situation}</div>
+        <div className="text-sm font-medium text-gray-900 line-clamp-2">{primaryLine}</div>
+        {secondaryLine && secondaryLine !== primaryLine && (
+          <div className="text-[12px] text-gray-500 mt-1 line-clamp-1">{secondaryLine}</div>
         )}
         <div className="mt-2 flex items-center gap-3 text-[10px] text-gray-500">
-          <span>
-            Confidence{' '}
-            <span className="font-mono text-gray-700 font-semibold">{entry.confidence}</span>
-          </span>
-          <span>·</span>
-          <span>
-            Intensity{' '}
-            <span className="font-mono text-gray-700 font-semibold">{entry.emotionIntensity}</span>
-          </span>
-          {entry.emotions.length > 0 && (
+          {isLeap ? (
             <>
-              <span>·</span>
-              <span className="truncate">{entry.emotions.map(capitalize).join(', ')}</span>
+              {entry.leapReversibility && (
+                <span>
+                  Reversibility{' '}
+                  <span className="font-mono text-gray-700 font-semibold">
+                    {capitalize(entry.leapReversibility)}
+                  </span>
+                </span>
+              )}
+              {entry.reflectedAt && entry.leapFearProportion && (
+                <>
+                  <span>·</span>
+                  <span>
+                    Fear{' '}
+                    <span className="font-mono text-gray-700 font-semibold">
+                      {entry.leapFearProportion === 'proportional' ? 'proportional' : entry.leapFearProportion + '-estimated'}
+                    </span>
+                  </span>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {entry.confidence !== undefined && (
+                <span>
+                  Confidence{' '}
+                  <span className="font-mono text-gray-700 font-semibold">{entry.confidence}</span>
+                </span>
+              )}
+              {entry.emotionIntensity !== undefined && (
+                <>
+                  <span>·</span>
+                  <span>
+                    Intensity{' '}
+                    <span className="font-mono text-gray-700 font-semibold">{entry.emotionIntensity}</span>
+                  </span>
+                </>
+              )}
+              {(entry.emotions?.length ?? 0) > 0 && (
+                <>
+                  <span>·</span>
+                  <span className="truncate">{(entry.emotions ?? []).map(capitalize).join(', ')}</span>
+                </>
+              )}
             </>
           )}
         </div>
@@ -487,11 +580,10 @@ function ModePicker({ onPick }: { onPick: (m: PredictionMode) => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center py-12">
       <h2 className="text-2xl font-semibold text-gray-900 text-center mb-2 tracking-tight">
-        How deep do you want to go?
+        What kind of moment is this?
       </h2>
       <p className="text-sm text-gray-500 text-center mb-8 max-w-md">
-        Quick captures the core calibration loop in three prompts. Deep adds CBT/ACT-style evidence,
-        values, and a small experiment.
+        Different flows for reactive gut-checks vs decisions under uncertainty.
       </p>
       <div className="w-full max-w-md space-y-3">
         <button
@@ -499,7 +591,7 @@ function ModePicker({ onPick }: { onPick: (m: PredictionMode) => void }) {
           className="w-full text-left bg-white border border-gray-200 hover:border-indigo-400 hover:shadow-md rounded-2xl px-5 py-4 transition-all"
         >
           <div className="text-xs uppercase tracking-wider font-bold text-indigo-600 mb-1">Quick</div>
-          <div className="text-base font-semibold text-gray-900 mb-1">~60 seconds, 3 prompts</div>
+          <div className="text-base font-semibold text-gray-900 mb-1">Reactive gut-check · ~60s</div>
           <div className="text-[12px] text-gray-500 leading-snug">
             Prediction + confidence, emotion + intensity, smallest physical move. Closes the
             calibration loop with minimum friction.
@@ -510,10 +602,21 @@ function ModePicker({ onPick }: { onPick: (m: PredictionMode) => void }) {
           className="w-full text-left bg-white border border-gray-200 hover:border-indigo-400 hover:shadow-md rounded-2xl px-5 py-4 transition-all"
         >
           <div className="text-xs uppercase tracking-wider font-bold text-indigo-600 mb-1">Deep</div>
-          <div className="text-base font-semibold text-gray-900 mb-1">~5 minutes, 7 prompts</div>
+          <div className="text-base font-semibold text-gray-900 mb-1">Full reflection · ~5m</div>
           <div className="text-[12px] text-gray-500 leading-snug">
             Adds evidence FOR/AGAINST, what the emotion is pulling you toward, where it leads in a
             year, the values-aligned move, and a small experiment with an implementation intention.
+          </div>
+        </button>
+        <button
+          onClick={() => onPick('leap')}
+          className="w-full text-left bg-white border border-gray-200 hover:border-amber-400 hover:shadow-md rounded-2xl px-5 py-4 transition-all"
+        >
+          <div className="text-xs uppercase tracking-wider font-bold text-amber-600 mb-1">Leap</div>
+          <div className="text-base font-semibold text-gray-900 mb-1">Decision under uncertainty · ~3m</div>
+          <div className="text-[12px] text-gray-500 leading-snug">
+            For when the fear feels bigger than the actual downside. Reversibility check, upside
+            (loss-aversion re-balance), the bridge (delay compounds), 5-year regret. Anti-safety-bias.
           </div>
         </button>
       </div>
@@ -546,13 +649,22 @@ function NewEntryWizard({
   onNext: () => void;
   onFinish: () => void;
 }) {
-  // Quick mode: 3 steps. Deep mode: 7 steps. Last step calls onFinish.
+  // Quick mode: 3 steps. Deep mode: 7 steps. Leap mode: 5 steps. Last step
+  // calls onFinish.
   const steps: (() => React.ReactNode)[] =
     mode === 'quick'
       ? [
           () => <StepCapturePrediction draft={draft} onChange={onChange} onNext={onNext} />,
           () => <StepEmotion draft={draft} onChange={onChange} onNext={onNext} />,
           () => <StepFirstMove draft={draft} onChange={onChange} onNext={onFinish} />,
+        ]
+      : mode === 'leap'
+      ? [
+          () => <StepLeapChoice draft={draft} onChange={onChange} onNext={onNext} />,
+          () => <StepLeapReversibility draft={draft} onChange={onChange} onNext={onNext} />,
+          () => <StepLeapUpside draft={draft} onChange={onChange} onNext={onNext} />,
+          () => <StepLeapBridge draft={draft} onChange={onChange} onNext={onNext} />,
+          () => <StepLeapCommit draft={draft} onChange={onChange} onNext={onFinish} />,
         ]
       : [
           () => <StepSituation draft={draft} onChange={onChange} onNext={onNext} />,
@@ -994,6 +1106,141 @@ function StepFirstMove({ draft, onChange, onNext }: WizardChildProps) {
   );
 }
 
+// ---------- Leap wizard steps ----------
+
+function StepLeapChoice({ draft, onChange, onNext }: WizardChildProps) {
+  return (
+    <div>
+      <PromptHeading sub="Name it out loud. Both options are okay — the point is to see the choice clearly.">
+        What are you deciding between?
+      </PromptHeading>
+      <TextInput
+        autoFocus
+        multiline
+        value={draft.situation}
+        onChange={(v) => onChange({ ...draft, situation: v })}
+        placeholder='e.g. "Send this email today or wait and revise it tomorrow"'
+      />
+      <ContinueButton onClick={onNext} disabled={!draft.situation.trim()} />
+    </div>
+  );
+}
+
+function StepLeapReversibility({ draft, onChange, onNext }: WizardChildProps) {
+  const options: { value: LeapReversibility; label: string; hint: string }[] = [
+    { value: 'fully', label: 'Fully reversible', hint: 'You can undo it entirely — a schedule-send you can recall, a message you can delete, a purchase you can return.' },
+    { value: 'mostly', label: 'Mostly reversible', hint: 'You can back out with some cost. Reputation, effort, a small money loss.' },
+    { value: 'partial', label: 'Partially reversible', hint: 'You can adjust course later but some effects will stick.' },
+    { value: 'not', label: 'Not really', hint: 'Once done, it stays done. Sending a public message, ending a relationship, taking a permanent action.' },
+  ];
+  return (
+    <div>
+      <PromptHeading sub="Reversible decisions should be made fast — deliberating burns the option. Irreversible ones deserve real thought.">
+        Can you undo this if it goes wrong?
+      </PromptHeading>
+      <div className="space-y-2">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => onChange({ ...draft, leapReversibility: opt.value })}
+            className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
+              draft.leapReversibility === opt.value
+                ? 'bg-amber-50 border-amber-400'
+                : 'bg-white border-gray-200 hover:border-amber-200'
+            }`}
+          >
+            <div className="text-sm font-semibold text-gray-900">{opt.label}</div>
+            <div className="text-[11px] text-gray-500 mt-0.5 leading-snug">{opt.hint}</div>
+          </button>
+        ))}
+      </div>
+      <ContinueButton onClick={onNext} disabled={!draft.leapReversibility} />
+    </div>
+  );
+}
+
+function StepLeapUpside({ draft, onChange, onNext }: WizardChildProps) {
+  return (
+    <div>
+      <PromptHeading sub="Loss weighs ~2x gain in our heads (Kahneman), so most decisions have well-imagined downside and vague upside. Force the upside into focus.">
+        Realistic best case
+      </PromptHeading>
+      <TextInput
+        autoFocus
+        multiline
+        value={draft.leapUpside}
+        onChange={(v) => onChange({ ...draft, leapUpside: v })}
+        placeholder='What actually opens up if this works? Concrete, not vague.'
+      />
+      <ContinueButton onClick={onNext} disabled={!draft.leapUpside.trim()} />
+    </div>
+  );
+}
+
+function StepLeapBridge({ draft, onChange, onNext }: WizardChildProps) {
+  return (
+    <div>
+      <PromptHeading sub="If you're going to face this eventually, delay just compounds the discomfort. That's a signal, not neutral.">
+        The bridge you're not crossing
+      </PromptHeading>
+      <TextInput
+        autoFocus
+        multiline
+        value={draft.leapBridgeCost}
+        onChange={(v) => onChange({ ...draft, leapBridgeCost: v })}
+        placeholder='What does the delay itself cost you? Not the consequences — the waiting.'
+      />
+      <ContinueButton onClick={onNext} disabled={!draft.leapBridgeCost.trim()} />
+    </div>
+  );
+}
+
+function StepLeapCommit({ draft, onChange, onNext }: WizardChildProps) {
+  return (
+    <div>
+      <PromptHeading sub="Bezos regret minimization: 5-year-you looking back. Then commit and name the first physical move.">
+        Which do you regret more?
+      </PromptHeading>
+      <div className="space-y-4">
+        <div>
+          <FieldLabel>5-year self, looking back</FieldLabel>
+          <TextInput
+            autoFocus
+            multiline
+            value={draft.leapRegret}
+            onChange={(v) => onChange({ ...draft, leapRegret: v })}
+            placeholder='Which choice does future-you regret more? Why?'
+          />
+        </div>
+        <div>
+          <FieldLabel>What are you going to do?</FieldLabel>
+          <TextInput
+            value={draft.leapDecision}
+            onChange={(v) => onChange({ ...draft, leapDecision: v })}
+            placeholder='Name the decision plainly.'
+          />
+        </div>
+        <div>
+          <FieldLabel>First physical move</FieldLabel>
+          <TextInput
+            value={draft.firstMove}
+            onChange={(v) => onChange({ ...draft, firstMove: v })}
+            placeholder='The smallest concrete action that starts it. e.g. "open the draft"'
+          />
+          <p className="text-[10px] text-gray-400 mt-1.5">
+            You can Schedule this from the entry detail after saving.
+          </p>
+        </div>
+      </div>
+      <ContinueButton
+        onClick={onNext}
+        disabled={!draft.leapDecision.trim() || !draft.firstMove.trim()}
+        label="Save leap"
+      />
+    </div>
+  );
+}
+
 // ---------- Reflection wizard ----------
 
 function ReflectionWizard({
@@ -1013,116 +1260,270 @@ function ReflectionWizard({
   onNext: () => void;
   onFinish: () => void;
 }) {
-  const steps: (() => React.ReactNode)[] = [
-    () => (
-      <div>
-        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-3 mb-6 text-[12px]">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-700 mb-1">
-            Your original prediction · {entry.confidence}% confidence
-          </div>
-          <div className="text-gray-800 leading-snug">{entry.prediction}</div>
-        </div>
-        <PromptHeading sub="A single honest sentence is enough.">What actually happened?</PromptHeading>
-        <TextInput
-          autoFocus
-          multiline
-          value={draft.outcome}
-          onChange={(v) => onChange({ ...draft, outcome: v })}
-          placeholder="e.g. went to the gym, felt better after the first 5 minutes"
-        />
-        <ContinueButton onClick={onNext} disabled={!draft.outcome.trim()} />
-      </div>
-    ),
-    () => (
-      <div>
-        <PromptHeading sub="Compared to your prediction.">Was your prediction accurate?</PromptHeading>
-        <div className="flex flex-col gap-2">
-          {(['yes', 'partly', 'no'] as PredictionAccuracy[]).map((acc) => (
-            <button
-              key={acc}
-              onClick={() => onChange({ ...draft, predictionAccurate: acc })}
-              className={`text-left px-4 py-3 rounded-xl border-2 transition-all ${
-                draft.predictionAccurate === acc
-                  ? 'bg-indigo-50 border-indigo-400 text-indigo-900'
-                  : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-200'
-              }`}
-            >
-              <div className="text-sm font-semibold capitalize">{acc}</div>
-              <div className="text-[11px] text-gray-500 mt-0.5">
-                {acc === 'yes' && 'On-target — the prediction matched reality.'}
-                {acc === 'partly' && 'Some aspects matched, some didn\'t.'}
-                {acc === 'no' && 'Off-target — reality came out differently.'}
-              </div>
-            </button>
-          ))}
-        </div>
-        <div className="mt-6">
-          <FieldLabel>In hindsight, what confidence SHOULD you have had?</FieldLabel>
-          <Slider
-            value={draft.shouldHaveBeenConfidence}
-            onChange={(n) => onChange({ ...draft, shouldHaveBeenConfidence: n })}
-            leftLabel="Could go either way"
-            rightLabel="Almost certain"
-          />
-          <p className="text-[10px] text-gray-400 mt-1.5">
-            Original: <span className="font-mono text-gray-600">{entry.confidence}</span>
-          </p>
-        </div>
-        <ContinueButton onClick={onNext} disabled={!draft.predictionAccurate} />
-      </div>
-    ),
-    () => (
-      <div>
-        <PromptHeading sub="Calibrating your gut requires noticing when reality diverges.">
-          How surprised were you?
-        </PromptHeading>
-        <Slider
-          value={draft.surprise}
-          onChange={(n) => onChange({ ...draft, surprise: n })}
-          leftLabel="Saw it coming"
-          rightLabel="Genuine surprise"
-        />
-        <ContinueButton onClick={onNext} />
-      </div>
-    ),
-    () => (
-      <div>
-        <PromptHeading sub="What did you learn? Should you trust this kind of prediction more or less?">
-          The takeaway
-        </PromptHeading>
-        <div className="space-y-4">
+  const isLeap = entry.mode === 'leap';
+  const steps: (() => React.ReactNode)[] = isLeap
+    ? [
+        // ---------- Leap-mode reflection ----------
+        () => (
           <div>
-            <FieldLabel>One-line insight</FieldLabel>
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-6 text-[12px]">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-amber-700 mb-1">
+                Your original decision · {entry.leapReversibility ? capitalize(entry.leapReversibility) : '—'} reversible
+              </div>
+              <div className="text-gray-800 leading-snug">{entry.leapDecision || entry.situation}</div>
+            </div>
+            <PromptHeading sub="A single honest sentence is enough.">
+              What actually happened?
+            </PromptHeading>
             <TextInput
               autoFocus
-              value={draft.insight}
-              onChange={(v) => onChange({ ...draft, insight: v })}
-              placeholder='e.g. "Resistance drops once I actually start"'
+              multiline
+              value={draft.outcome}
+              onChange={(v) => onChange({ ...draft, outcome: v })}
+              placeholder="e.g. sent the email; got a response the same day"
+            />
+            <ContinueButton onClick={onNext} disabled={!draft.outcome.trim()} />
+          </div>
+        ),
+        () => (
+          <div>
+            <PromptHeading sub="Did you take the leap, or hold back?">
+              What did you decide?
+            </PromptHeading>
+            <div className="flex flex-col gap-2">
+              {(
+                [
+                  { value: 'took', label: 'Took the leap', hint: 'You went through with the risk.' },
+                  { value: 'did-not-take', label: 'Did not take it', hint: 'You held back or chose the safer option.' },
+                  { value: 'partial', label: 'Somewhere in between', hint: 'A modified or partial version of the leap.' },
+                ] as { value: LeapDecisionOutcome; label: string; hint: string }[]
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => onChange({ ...draft, leapTookIt: opt.value })}
+                  className={`text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                    draft.leapTookIt === opt.value
+                      ? 'bg-amber-50 border-amber-400 text-amber-900'
+                      : 'bg-white border-gray-200 text-gray-700 hover:border-amber-200'
+                  }`}
+                >
+                  <div className="text-sm font-semibold">{opt.label}</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">{opt.hint}</div>
+                </button>
+              ))}
+            </div>
+            <ContinueButton onClick={onNext} disabled={!draft.leapTookIt} />
+          </div>
+        ),
+        () => (
+          <div>
+            <PromptHeading sub="Compared to what you feared vs what you hoped.">
+              How did it actually turn out?
+            </PromptHeading>
+            <div className="flex flex-col gap-2 mb-6">
+              {(
+                [
+                  { value: 'better', label: 'Better than expected', hint: 'The upside was real, or the downside smaller than you feared.' },
+                  { value: 'as-expected', label: 'About as expected', hint: 'Neither pleasantly surprised nor rudely.' },
+                  { value: 'worse', label: 'Worse than expected', hint: 'Something you didn\'t forecast made it harder.' },
+                ] as { value: LeapOutcomeVsExpectation; label: string; hint: string }[]
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => onChange({ ...draft, leapOutcomeVsExpectation: opt.value })}
+                  className={`text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                    draft.leapOutcomeVsExpectation === opt.value
+                      ? 'bg-amber-50 border-amber-400 text-amber-900'
+                      : 'bg-white border-gray-200 text-gray-700 hover:border-amber-200'
+                  }`}
+                >
+                  <div className="text-sm font-semibold">{opt.label}</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">{opt.hint}</div>
+                </button>
+              ))}
+            </div>
+            <div>
+              <FieldLabel>Was your fear proportional?</FieldLabel>
+              <div className="flex gap-2 mt-1">
+                {(
+                  [
+                    { value: 'proportional', label: 'Proportional' },
+                    { value: 'over', label: 'Over-estimated it' },
+                    { value: 'under', label: 'Under-estimated it' },
+                  ] as { value: LeapFearProportion; label: string }[]
+                ).map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => onChange({ ...draft, leapFearProportion: opt.value })}
+                    className={`flex-1 px-3 py-2 text-sm font-medium rounded-xl border-2 transition-all ${
+                      draft.leapFearProportion === opt.value
+                        ? 'bg-amber-50 border-amber-400 text-amber-900'
+                        : 'bg-white border-gray-200 text-gray-700 hover:border-amber-200'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1.5">
+                Impact-bias research: people over-predict emotional impact of bad outcomes. Noticing when your fear misfires is how the loop calibrates.
+              </p>
+            </div>
+            <ContinueButton
+              onClick={onNext}
+              disabled={!draft.leapOutcomeVsExpectation || !draft.leapFearProportion}
             />
           </div>
+        ),
+        () => (
           <div>
-            <FieldLabel>Should your future self trust this kind of prediction…</FieldLabel>
-            <div className="flex gap-2 mt-1">
-              {(['less', 'same', 'more'] as TrustShift[]).map((opt) => (
+            <PromptHeading sub="What did you learn? Should you trust yourself to take similar risks more or less?">
+              The takeaway
+            </PromptHeading>
+            <div className="space-y-4">
+              <div>
+                <FieldLabel>One-line insight</FieldLabel>
+                <TextInput
+                  autoFocus
+                  value={draft.insight}
+                  onChange={(v) => onChange({ ...draft, insight: v })}
+                  placeholder='e.g. "The email got a warm reply — I over-estimated the awkwardness"'
+                />
+              </div>
+              <div>
+                <FieldLabel>Trust yourself to take similar risks…</FieldLabel>
+                <div className="flex gap-2 mt-1">
+                  {(['less', 'same', 'more'] as TrustShift[]).map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => onChange({ ...draft, trustFuturePredictionsMore: opt })}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-xl border-2 transition-all ${
+                        draft.trustFuturePredictionsMore === opt
+                          ? 'bg-amber-50 border-amber-400 text-amber-900'
+                          : 'bg-white border-gray-200 text-gray-700 hover:border-amber-200'
+                      }`}
+                    >
+                      {capitalize(opt)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <ContinueButton onClick={onFinish} label="Save reflection" />
+          </div>
+        ),
+      ]
+    : [
+        // ---------- Prediction-mode reflection (existing) ----------
+        () => (
+          <div>
+            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-3 mb-6 text-[12px]">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-700 mb-1">
+                Your original prediction · {entry.confidence ?? '—'}% confidence
+              </div>
+              <div className="text-gray-800 leading-snug">{entry.prediction}</div>
+            </div>
+            <PromptHeading sub="A single honest sentence is enough.">What actually happened?</PromptHeading>
+            <TextInput
+              autoFocus
+              multiline
+              value={draft.outcome}
+              onChange={(v) => onChange({ ...draft, outcome: v })}
+              placeholder="e.g. went to the gym, felt better after the first 5 minutes"
+            />
+            <ContinueButton onClick={onNext} disabled={!draft.outcome.trim()} />
+          </div>
+        ),
+        () => (
+          <div>
+            <PromptHeading sub="Compared to your prediction.">Was your prediction accurate?</PromptHeading>
+            <div className="flex flex-col gap-2">
+              {(['yes', 'partly', 'no'] as PredictionAccuracy[]).map((acc) => (
                 <button
-                  key={opt}
-                  onClick={() => onChange({ ...draft, trustFuturePredictionsMore: opt })}
-                  className={`flex-1 px-3 py-2 text-sm font-medium rounded-xl border-2 transition-all ${
-                    draft.trustFuturePredictionsMore === opt
+                  key={acc}
+                  onClick={() => onChange({ ...draft, predictionAccurate: acc })}
+                  className={`text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                    draft.predictionAccurate === acc
                       ? 'bg-indigo-50 border-indigo-400 text-indigo-900'
                       : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-200'
                   }`}
                 >
-                  {capitalize(opt)}
+                  <div className="text-sm font-semibold capitalize">{acc}</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">
+                    {acc === 'yes' && 'On-target — the prediction matched reality.'}
+                    {acc === 'partly' && 'Some aspects matched, some didn\'t.'}
+                    {acc === 'no' && 'Off-target — reality came out differently.'}
+                  </div>
                 </button>
               ))}
             </div>
+            <div className="mt-6">
+              <FieldLabel>In hindsight, what confidence SHOULD you have had?</FieldLabel>
+              <Slider
+                value={draft.shouldHaveBeenConfidence}
+                onChange={(n) => onChange({ ...draft, shouldHaveBeenConfidence: n })}
+                leftLabel="Could go either way"
+                rightLabel="Almost certain"
+              />
+              <p className="text-[10px] text-gray-400 mt-1.5">
+                Original: <span className="font-mono text-gray-600">{entry.confidence ?? '—'}</span>
+              </p>
+            </div>
+            <ContinueButton onClick={onNext} disabled={!draft.predictionAccurate} />
           </div>
-        </div>
-        <ContinueButton onClick={onFinish} label="Save reflection" />
-      </div>
-    ),
-  ];
+        ),
+        () => (
+          <div>
+            <PromptHeading sub="Calibrating your gut requires noticing when reality diverges.">
+              How surprised were you?
+            </PromptHeading>
+            <Slider
+              value={draft.surprise}
+              onChange={(n) => onChange({ ...draft, surprise: n })}
+              leftLabel="Saw it coming"
+              rightLabel="Genuine surprise"
+            />
+            <ContinueButton onClick={onNext} />
+          </div>
+        ),
+        () => (
+          <div>
+            <PromptHeading sub="What did you learn? Should you trust this kind of prediction more or less?">
+              The takeaway
+            </PromptHeading>
+            <div className="space-y-4">
+              <div>
+                <FieldLabel>One-line insight</FieldLabel>
+                <TextInput
+                  autoFocus
+                  value={draft.insight}
+                  onChange={(v) => onChange({ ...draft, insight: v })}
+                  placeholder='e.g. "Resistance drops once I actually start"'
+                />
+              </div>
+              <div>
+                <FieldLabel>Should your future self trust this kind of prediction…</FieldLabel>
+                <div className="flex gap-2 mt-1">
+                  {(['less', 'same', 'more'] as TrustShift[]).map((opt) => (
+                    <button
+                      key={opt}
+                      onClick={() => onChange({ ...draft, trustFuturePredictionsMore: opt })}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-xl border-2 transition-all ${
+                        draft.trustFuturePredictionsMore === opt
+                          ? 'bg-indigo-50 border-indigo-400 text-indigo-900'
+                          : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-200'
+                      }`}
+                    >
+                      {capitalize(opt)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <ContinueButton onClick={onFinish} label="Save reflection" />
+          </div>
+        ),
+      ];
 
   const totalSteps = steps.length;
   const safeStep = Math.min(step, totalSteps - 1);
@@ -1159,39 +1560,87 @@ function EntryDetail({
   onDelete: () => void;
   onScheduleThis: (prefill: { taskName?: string; time?: string; dateKey?: string }) => void;
 }) {
+  const isLeap = entry.mode === 'leap';
   return (
     <div className="space-y-5 py-2">
       <div>
-        <div className="text-[10px] uppercase tracking-wider text-gray-400 font-mono mb-1">
-          {formatDate(entry.createdAt)} · {capitalize(entry.mode)} entry
+        <div className={`text-[10px] uppercase tracking-wider font-mono mb-1 ${isLeap ? 'text-amber-600' : 'text-gray-400'}`}>
+          {formatDate(entry.createdAt)} · {isLeap ? 'Leap' : capitalize(entry.mode)} entry
         </div>
-        <h2 className="text-lg font-semibold text-gray-900 leading-snug">{entry.prediction}</h2>
-        {entry.situation && (
-          <p className="text-sm text-gray-600 mt-1.5 leading-snug">{entry.situation}</p>
+        <h2 className="text-lg font-semibold text-gray-900 leading-snug">
+          {isLeap ? (entry.leapDecision || entry.situation) : entry.prediction}
+        </h2>
+        {isLeap ? (
+          entry.situation && entry.situation !== entry.leapDecision && (
+            <p className="text-sm text-gray-600 mt-1.5 leading-snug">The choice: {entry.situation}</p>
+          )
+        ) : (
+          entry.situation && (
+            <p className="text-sm text-gray-600 mt-1.5 leading-snug">{entry.situation}</p>
+          )
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <DetailBox label="Confidence" value={`${entry.confidence}`} />
-        <DetailBox label="Intensity" value={`${entry.emotionIntensity}`} />
-      </div>
-
-      {entry.emotions.length > 0 && (
-        <DetailSection label="Emotions">
-          <div className="flex flex-wrap gap-1.5">
-            {entry.emotions.map((em) => (
-              <span
-                key={em}
-                className="px-2 py-0.5 text-[12px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full"
-              >
-                {capitalize(em)}
-              </span>
-            ))}
+      {isLeap ? (
+        <>
+          {entry.leapReversibility && (
+            <div className="grid grid-cols-1 gap-3">
+              <DetailBox
+                label="Reversibility"
+                value={capitalize(entry.leapReversibility)}
+              />
+            </div>
+          )}
+          {entry.leapUpside && (
+            <DetailSection label="Upside (realistic best case)">{entry.leapUpside}</DetailSection>
+          )}
+          {entry.leapBridgeCost && (
+            <DetailSection label="The bridge · cost of delay">{entry.leapBridgeCost}</DetailSection>
+          )}
+          {entry.leapRegret && (
+            <DetailSection label="5-year regret framing">{entry.leapRegret}</DetailSection>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <DetailBox label="Confidence" value={entry.confidence !== undefined ? `${entry.confidence}` : '—'} />
+            <DetailBox label="Intensity" value={entry.emotionIntensity !== undefined ? `${entry.emotionIntensity}` : '—'} />
           </div>
-        </DetailSection>
+
+          {(entry.emotions?.length ?? 0) > 0 && (
+            <DetailSection label="Emotions">
+              <div className="flex flex-wrap gap-1.5">
+                {(entry.emotions ?? []).map((em) => (
+                  <span
+                    key={em}
+                    className="px-2 py-0.5 text-[12px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full"
+                  >
+                    {capitalize(em)}
+                  </span>
+                ))}
+              </div>
+            </DetailSection>
+          )}
+        </>
       )}
 
-      {entry.firstMove && <DetailSection label="First physical move">{entry.firstMove}</DetailSection>}
+      {entry.firstMove && (
+        <div>
+          <DetailSection label={isLeap ? 'First physical move' : 'First physical move'}>
+            {entry.firstMove}
+          </DetailSection>
+          {isLeap && (
+            <button
+              onClick={() => onScheduleThis({ taskName: entry.firstMove })}
+              className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg transition-colors"
+              title="Jump to the calendar with this move pre-filled"
+            >
+              ↳ Schedule this move
+            </button>
+          )}
+        </div>
+      )}
       {entry.evidenceFor && <DetailSection label="Evidence FOR">{entry.evidenceFor}</DetailSection>}
       {entry.evidenceAgainst && (
         <DetailSection label="Evidence AGAINST">{entry.evidenceAgainst}</DetailSection>
@@ -1226,45 +1675,104 @@ function EntryDetail({
       )}
 
       {entry.reflectedAt ? (
-        <section className="bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-3 space-y-3">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-700">
+        <section
+          className={`rounded-2xl px-4 py-3 space-y-3 border ${
+            isLeap
+              ? 'bg-amber-50 border-amber-200'
+              : 'bg-indigo-50 border-indigo-100'
+          }`}
+        >
+          <div
+            className={`text-[10px] uppercase tracking-wider font-bold ${
+              isLeap ? 'text-amber-700' : 'text-indigo-700'
+            }`}
+          >
             Reflection · {formatDate(entry.reflectedAt)}
           </div>
           {entry.outcome && (
             <DetailSection label="Outcome">{entry.outcome}</DetailSection>
           )}
-          <div className="grid grid-cols-3 gap-3">
-            <DetailBox
-              label="Accuracy"
-              value={
-                entry.predictionAccurate ? capitalize(entry.predictionAccurate) : '—'
-              }
-              compact
-            />
-            <DetailBox
-              label="Should-have-been"
-              value={entry.shouldHaveBeenConfidence != null ? `${entry.shouldHaveBeenConfidence}` : '—'}
-              compact
-            />
-            <DetailBox
-              label="Surprise"
-              value={entry.surprise != null ? `${entry.surprise}` : '—'}
-              compact
-            />
-          </div>
+          {isLeap ? (
+            <div className="grid grid-cols-3 gap-3">
+              <DetailBox
+                label="Took it"
+                value={
+                  entry.leapTookIt === 'took'
+                    ? 'Yes'
+                    : entry.leapTookIt === 'did-not-take'
+                    ? 'No'
+                    : entry.leapTookIt === 'partial'
+                    ? 'Partial'
+                    : '—'
+                }
+                compact
+              />
+              <DetailBox
+                label="Outcome"
+                value={
+                  entry.leapOutcomeVsExpectation === 'better'
+                    ? 'Better'
+                    : entry.leapOutcomeVsExpectation === 'as-expected'
+                    ? 'Expected'
+                    : entry.leapOutcomeVsExpectation === 'worse'
+                    ? 'Worse'
+                    : '—'
+                }
+                compact
+              />
+              <DetailBox
+                label="Fear"
+                value={
+                  entry.leapFearProportion === 'proportional'
+                    ? 'Proportional'
+                    : entry.leapFearProportion === 'over'
+                    ? 'Over-est.'
+                    : entry.leapFearProportion === 'under'
+                    ? 'Under-est.'
+                    : '—'
+                }
+                compact
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              <DetailBox
+                label="Accuracy"
+                value={
+                  entry.predictionAccurate ? capitalize(entry.predictionAccurate) : '—'
+                }
+                compact
+              />
+              <DetailBox
+                label="Should-have-been"
+                value={entry.shouldHaveBeenConfidence != null ? `${entry.shouldHaveBeenConfidence}` : '—'}
+                compact
+              />
+              <DetailBox
+                label="Surprise"
+                value={entry.surprise != null ? `${entry.surprise}` : '—'}
+                compact
+              />
+            </div>
+          )}
           {entry.insight && <DetailSection label="Insight">{entry.insight}</DetailSection>}
           {entry.trustFuturePredictionsMore && (
-            <DetailSection label="Trust shift">
-              {capitalize(entry.trustFuturePredictionsMore)} in future
+            <DetailSection label={isLeap ? 'Trust in your risk-taking' : 'Trust shift'}>
+              {capitalize(entry.trustFuturePredictionsMore)}
+              {isLeap ? ' — for future similar leaps' : ' in future'}
             </DetailSection>
           )}
         </section>
       ) : (
         <button
           onClick={onReflect}
-          className="w-full px-4 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors"
+          className={`w-full px-4 py-3 text-sm font-semibold text-white rounded-xl transition-colors ${
+            isLeap
+              ? 'bg-amber-600 hover:bg-amber-700'
+              : 'bg-indigo-600 hover:bg-indigo-700'
+          }`}
         >
-          Reflect on this prediction
+          {isLeap ? 'Reflect on this leap' : 'Reflect on this prediction'}
         </button>
       )}
 
