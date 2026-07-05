@@ -278,6 +278,7 @@ export default function WeeklyCalendar({
           prefillTaskName={schedulingTask?.label ?? modalPrefillTaskName}
           prefillTime={modalPrefillTime}
           templates={templates}
+          getBlocksForDate={getBlocksForDate}
           onSave={handleSave}
           onSaveTemplate={onSaveTemplate}
           onDeleteTemplate={onDeleteTemplate}
