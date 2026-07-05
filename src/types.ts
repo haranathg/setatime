@@ -379,6 +379,27 @@ export interface AppState {
   predictions?: PredictionLabState;
   dashboard?: DashboardState;
   northStars?: NorthStarsState;
+  stateLog?: StateLogState;
+}
+
+// ---------- State log ----------
+//
+// Periodic "Feeling ___ because ___" entries. No rule mining yet — the point
+// of v2a is just to start accumulating data. The act of logging itself is
+// half the intervention (making state and its attribution explicit). v2b will
+// mine correlations from this slice to bias TaskModal suggestions.
+export type StateFeeling = 'off' | 'neutral' | 'good';
+
+export interface StateLogEntry {
+  id: string;
+  loggedAt: string;   // ISO
+  feeling: StateFeeling;
+  reasons: string[];  // free-text tags user believes contributed to this state
+  note?: string;      // optional free-form context
+}
+
+export interface StateLogState {
+  entries: StateLogEntry[];
 }
 
 // ---------- North Stars ----------
