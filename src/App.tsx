@@ -24,6 +24,7 @@ import { useInbox } from './hooks/useInbox';
 import { useNorthStars } from './hooks/useNorthStars';
 import { usePins } from './hooks/usePins';
 import { usePredictions } from './hooks/usePredictions';
+import { useStateLog } from './hooks/useStateLog';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -165,6 +166,13 @@ function AppMain({
     setNextStep: setStarTargetNextStep,
   } = useNorthStars();
   const [focusStarId, setFocusStarId] = useState<string | null>(null);
+
+  const {
+    todaysEntries: stateLogTodaysEntries,
+    recentReasons: stateLogRecentReasons,
+    addEntry: addStateLogEntry,
+    deleteEntry: deleteStateLogEntry,
+  } = useStateLog();
   // "Schedule this" flow: any surface can prefill a calendar block and jump.
   const [calendarPrefill, setCalendarPrefill] = useState<{
     taskName?: string;
@@ -400,6 +408,10 @@ function AppMain({
           }}
           onOpenAllStars={() => setActiveView('stars')}
           onToggleIndicatorStar={toggleIndicatorStar}
+          stateLogTodaysEntries={stateLogTodaysEntries}
+          stateLogRecentReasons={stateLogRecentReasons}
+          onAddStateLogEntry={addStateLogEntry}
+          onDeleteStateLogEntry={deleteStateLogEntry}
           agedDumpTasks={agedDumpTasks}
           onScheduleDumpTask={(task) => {
             // Route through scheduleThis with the task's label; user picks the

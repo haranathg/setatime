@@ -11,6 +11,8 @@ import type {
   SpiralSchedule,
   NorthStar,
   BrainDumpTask,
+  StateLogEntry,
+  StateFeeling,
 } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
 import { isCheckedToday } from '../hooks/usePins';
@@ -61,6 +63,11 @@ interface TodayViewProps {
   agedDumpTasks: BrainDumpTask[];
   onScheduleDumpTask: (task: BrainDumpTask) => void;
   onDropDumpTask: (id: string) => void;
+  // State log — periodic "Feeling ___ because ___" entries
+  stateLogTodaysEntries: StateLogEntry[];
+  stateLogRecentReasons: string[];
+  onAddStateLogEntry: (feeling: StateFeeling, reasons: string[], note?: string) => StateLogEntry;
+  onDeleteStateLogEntry: (id: string) => void;
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -116,6 +123,10 @@ export default function TodayView({
   agedDumpTasks,
   onScheduleDumpTask,
   onDropDumpTask,
+  stateLogTodaysEntries,
+  stateLogRecentReasons,
+  onAddStateLogEntry,
+  onDeleteStateLogEntry,
 }: TodayViewProps) {
   // Gmail-style "Logged · Undo" toast at the bottom; auto-dismisses after 5s.
   const [undoToast, setUndoToast] = useState<{ id: string; spiralId: string; label: string } | null>(null);
@@ -190,6 +201,12 @@ export default function TodayView({
             onOpenStar={onOpenStar}
             onOpenAll={onOpenAllStars}
           />
+          <StateLogStrip
+            todaysEntries={stateLogTodaysEntries}
+            recentReasons={stateLogRecentReasons}
+            onAdd={onAddStateLogEntry}
+            onDelete={onDeleteStateLogEntry}
+          />
           <BasicsDashboard
             indicators={dashboardIndicators}
             views={dashboardViews}
@@ -250,6 +267,13 @@ export default function TodayView({
           stars={northStars}
           onOpenStar={onOpenStar}
           onOpenAll={onOpenAllStars}
+        />
+
+        <StateLogStrip
+          todaysEntries={stateLogTodaysEntries}
+          recentReasons={stateLogRecentReasons}
+          onAdd={onAddStateLogEntry}
+          onDelete={onDeleteStateLogEntry}
         />
 
         <BasicsDashboard
@@ -1690,6 +1714,290 @@ function AgedDumpStrip({
           );
         })}
       </ul>
+    </section>
+  );
+}
+
+// ---------- State-log strip ----------
+//
+// Periodic "Feeling ___ because ___" logger. Three feeling chips (Off /
+// Neutral / Good), a reason input with autocomplete of previously-used
+// reason tags, and a save. Today's entries display as a compact chip strip
+// underneath — an at-a-glance view of the day's state trajectory.
+//
+// No rule mining in v2a; the log itself is half the intervention (making
+// state and attribution explicit is calibrating in its own right). v2b
+// will mine correlations and feed suggestions into TaskModal.
+
+const FEELING_OPTIONS: {
+  value: StateFeeling;
+  label: string;
+  emoji: string;
+  colorRing: string;
+  colorBg: string;
+  colorText: string;
+}[] = [
+  {
+    value: 'off',
+    label: 'Off',
+    emoji: '○',
+    colorRing: 'ring-rose-300',
+    colorBg: 'bg-rose-50',
+    colorText: 'text-rose-700',
+  },
+  {
+    value: 'neutral',
+    label: 'Neutral',
+    emoji: '◐',
+    colorRing: 'ring-gray-300',
+    colorBg: 'bg-gray-50',
+    colorText: 'text-gray-700',
+  },
+  {
+    value: 'good',
+    label: 'Good',
+    emoji: '●',
+    colorRing: 'ring-emerald-300',
+    colorBg: 'bg-emerald-50',
+    colorText: 'text-emerald-700',
+  },
+];
+
+function feelingStyle(feeling: StateFeeling) {
+  return FEELING_OPTIONS.find((o) => o.value === feeling) ?? FEELING_OPTIONS[1];
+}
+
+function formatClockTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function StateLogStrip({
+  todaysEntries,
+  recentReasons,
+  onAdd,
+  onDelete,
+}: {
+  todaysEntries: StateLogEntry[];
+  recentReasons: string[];
+  onAdd: (feeling: StateFeeling, reasons: string[], note?: string) => StateLogEntry;
+  onDelete: (id: string) => void;
+}) {
+  // Selecting a feeling opens the reason editor. Nothing selected → the
+  // strip stays compact with just the three chip buttons.
+  const [pendingFeeling, setPendingFeeling] = useState<StateFeeling | null>(null);
+  const [reasonDraft, setReasonDraft] = useState('');
+  const [reasons, setReasons] = useState<string[]>([]);
+  const [note, setNote] = useState('');
+
+  const cancel = () => {
+    setPendingFeeling(null);
+    setReasonDraft('');
+    setReasons([]);
+    setNote('');
+  };
+
+  const commitReasonDraft = () => {
+    const trimmed = reasonDraft.trim().toLowerCase();
+    if (!trimmed) return;
+    if (reasons.includes(trimmed)) {
+      setReasonDraft('');
+      return;
+    }
+    setReasons((prev) => [...prev, trimmed]);
+    setReasonDraft('');
+  };
+
+  const toggleReason = (r: string) => {
+    setReasons((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
+  };
+
+  const submit = () => {
+    if (!pendingFeeling) return;
+    // Commit any half-typed draft so a Tab-and-Save flow doesn't lose it.
+    const trimmed = reasonDraft.trim().toLowerCase();
+    const finalReasons =
+      trimmed && !reasons.includes(trimmed) ? [...reasons, trimmed] : reasons;
+    onAdd(pendingFeeling, finalReasons, note);
+    cancel();
+  };
+
+  const suggestedReasons = recentReasons.slice(0, 10);
+
+  return (
+    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
+        <h3 className="text-[13px] font-semibold text-gray-800">Log a moment</h3>
+        <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+          {todaysEntries.length === 0
+            ? 'How are you right now?'
+            : `${todaysEntries.length} today`}
+        </span>
+      </header>
+
+      <div className="px-4 py-3 space-y-3">
+        {/* Feeling picker */}
+        <div className="flex gap-2 justify-center">
+          {FEELING_OPTIONS.map((opt) => {
+            const active = pendingFeeling === opt.value;
+            return (
+              <button
+                key={opt.value}
+                onClick={() => setPendingFeeling(active ? null : opt.value)}
+                className={`flex-1 max-w-[7rem] px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-2 ${
+                  active
+                    ? `${opt.colorBg} ring-2 ${opt.colorRing} ${opt.colorText}`
+                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
+                }`}
+                title={`Feeling ${opt.label.toLowerCase()}`}
+              >
+                <span
+                  className={`text-lg leading-none ${active ? opt.colorText : 'text-gray-400'}`}
+                >
+                  {opt.emoji}
+                </span>
+                <span className="text-sm font-semibold">{opt.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Reason editor — appears once a feeling is picked */}
+        {pendingFeeling && (
+          <div className="space-y-2">
+            <div>
+              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+                Because…
+              </div>
+              <div className="flex items-center gap-1.5">
+                <input
+                  autoFocus
+                  type="text"
+                  value={reasonDraft}
+                  onChange={(e) => setReasonDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      commitReasonDraft();
+                    }
+                  }}
+                  placeholder='e.g. "morning run", "8h sleep", "coffee"'
+                  className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+                <button
+                  onClick={commitReasonDraft}
+                  disabled={!reasonDraft.trim()}
+                  className="px-2.5 py-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 disabled:text-gray-300"
+                >
+                  Add
+                </button>
+              </div>
+              {reasons.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {reasons.map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => toggleReason(r)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-mono text-indigo-800 bg-indigo-50 border border-indigo-200 rounded-full hover:bg-indigo-100"
+                    >
+                      {r}
+                      <span className="text-indigo-400 hover:text-indigo-700">×</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {suggestedReasons.length > 0 && (
+                <div className="mt-2">
+                  <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
+                    Recent
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {suggestedReasons.map((r) => {
+                      const active = reasons.includes(r);
+                      return (
+                        <button
+                          key={r}
+                          onClick={() => toggleReason(r)}
+                          className={`px-2 py-0.5 text-[11px] font-mono rounded-full border transition-colors ${
+                            active
+                              ? 'bg-indigo-50 border-indigo-300 text-indigo-800'
+                              : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'
+                          }`}
+                        >
+                          {r}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+                Note (optional)
+              </div>
+              <input
+                type="text"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder='One-line context if you want to remember why later'
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                onClick={cancel}
+                className="text-xs text-gray-500 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submit}
+                className="px-3 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+              >
+                Log
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Today's compact chip strip */}
+        {todaysEntries.length > 0 && (
+          <div className="pt-1">
+            <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
+              Today
+            </div>
+            <ul className="space-y-1">
+              {todaysEntries.map((e) => {
+                const s = feelingStyle(e.feeling);
+                return (
+                  <li key={e.id} className="flex items-center gap-2 group">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] ${s.colorBg} ${s.colorText}`}
+                    >
+                      <span>{s.emoji}</span>
+                      <span className="font-semibold">{formatClockTime(e.loggedAt)}</span>
+                    </span>
+                    <span className="flex-1 min-w-0 truncate text-[12px] text-gray-700">
+                      {e.reasons.length > 0 ? e.reasons.join(' · ') : (e.note || '—')}
+                    </span>
+                    <button
+                      onClick={() => {
+                        if (confirm('Delete this state entry?')) onDelete(e.id);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 text-[14px] leading-none text-gray-300 hover:text-red-500 transition-opacity"
+                      title="Delete"
+                    >
+                      &times;
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
