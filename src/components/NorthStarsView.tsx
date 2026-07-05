@@ -1,6 +1,12 @@
 import { useMemo, useState } from 'react';
-import type { NorthStar, BasicIndicator, BasicLog } from '../types';
-import { STAR_COLORS, MAX_ACTIVE_STARS, colorFor, type NewStarInput } from '../hooks/useNorthStars';
+import type { NorthStar, BasicIndicator, BasicLog, Target, TargetStatus } from '../types';
+import {
+  STAR_COLORS,
+  MAX_ACTIVE_STARS,
+  MAX_ACTIVE_TARGETS_PER_STAR,
+  colorFor,
+  type NewStarInput,
+} from '../hooks/useNorthStars';
 import { IndicatorIcon } from './IndicatorIcons';
 
 interface NorthStarsViewProps {
@@ -15,6 +21,13 @@ interface NorthStarsViewProps {
   onUnarchiveStar: (id: string) => void;
   onDeleteStar: (id: string) => void;
   onToggleIndicatorStar: (indicatorId: string, starId: string) => void;
+  onAddTarget: (starId: string, title: string) => Target | null;
+  onUpdateTarget: (starId: string, targetId: string, patch: Partial<Omit<Target, 'id' | 'createdAt'>>) => void;
+  onSetTargetStatus: (starId: string, targetId: string, status: TargetStatus) => void;
+  onDeleteTarget: (starId: string, targetId: string) => void;
+  onSetNextStep: (starId: string, targetId: string, text: string) => void;
+  onScheduleThis: (prefill: { taskName?: string; time?: string; dateKey?: string }) => void;
+  onSendToDump: (label: string) => string;
 }
 
 export default function NorthStarsView({
@@ -29,6 +42,13 @@ export default function NorthStarsView({
   onUnarchiveStar,
   onDeleteStar,
   onToggleIndicatorStar,
+  onAddTarget,
+  onUpdateTarget,
+  onSetTargetStatus,
+  onDeleteTarget,
+  onSetNextStep,
+  onScheduleThis,
+  onSendToDump,
 }: NorthStarsViewProps) {
   const active = stars.filter((s) => !s.archivedAt);
   const archived = stars.filter((s) => !!s.archivedAt);
@@ -103,6 +123,13 @@ export default function NorthStarsView({
               }}
               onArchive={() => onArchiveStar(star.id)}
               onToggleIndicator={(indId) => onToggleIndicatorStar(indId, star.id)}
+              onAddTarget={(title) => onAddTarget(star.id, title)}
+              onUpdateTarget={(targetId, patch) => onUpdateTarget(star.id, targetId, patch)}
+              onSetTargetStatus={(targetId, status) => onSetTargetStatus(star.id, targetId, status)}
+              onDeleteTarget={(targetId) => onDeleteTarget(star.id, targetId)}
+              onSetNextStep={(targetId, text) => onSetNextStep(star.id, targetId, text)}
+              onScheduleThis={onScheduleThis}
+              onSendToDump={onSendToDump}
             />
           ))}
         </div>
@@ -198,6 +225,13 @@ function StarCard({
   onUpdate,
   onArchive,
   onToggleIndicator,
+  onAddTarget,
+  onUpdateTarget,
+  onSetTargetStatus,
+  onDeleteTarget,
+  onSetNextStep,
+  onScheduleThis,
+  onSendToDump,
 }: {
   star: NorthStar;
   indicators: BasicIndicator[];
@@ -211,6 +245,13 @@ function StarCard({
   onUpdate: (patch: Partial<Omit<NorthStar, 'id' | 'createdAt'>>) => void;
   onArchive: () => void;
   onToggleIndicator: (indId: string) => void;
+  onAddTarget: (title: string) => Target | null;
+  onUpdateTarget: (targetId: string, patch: Partial<Omit<Target, 'id' | 'createdAt'>>) => void;
+  onSetTargetStatus: (targetId: string, status: TargetStatus) => void;
+  onDeleteTarget: (targetId: string) => void;
+  onSetNextStep: (targetId: string, text: string) => void;
+  onScheduleThis: (prefill: { taskName?: string; time?: string; dateKey?: string }) => void;
+  onSendToDump: (label: string) => string;
 }) {
   const c = colorFor(star.color);
   const tagged = indicators.filter(
@@ -273,6 +314,18 @@ function StarCard({
           <p className="text-sm text-gray-700 mt-2 leading-relaxed whitespace-pre-wrap">{star.why}</p>
         )}
       </div>
+
+      {/* Targets — the operationalization ladder */}
+      <TargetsSection
+        star={star}
+        onAddTarget={onAddTarget}
+        onUpdateTarget={onUpdateTarget}
+        onSetTargetStatus={onSetTargetStatus}
+        onDeleteTarget={onDeleteTarget}
+        onSetNextStep={onSetNextStep}
+        onScheduleThis={onScheduleThis}
+        onSendToDump={onSendToDump}
+      />
 
       {/* Attributed spirals */}
       <div className="px-5 pb-4">
@@ -454,4 +507,354 @@ function StarEditor({
       </div>
     </section>
   );
+}
+
+// ---------- Targets section ----------
+//
+// The operationalization ladder for a star. Two levels of empty-state prompts:
+//   Star with no targets → "What's a specific measurable target?"
+//   Target with no next step → "What's the immediate next move?"
+// Whatever the user types in "next step" converts to a real task with one tap
+// via ↳ Schedule (calendar prefill) or ↗ Send to Dump. Converted tasks
+// auto-prepend the target title so the dump/calendar entry carries the
+// context of what it's for.
+
+function TargetsSection({
+  star,
+  onAddTarget,
+  onUpdateTarget,
+  onSetTargetStatus,
+  onDeleteTarget,
+  onSetNextStep,
+  onScheduleThis,
+  onSendToDump,
+}: {
+  star: NorthStar;
+  onAddTarget: (title: string) => Target | null;
+  onUpdateTarget: (targetId: string, patch: Partial<Omit<Target, 'id' | 'createdAt'>>) => void;
+  onSetTargetStatus: (targetId: string, status: TargetStatus) => void;
+  onDeleteTarget: (targetId: string) => void;
+  onSetNextStep: (targetId: string, text: string) => void;
+  onScheduleThis: (prefill: { taskName?: string; time?: string; dateKey?: string }) => void;
+  onSendToDump: (label: string) => string;
+}) {
+  const c = colorFor(star.color);
+  const targets = star.targets ?? [];
+  const active = targets.filter((t) => t.status === 'active');
+  const achieved = targets.filter((t) => t.status === 'achieved');
+  const abandoned = targets.filter((t) => t.status === 'abandoned');
+  const [showHistory, setShowHistory] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [addingOpen, setAddingOpen] = useState(active.length === 0);
+  const capReached = active.length >= MAX_ACTIVE_TARGETS_PER_STAR;
+
+  const submitNew = () => {
+    const t = onAddTarget(newTitle);
+    if (t) {
+      setNewTitle('');
+      // Keep the add row open only when at zero to preserve the prompt state;
+      // otherwise collapse so the user's focus moves to the new target row.
+      setAddingOpen(active.length === 0);
+    }
+  };
+
+  return (
+    <div className="px-5 pb-4 border-t border-gray-100 pt-3">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+          Targets · {active.length} / {MAX_ACTIVE_TARGETS_PER_STAR} active
+        </div>
+        {!addingOpen && !capReached && (
+          <button
+            onClick={() => setAddingOpen(true)}
+            className={`text-[11px] uppercase tracking-wider font-semibold ${c.text} hover:opacity-80`}
+          >
+            + Add target
+          </button>
+        )}
+      </div>
+
+      {/* Active target list (empty state = prompt row) */}
+      {active.length === 0 && !addingOpen && (
+        <button
+          onClick={() => setAddingOpen(true)}
+          className="w-full text-left px-3 py-3 border-2 border-dashed border-gray-200 hover:border-indigo-300 rounded-xl text-[12px] text-gray-500 hover:text-indigo-700 transition-colors"
+        >
+          What's a specific, measurable target for this star? · e.g. "6:55 mile time"
+        </button>
+      )}
+
+      <ul className="space-y-2">
+        {active.map((t) => (
+          <TargetRow
+            key={t.id}
+            target={t}
+            star={star}
+            onUpdate={(patch) => onUpdateTarget(t.id, patch)}
+            onSetStatus={(status) => onSetTargetStatus(t.id, status)}
+            onDelete={() => onDeleteTarget(t.id)}
+            onSetNextStep={(text) => onSetNextStep(t.id, text)}
+            onScheduleThis={onScheduleThis}
+            onSendToDump={onSendToDump}
+          />
+        ))}
+      </ul>
+
+      {/* Add-target row */}
+      {addingOpen && !capReached && (
+        <div className="mt-2 flex items-center gap-2">
+          <input
+            autoFocus
+            type="text"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && submitNew()}
+            placeholder='e.g. "6:55 mile time"'
+            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          />
+          <button
+            onClick={submitNew}
+            disabled={!newTitle.trim()}
+            className="px-3 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:cursor-not-allowed rounded-lg transition-colors"
+          >
+            Add
+          </button>
+          {active.length > 0 && (
+            <button
+              onClick={() => { setAddingOpen(false); setNewTitle(''); }}
+              className="text-xs text-gray-500 hover:text-gray-800"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      )}
+
+      {capReached && (
+        <p className="text-[10px] text-gray-400 mt-2">
+          At the {MAX_ACTIVE_TARGETS_PER_STAR}-active cap. Achieve or abandon one to add another.
+        </p>
+      )}
+
+      {(achieved.length > 0 || abandoned.length > 0) && (
+        <div className="mt-3">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="text-[10px] uppercase tracking-wider font-bold text-gray-400 hover:text-gray-700"
+          >
+            {showHistory ? '▾' : '▸'} History · {achieved.length} achieved · {abandoned.length} abandoned
+          </button>
+          {showHistory && (
+            <ul className="mt-1.5 space-y-1">
+              {[...achieved, ...abandoned].map((t) => (
+                <li
+                  key={t.id}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg text-[12px]"
+                >
+                  <span
+                    className={`text-[9px] uppercase tracking-wider font-bold ${
+                      t.status === 'achieved' ? 'text-emerald-700' : 'text-gray-400'
+                    }`}
+                  >
+                    {t.status === 'achieved' ? '✓' : '×'}
+                  </span>
+                  <span className={`flex-1 min-w-0 truncate ${
+                    t.status === 'achieved' ? 'text-gray-800' : 'text-gray-400 line-through'
+                  }`}>
+                    {t.title}
+                  </span>
+                  <button
+                    onClick={() => onSetTargetStatus(t.id, 'active')}
+                    className="text-[10px] uppercase tracking-wider font-semibold text-indigo-600 hover:text-indigo-700"
+                  >
+                    Reopen
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Delete "${t.title}"?`)) onDeleteTarget(t.id);
+                    }}
+                    className="text-[14px] leading-none text-gray-300 hover:text-red-500"
+                    title="Delete"
+                  >
+                    &times;
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TargetRow({
+  target,
+  star,
+  onUpdate,
+  onSetStatus,
+  onDelete,
+  onSetNextStep,
+  onScheduleThis,
+  onSendToDump,
+}: {
+  target: Target;
+  star: NorthStar;
+  onUpdate: (patch: Partial<Omit<Target, 'id' | 'createdAt'>>) => void;
+  onSetStatus: (status: TargetStatus) => void;
+  onDelete: () => void;
+  onSetNextStep: (text: string) => void;
+  onScheduleThis: (prefill: { taskName?: string; time?: string; dateKey?: string }) => void;
+  onSendToDump: (label: string) => string;
+}) {
+  const c = colorFor(star.color);
+  const [draftStep, setDraftStep] = useState(target.nextStep ?? '');
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(target.title);
+  const [editingDate, setEditingDate] = useState(false);
+
+  const persistStep = () => {
+    const trimmed = draftStep.trim();
+    if ((trimmed || undefined) === target.nextStep) return;
+    onSetNextStep(draftStep);
+  };
+
+  // Convert helpers: give the resulting task/label the target's context so the
+  // dump/calendar entry carries "why" with it — you'll see "toward 6:55 mile:
+  // do a tempo run" not just "do a tempo run."
+  const contextLabel = (step: string) => `toward ${target.title}: ${step.trim()}`;
+
+  const scheduleStep = () => {
+    const step = draftStep.trim();
+    if (!step) return;
+    onScheduleThis({ taskName: contextLabel(step) });
+    setDraftStep('');
+    onSetNextStep('');
+  };
+
+  const dumpStep = () => {
+    const step = draftStep.trim();
+    if (!step) return;
+    onSendToDump(contextLabel(step));
+    setDraftStep('');
+    onSetNextStep('');
+  };
+
+  return (
+    <li className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <div className="px-3 py-2 flex items-center gap-2">
+        <span
+          className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+          style={{ backgroundColor: c.hex }}
+        />
+        {editingTitle ? (
+          <input
+            autoFocus
+            type="text"
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            onBlur={() => {
+              const t = titleDraft.trim();
+              if (t && t !== target.title) onUpdate({ title: t });
+              setEditingTitle(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const t = titleDraft.trim();
+                if (t && t !== target.title) onUpdate({ title: t });
+                setEditingTitle(false);
+              }
+              if (e.key === 'Escape') {
+                setTitleDraft(target.title);
+                setEditingTitle(false);
+              }
+            }}
+            className="flex-1 min-w-0 px-2 py-0.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          />
+        ) : (
+          <button
+            onClick={() => { setTitleDraft(target.title); setEditingTitle(true); }}
+            className="flex-1 min-w-0 text-left text-sm font-medium text-gray-900 truncate hover:text-indigo-700"
+          >
+            {target.title}
+          </button>
+        )}
+        {editingDate ? (
+          <input
+            autoFocus
+            type="date"
+            value={target.targetDate ?? ''}
+            onChange={(e) => onUpdate({ targetDate: e.target.value || undefined })}
+            onBlur={() => setEditingDate(false)}
+            className="px-2 py-0.5 text-xs font-mono border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
+          />
+        ) : (
+          <button
+            onClick={() => setEditingDate(true)}
+            className={`text-[10px] uppercase tracking-wider font-semibold flex-shrink-0 ${
+              target.targetDate ? c.text : 'text-gray-300 hover:text-gray-500'
+            }`}
+            title={target.targetDate ? 'Change target date' : 'Add a target date'}
+          >
+            {target.targetDate ? formatShortDate(target.targetDate) : '+ Date'}
+          </button>
+        )}
+        <button
+          onClick={() => onSetStatus('achieved')}
+          className="text-[14px] leading-none text-gray-300 hover:text-emerald-500 px-1 flex-shrink-0"
+          title="Mark achieved"
+        >
+          ✓
+        </button>
+        <button
+          onClick={() => {
+            if (confirm(`Delete target "${target.title}"?`)) onDelete();
+          }}
+          className="text-[14px] leading-none text-gray-300 hover:text-red-500 px-1 flex-shrink-0"
+          title="Delete"
+        >
+          &times;
+        </button>
+      </div>
+
+      {/* Next step prompt */}
+      <div className="px-3 pb-2 pt-1 border-t border-gray-50 bg-gray-50/40">
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+          Next step
+        </div>
+        <div className="flex items-center gap-1.5">
+          <input
+            type="text"
+            value={draftStep}
+            onChange={(e) => setDraftStep(e.target.value)}
+            onBlur={persistStep}
+            onKeyDown={(e) => e.key === 'Enter' && scheduleStep()}
+            placeholder="What's the immediate next move?"
+            className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
+          />
+          <button
+            onClick={scheduleStep}
+            disabled={!draftStep.trim()}
+            className="flex-shrink-0 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-sky-600 hover:bg-sky-700 disabled:bg-gray-200 disabled:cursor-not-allowed rounded-md transition-colors"
+            title="Jump to the calendar with this step pre-filled"
+          >
+            ↳ Schedule
+          </button>
+          <button
+            onClick={dumpStep}
+            disabled={!draftStep.trim()}
+            className="flex-shrink-0 px-2.5 py-1.5 text-[11px] font-semibold text-[#1a4a73] bg-white border border-[#1a4a73] hover:bg-[#e8eef4] disabled:opacity-30 disabled:cursor-not-allowed rounded-md transition-colors"
+            title="Send this step to the Dump"
+          >
+            ↗ Dump
+          </button>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function formatShortDate(dateKey: string): string {
+  const d = new Date(dateKey + 'T00:00:00');
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }

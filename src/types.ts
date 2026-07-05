@@ -358,6 +358,22 @@ export interface AppState {
 // "Why" is a short paragraph — the user's own words about why this matters.
 // "Direction" is an optional short phrase in ACT-style values framing ("live
 // in a way that respects my body"). Both optional; name is enough for v1.
+// A concrete, measurable rung between the values-direction of a Star and the
+// daily actions of a spiral. Each target carries its own "next step" prompt
+// so opening the Stars tab always answers "what's the immediate next move?"
+export type TargetStatus = 'active' | 'achieved' | 'abandoned';
+
+export interface Target {
+  id: string;
+  title: string;              // "6:55 mile time"
+  targetDate?: string;        // "YYYY-MM-DD"; optional
+  status: TargetStatus;
+  nextStep?: string;          // single-line prompt; cleared when converted to a task
+  createdAt: string;
+  updatedAt: string;
+  achievedAt?: string;        // ISO; presence marks the rung as reached
+}
+
 export interface NorthStar {
   id: string;
   name: string;
@@ -367,6 +383,7 @@ export interface NorthStar {
   createdAt: string;
   updatedAt: string;
   archivedAt?: string;    // soft delete; archived stars stop counting toward the 3-cap
+  targets?: Target[];     // up to 3 active at a time; achieved/abandoned don't count
 }
 
 export interface NorthStarsState {
