@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type { TaskBlock, SubTask, SubStep, BlockTemplate } from '../types';
 import { BLOCK_COLORS_RAW } from '../constants';
 import { formatFullDate, formatTime24to12 } from '../utils/dateHelpers';
 import { parseTaskInput, parseDurationInput, timeToMinutes, minutesToTime } from '../utils/timeParser';
+import { suggestTimes, buildDayOptions, type TimeSuggestion } from '../utils/timeSuggestions';
 import SubTaskRow from './SubTaskRow';
 import AiBreakdownButton from './AiBreakdownButton';
 
@@ -13,6 +14,10 @@ interface TaskModalProps {
   prefillTaskName?: string;
   prefillTime?: string; // "HH:MM" — seeded when the user taps a specific time slot
   templates: BlockTemplate[];
+  // Blocks lookup used to compute suggestion chips (gaps between existing
+  // blocks on the active date). Includes virtual spirals so their times
+  // block out slots too.
+  getBlocksForDate?: (date: Date) => TaskBlock[];
   onSave: (block: TaskBlock) => void;
   onSaveTemplate: (input: {
     name: string;
@@ -27,7 +32,20 @@ interface TaskModalProps {
   onClose: () => void;
 }
 
-export default function TaskModal({ date, editingBlock, prefillTaskName, prefillTime, templates, onSave, onSaveTemplate, onDeleteTemplate, onDelete, onClose }: TaskModalProps) {
+function dateKeyOf(d: Date): string {
+  const y = d.getFullYear();
+  const m = (d.getMonth() + 1).toString().padStart(2, '0');
+  const day = d.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export default function TaskModal({ date, editingBlock, prefillTaskName, prefillTime, templates, getBlocksForDate, onSave, onSaveTemplate, onDeleteTemplate, onDelete, onClose }: TaskModalProps) {
+  // The date the modal is currently editing/creating on. Local so the
+  // day-picker chip row can shift days without unmounting the modal.
+  const [activeDate, setActiveDate] = useState<Date>(date);
+  useEffect(() => {
+    setActiveDate(date);
+  }, [date]);
   const [mainInput, setMainInput] = useState('');
   const [mainTask, setMainTask] = useState('');
   const [mainTime, setMainTime] = useState('');
@@ -78,7 +96,7 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
   }, [onClose]);
 
   const handleMainSubmit = () => {
-    const parsed = parseTaskInput(mainInput, date);
+    const parsed = parseTaskInput(mainInput, activeDate);
     if (parsed) {
       // User typed a time in the input — explicit wins over any prefill.
       setMainTask(parsed.label);
@@ -87,11 +105,11 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
       setTimeout(() => subInputRef.current?.focus(), 50);
       return;
     }
-    // No time in the input. If the user tapped a specific time slot, fall back
-    // to that and use the whole input as the label.
-    if (prefillTime && mainInput.trim()) {
+    // No time in the input. If we already have a picked time (from a prefill
+    // or a suggestion chip tap), commit with the whole input as the label.
+    if (mainTime && mainInput.trim()) {
       setMainTask(mainInput.trim());
-      setMainTime(prefillTime);
+      // mainTime already set — no change needed
       setMainParsed(true);
       setTimeout(() => subInputRef.current?.focus(), 50);
     }
@@ -99,7 +117,7 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
 
   const handleReschedule = () => {
     // Parse just the time from user input — append a dummy label so chrono can match
-    const parsed = parseTaskInput(`${rescheduleInput} task`, date);
+    const parsed = parseTaskInput(`${rescheduleInput} task`, activeDate);
     if (!parsed) return;
 
     const oldMinutes = timeToMinutes(mainTime);
@@ -111,10 +129,10 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
       return;
     }
 
-    const blockDateKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
-    const prevDate = new Date(date);
+    const blockDateKey = dateKeyOf(activeDate);
+    const prevDate = new Date(activeDate);
     prevDate.setDate(prevDate.getDate() - 1);
-    const prevDateKey = `${prevDate.getFullYear()}-${(prevDate.getMonth() + 1).toString().padStart(2, '0')}-${prevDate.getDate().toString().padStart(2, '0')}`;
+    const prevDateKey = dateKeyOf(prevDate);
 
     // Shift all incomplete subtasks by the delta
     setSubTasks((prev) =>
@@ -151,10 +169,10 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
     // because chrono-node also matches durations like "for 9 hours" as relative times
     const duration = parseDurationInput(subInput);
     if (duration && mainTime) {
-      const blockDateKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
-      const prevDate = new Date(date);
+      const blockDateKey = dateKeyOf(activeDate);
+      const prevDate = new Date(activeDate);
       prevDate.setDate(prevDate.getDate() - 1);
-      const prevDateKey = `${prevDate.getFullYear()}-${(prevDate.getMonth() + 1).toString().padStart(2, '0')}-${prevDate.getDate().toString().padStart(2, '0')}`;
+      const prevDateKey = dateKeyOf(prevDate);
 
       // Check if there are already previous-day sub-tasks
       const prevDaySubs = subTasks.filter((s) => s.date === prevDateKey);
@@ -196,7 +214,7 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
     }
 
     // Fallback: try exact time parsing ("7:55am wake up")
-    const parsed = parseTaskInput(subInput, date);
+    const parsed = parseTaskInput(subInput, activeDate);
     if (parsed) {
       setSubTasks((prev) => [
         ...prev,
@@ -241,7 +259,7 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
 
     const block: TaskBlock = {
       id: editingBlock?.id || uuidv4(),
-      date: `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`,
+      date: dateKeyOf(activeDate),
       mainTask,
       mainTime,
       subTasks,
@@ -257,7 +275,26 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
     setSubTasks((prev) => [...prev, ...generated]);
   };
 
-  const blockDateKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}`;
+  const blockDateKey = dateKeyOf(activeDate);
+
+  // Suggestion chips: computed once per (activeDate, blocks-snapshot). No
+  // suggestions when editing an existing block or when a specific time was
+  // already prefilled (the user already committed to a slot).
+  const timeSuggestions: TimeSuggestion[] = useMemo(() => {
+    if (editingBlock) return [];
+    if (prefillTime) return [];
+    if (!getBlocksForDate) return [];
+    return suggestTimes(activeDate, getBlocksForDate(activeDate));
+  }, [editingBlock, prefillTime, getBlocksForDate, activeDate]);
+
+  const dayOptions = useMemo(() => buildDayOptions(activeDate, 5), [activeDate]);
+
+  // Confirm a suggested time chip. Sets mainTime and pushes focus onto the
+  // task-name input so the user just types the name.
+  const applySuggestion = (s: TimeSuggestion) => {
+    setMainTime(s.time);
+    setTimeout(() => mainInputRef.current?.focus(), 20);
+  };
 
   // Apply a saved template at the current main time. Replaces the sub-task list
   // (the user can still tweak before saving). Sub-tasks with negative offsets
@@ -267,7 +304,7 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
     if (!mainTime) return;
     if (!mainTask) setMainTask(tpl.mainTaskLabel);
     const mainMinutes = timeToMinutes(mainTime);
-    const prevDate = new Date(date);
+    const prevDate = new Date(activeDate);
     prevDate.setDate(prevDate.getDate() - 1);
     const prevDateKey = `${prevDate.getFullYear()}-${(prevDate.getMonth() + 1).toString().padStart(2, '0')}-${prevDate.getDate().toString().padStart(2, '0')}`;
 
@@ -323,7 +360,7 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
             {editingBlock ? 'Edit Task' : 'New Task'}
           </h2>
           <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-500">{formatFullDate(date)}</span>
+            <span className="text-sm text-gray-500">{formatFullDate(activeDate)}</span>
             <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">
               &times;
             </button>
@@ -332,33 +369,111 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          {/* Day picker — only in create mode; editing keeps the original date */}
+          {!editingBlock && (
+            <div>
+              <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5 block">
+                Day
+              </label>
+              <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1 pb-0.5">
+                {dayOptions.map((d) => {
+                  const active = dateKeyOf(activeDate) === d.key;
+                  return (
+                    <button
+                      key={d.key}
+                      onClick={() => setActiveDate(d.date)}
+                      className={`flex-shrink-0 min-w-[64px] px-2.5 py-1.5 rounded-lg text-left transition-colors border ${
+                        active
+                          ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                          : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300'
+                      }`}
+                    >
+                      <div className="text-[11px] font-semibold leading-tight">{d.label}</div>
+                      {d.sub && (
+                        <div
+                          className={`text-[9px] font-mono leading-tight ${
+                            active ? 'text-white/80' : 'text-gray-400'
+                          }`}
+                        >
+                          {d.sub}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Main task input */}
           {!mainParsed ? (
             <div>
               <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                {prefillTime ? 'Name your task' : 'What do you need to do?'}
+                {mainTime ? 'Name your task' : 'What do you need to do?'}
               </label>
-              {prefillTime && (
+              {mainTime && (
                 <div className="mt-1 mb-2 flex items-center gap-2">
                   <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                    {formatTime24to12(prefillTime)}
+                    {formatTime24to12(mainTime)}
                   </span>
-                  <span className="text-[11px] text-gray-400">Tap-selected time (type a new time to override)</span>
+                  <button
+                    onClick={() => setMainTime('')}
+                    className="text-[11px] text-gray-400 hover:text-gray-700"
+                    title="Clear the picked time"
+                  >
+                    Change
+                  </button>
                 </div>
               )}
+
+              {/* Time suggestion chips — surface a handful of empty slots so the
+                  user rarely has to type a time. Hidden once a time is picked
+                  (or when editing). */}
+              {!mainTime && timeSuggestions.length > 0 && (
+                <div className="mb-3">
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+                    Suggested times
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {timeSuggestions.map((s) => (
+                      <button
+                        key={`${s.time}-${s.reason}`}
+                        onClick={() => applySuggestion(s)}
+                        className={`px-2.5 py-1.5 rounded-lg text-left transition-colors border ${
+                          s.reason === 'now'
+                            ? 'bg-emerald-50 border-emerald-300 hover:bg-emerald-100 text-emerald-800'
+                            : 'bg-white border-gray-200 hover:border-indigo-300 text-gray-700'
+                        }`}
+                      >
+                        <div className="text-[12px] font-semibold leading-tight">{s.label}</div>
+                        {s.sub && (
+                          <div
+                            className={`text-[9px] font-mono leading-tight ${
+                              s.reason === 'now' ? 'text-emerald-600' : 'text-gray-400'
+                            }`}
+                          >
+                            {s.sub}
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <input
                 ref={mainInputRef}
                 type="text"
                 value={mainInput}
                 onChange={(e) => setMainInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleMainSubmit()}
-                placeholder={prefillTime ? 'e.g. "go for a run"' : 'e.g. "9am go for a run"'}
+                placeholder={mainTime ? 'e.g. "go for a run"' : 'e.g. "9am go for a run"'}
                 className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
               <p className="text-[11px] text-gray-400 mt-1">
-                {prefillTime
-                  ? 'Press Enter to use the tapped time, or include a new time like "7pm meeting"'
-                  : 'Type a time and task, then press Enter'}
+                {mainTime
+                  ? 'Press Enter to use the picked time, or include a new time like "7pm meeting"'
+                  : 'Tap a suggested time above or type "9am task"'}
               </p>
             </div>
           ) : (
