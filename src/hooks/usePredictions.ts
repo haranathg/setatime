@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { PredictionEntry, PredictionMode, PredictionEmotion } from '../types';
+import type {
+  PredictionEntry,
+  PredictionMode,
+  PredictionEmotion,
+  LeapReversibility,
+  LeapDecisionOutcome,
+  LeapOutcomeVsExpectation,
+  LeapFearProportion,
+} from '../types';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
 
@@ -9,11 +17,12 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 export interface NewEntryInput {
   mode: PredictionMode;
   situation: string;
-  prediction: string;
-  confidence: number;
-  emotions: PredictionEmotion[];
-  emotionIntensity: number;
   firstMove: string;
+  // Quick / deep fields
+  prediction?: string;
+  confidence?: number;
+  emotions?: PredictionEmotion[];
+  emotionIntensity?: number;
   // Deep-mode optionals
   evidenceFor?: string;
   evidenceAgainst?: string;
@@ -22,15 +31,27 @@ export interface NewEntryInput {
   valuesAction?: string;
   experiment?: string;
   experimentWhenWhere?: string;
+  // Leap-mode fields
+  leapReversibility?: LeapReversibility;
+  leapUpside?: string;
+  leapBridgeCost?: string;
+  leapRegret?: string;
+  leapDecision?: string;
   // Optional override; defaults to 24h after createdAt
   reflectionDueAt?: string;
 }
 
 export interface ReflectionInput {
   outcome: string;
-  predictionAccurate: PredictionEntry['predictionAccurate'];
+  // Prediction-mode fields (optional; not required for leap reflection)
+  predictionAccurate?: PredictionEntry['predictionAccurate'];
   shouldHaveBeenConfidence?: number;
   surprise?: number;
+  // Leap-mode fields
+  leapTookIt?: LeapDecisionOutcome;
+  leapOutcomeVsExpectation?: LeapOutcomeVsExpectation;
+  leapFearProportion?: LeapFearProportion;
+  // Shared
   insight?: string;
   trustFuturePredictionsMore?: PredictionEntry['trustFuturePredictionsMore'];
 }
@@ -95,11 +116,12 @@ export function usePredictions() {
       updatedAt: now.toISOString(),
       mode: input.mode,
       situation: input.situation,
-      prediction: input.prediction,
-      confidence: clamp01_100(input.confidence),
-      emotions: input.emotions,
-      emotionIntensity: clamp01_100(input.emotionIntensity),
       firstMove: input.firstMove,
+      prediction: input.prediction,
+      confidence: input.confidence === undefined ? undefined : clamp01_100(input.confidence),
+      emotions: input.emotions,
+      emotionIntensity:
+        input.emotionIntensity === undefined ? undefined : clamp01_100(input.emotionIntensity),
       evidenceFor: input.evidenceFor,
       evidenceAgainst: input.evidenceAgainst,
       behavioralPull: input.behavioralPull,
@@ -107,6 +129,11 @@ export function usePredictions() {
       valuesAction: input.valuesAction,
       experiment: input.experiment,
       experimentWhenWhere: input.experimentWhenWhere,
+      leapReversibility: input.leapReversibility,
+      leapUpside: input.leapUpside,
+      leapBridgeCost: input.leapBridgeCost,
+      leapRegret: input.leapRegret,
+      leapDecision: input.leapDecision,
       reflectionDueAt: due,
     };
     setEntries((prev) => [entry, ...prev]);
@@ -165,7 +192,7 @@ export function usePredictions() {
 
     const emotionCounts = new Map<PredictionEmotion, number>();
     for (const e of entries) {
-      for (const em of e.emotions) emotionCounts.set(em, (emotionCounts.get(em) || 0) + 1);
+      for (const em of e.emotions ?? []) emotionCounts.set(em, (emotionCounts.get(em) || 0) + 1);
     }
     const topEmotions = [...emotionCounts.entries()]
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))

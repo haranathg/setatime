@@ -199,7 +199,19 @@ export interface PinsState {
 // pull, values check, and a structured experiment with an implementation
 // intention. Reflection is filed later from a Don't-forget-style pin on Today.
 
-export type PredictionMode = 'quick' | 'deep';
+// Prediction Lab modes:
+// - 'quick' / 'deep': reactive gut-check predictions (existing).
+// - 'leap': decision-under-uncertainty framework. Different mental move —
+//   you don't have a strong gut, you have a choice with real uncertainty
+//   and safety-bias tends to win by default. The 5 steps break stuckness
+//   with evidence-based prompts: reversibility (Bezos type-1/type-2 +
+//   Duke's Thinking in Bets), upside asymmetry (Kahneman loss-aversion
+//   is ~2x gain-weighting so most decisions have well-imagined downside
+//   and vague upside — concretizing upside re-balances the ledger), the
+//   bridge (cost-of-inaction reframed: if you'll face this eventually,
+//   delay just compounds the discomfort), and 5-year regret minimization
+//   (Bezos again).
+export type PredictionMode = 'quick' | 'deep' | 'leap';
 
 export type PredictionEmotion =
   | 'anxiety'
@@ -216,23 +228,33 @@ export type PredictionEmotion =
 export type PredictionAccuracy = 'yes' | 'partly' | 'no';
 export type TrustShift = 'more' | 'less' | 'same';
 
+// Leap-specific enums
+export type LeapReversibility = 'fully' | 'mostly' | 'partial' | 'not';
+export type LeapDecisionOutcome = 'took' | 'did-not-take' | 'partial';
+export type LeapOutcomeVsExpectation = 'better' | 'as-expected' | 'worse';
+export type LeapFearProportion = 'proportional' | 'over' | 'under';
+
 export interface PredictionEntry {
   id: string;
   createdAt: string; // ISO
   updatedAt: string; // ISO
   mode: PredictionMode;
 
-  // Capture + prediction (always required)
+  // Capture — always required. For quick/deep: "the situation." For leap:
+  // "the choice you're deciding between."
   situation: string;
-  prediction: string;
-  confidence: number; // 0–100; user's stated belief that the prediction will hold
 
-  // Emotion (always)
-  emotions: PredictionEmotion[];
-  emotionIntensity: number; // 0–100
-
-  // First physical move — the smallest body action that breaks inertia
+  // First physical move — the smallest body action that breaks inertia.
+  // Always required.
   firstMove: string;
+
+  // Prediction fields — required for quick/deep, optional for leap
+  prediction?: string;
+  confidence?: number; // 0–100; user's stated belief that the prediction will hold
+
+  // Emotion — required for quick/deep, optional for leap
+  emotions?: PredictionEmotion[];
+  emotionIntensity?: number; // 0–100
 
   // Deep-mode optional fields
   evidenceFor?: string;
@@ -243,13 +265,26 @@ export interface PredictionEntry {
   experiment?: string;         // small, low-risk probe of the prediction
   experimentWhenWhere?: string; // implementation intention: when + where
 
+  // Leap-mode fields
+  leapReversibility?: LeapReversibility;
+  leapUpside?: string;         // realistic best case — what opens up if it works
+  leapBridgeCost?: string;     // cost of delay itself, not consequences of a decision
+  leapRegret?: string;         // 5-year-self answer that becomes decision rationale
+  leapDecision?: string;       // what they committed to (fills the "prediction" role in the timeline)
+
   // Reflection — filed later from a TodayView pin
   reflectionDueAt: string;     // ISO; defaults to createdAt + 24h
   reflectedAt?: string;        // ISO; presence marks the loop as closed
   outcome?: string;            // what actually happened
+  // Prediction-mode reflection
   predictionAccurate?: PredictionAccuracy;
   shouldHaveBeenConfidence?: number; // 0–100; user's retro-rating of "right confidence"
   surprise?: number;           // 0–100; how surprising was the outcome
+  // Leap-mode reflection
+  leapTookIt?: LeapDecisionOutcome;
+  leapOutcomeVsExpectation?: LeapOutcomeVsExpectation;
+  leapFearProportion?: LeapFearProportion;
+  // Shared
   insight?: string;            // one-line takeaway
   trustFuturePredictionsMore?: TrustShift;
 }
