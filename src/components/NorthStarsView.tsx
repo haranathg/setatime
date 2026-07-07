@@ -844,9 +844,9 @@ function TargetRow({
             onClick={dumpStep}
             disabled={!draftStep.trim()}
             className="flex-shrink-0 px-2.5 py-1.5 text-[11px] font-semibold text-[#1a4a73] bg-white border border-[#1a4a73] hover:bg-[#e8eef4] disabled:opacity-30 disabled:cursor-not-allowed rounded-md transition-colors"
-            title="Send this step to the Dump"
+            title="Send this step to the Hold"
           >
-            ↗ Dump
+            ↗ Hold
           </button>
         </div>
       </div>

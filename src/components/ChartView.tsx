@@ -685,7 +685,7 @@ function PlanSection({
         <div className="flex-1 px-3 py-2 bg-gray-50">
           <div className="text-[12px] font-bold uppercase tracking-wider text-gray-800">Plan</div>
           <div className="text-[10px] text-gray-500 leading-tight mt-0.5">
-            Concrete next steps. Add tasks here and push them into the Dump to schedule later.
+            Concrete next steps. Add tasks here and stow them in the Hold to schedule later.
           </div>
         </div>
       </header>
@@ -709,7 +709,7 @@ function PlanSection({
       <div className="divide-y divide-gray-100">
         {tasks.length === 0 ? (
           <div className="px-3 py-3 text-[12px] text-gray-400 italic">
-            No plan tasks yet. Click <span className="font-semibold not-italic">+ Task</span> to add one — you can push it to the Dump to schedule later.
+            No plan tasks yet. Click <span className="font-semibold not-italic">+ Task</span> to add one — you can stow it in the Hold to schedule later.
           </div>
         ) : (
           tasks.map((t) => (
@@ -744,19 +744,19 @@ function PlanSection({
               {t.dumpTaskId ? (
                 <span
                   className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-green-700 bg-green-50 border border-green-200 rounded-sm"
-                  title="Already pushed to the Dump"
+                  title="Already stowed in the Hold"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  In Dump
+                  In Hold
                 </span>
               ) : (
                 <button
                   onClick={() => pushToDump(t.id)}
                   disabled={!t.text.trim()}
                   className="flex-shrink-0 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#1a4a73] bg-white border border-[#1a4a73] hover:bg-[#e8eef4] disabled:opacity-30 disabled:cursor-not-allowed rounded-sm transition-colors"
-                  title="Send this task to the Dump so you can schedule it"
+                  title="Stow this task in the Hold so you can schedule it later"
                 >
-                  ↗ Send to Dump
+                  ↗ Send to Hold
                 </button>
               )}
               <button
