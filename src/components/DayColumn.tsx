@@ -30,7 +30,11 @@ function minutesToHHMM(minutes: number): string {
 export default function DayColumn({ date, blocks, onDayClick, onBlockClick, onToggleSubTask, hideHeader }: DayColumnProps) {
   const today = isToday(date);
   const dateKey = formatDateKey(date);
-  const rendered = computeRenderedBlocks(blocks, dateKey);
+  // All-day events render as a band above the hour grid. Timed blocks (and
+  // spillovers) render inside computeRenderedBlocks as usual.
+  const allDayBlocks = blocks.filter((b) => b.isAllDay && b.date === dateKey);
+  const timedBlocks = blocks.filter((b) => !b.isAllDay);
+  const rendered = computeRenderedBlocks(timedBlocks, dateKey);
 
   // Current time indicator
   const now = new Date();
@@ -60,6 +64,28 @@ export default function DayColumn({ date, blocks, onDayClick, onBlockClick, onTo
           <span className={today ? 'bg-indigo-600 text-white rounded-full px-2 py-0.5' : ''}>
             {formatDayHeader(date)}
           </span>
+        </div>
+      )}
+
+      {/* All-day band — reserved-day events render here above the hour grid.
+          Each renders as a compact colored bar; tapping opens the edit modal. */}
+      {allDayBlocks.length > 0 && (
+        <div className="px-1 py-1 bg-white border-b border-gray-100 space-y-0.5">
+          {allDayBlocks.map((b) => (
+            <button
+              key={b.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                onBlockClick(b);
+              }}
+              className="w-full text-left px-2 py-1 text-[11px] font-medium rounded-md truncate hover:opacity-90 transition-opacity"
+              style={{ backgroundColor: `${b.color}22`, color: b.color, border: `1px solid ${b.color}44` }}
+              title={`All day: ${b.mainTask}`}
+            >
+              <span className="text-[9px] uppercase tracking-wider font-bold mr-1 opacity-70">All day</span>
+              {b.mainTask}
+            </button>
+          ))}
         </div>
       )}
 
