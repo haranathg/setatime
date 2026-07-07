@@ -336,14 +336,9 @@ export default function TodayView({
               {allDayToday.map((b) => (
                 <span
                   key={b.id}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium"
-                  style={{
-                    backgroundColor: `${b.color}22`,
-                    color: b.color,
-                    border: `1px solid ${b.color}44`,
-                  }}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold text-gray-900"
+                  style={{ backgroundColor: b.color }}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: b.color }} />
                   {b.mainTask}
                 </span>
               ))}
