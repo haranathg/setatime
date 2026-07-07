@@ -7,6 +7,7 @@ import BrainDumpSidebar from './components/BrainDumpSidebar';
 import ChartView from './components/ChartView';
 import HabitsView from './components/HabitsView';
 import BooksView from './components/BooksView';
+import HorizonView from './components/HorizonView';
 import LogView from './components/LogView';
 import NorthStarsView from './components/NorthStarsView';
 import PredictionLabView from './components/PredictionLabView';
@@ -23,6 +24,7 @@ import { useInbox } from './hooks/useInbox';
 import { useNorthStars } from './hooks/useNorthStars';
 import { usePins } from './hooks/usePins';
 import { usePredictions } from './hooks/usePredictions';
+import { useHorizon } from './hooks/useHorizon';
 import { useStateLog } from './hooks/useStateLog';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
@@ -77,7 +79,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars'>('today');
+  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon'>('today');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -94,8 +96,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars';
-  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars') => void;
+  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon';
+  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -171,6 +173,15 @@ function AppMain({
     addEntry: addStateLogEntry,
     deleteEntry: deleteStateLogEntry,
   } = useStateLog();
+
+  const {
+    state: horizonState,
+    setBirthDate: setHorizonBirthDate,
+    setLifespan: setHorizonLifespan,
+    addEra: addHorizonEra,
+    updateEra: updateHorizonEra,
+    deleteEra: deleteHorizonEra,
+  } = useHorizon();
   // "Schedule this" flow: any surface can prefill a calendar block and jump.
   const [calendarPrefill, setCalendarPrefill] = useState<{
     taskName?: string;
@@ -243,7 +254,7 @@ function AppMain({
     (t) => t.status === 'inbox' || (t.status === 'future' && !!t.futureSurfaceDate && t.futureSurfaceDate <= todayKey)
   ).length;
 
-  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars') => {
+  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -452,6 +463,18 @@ function AppMain({
           onSetNextStep={setStarTargetNextStep}
           onScheduleThis={scheduleThis}
           onSendToDump={addManualTask}
+        />
+      ) : activeView === 'horizon' ? (
+        <HorizonView
+          state={horizonState}
+          onSetBirthDate={setHorizonBirthDate}
+          onSetLifespan={setHorizonLifespan}
+          onAddEra={addHorizonEra}
+          onUpdateEra={updateHorizonEra}
+          onDeleteEra={deleteHorizonEra}
+          onLogContemplation={(feeling, reasons, note) => {
+            addStateLogEntry(feeling, reasons, note);
+          }}
         />
       ) : (
         <StatsView stats={stats} />
