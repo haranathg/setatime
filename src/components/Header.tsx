@@ -46,29 +46,15 @@ interface HeaderProps {
   unscheduledCount?: number;
   inboxTriageCount?: number;
   blockCount?: number;
-  // Quick-capture bar: submits a captured thought into the Inbox slice.
-  // Persistent at the top of every hub so capture is always one keystroke away.
-  onQuickCapture?: (text: string) => void;
 }
 
-export default function Header({ activeView, onViewChange, syncing, syncError, onRefreshFromCloud, onExportICal, inboxTriageCount = 0, blockCount = 0, onQuickCapture }: HeaderProps) {
+export default function Header({ activeView, onViewChange, syncing, syncError, onRefreshFromCloud, onExportICal, inboxTriageCount = 0, blockCount = 0 }: HeaderProps) {
   const [showSync, setShowSync] = useState(false);
   const [key, setKey] = useState(getSecretKey());
   const [saved, setSaved] = useState(false);
   const isConnected = !!getSecretKey();
-  const [captureDraft, setCaptureDraft] = useState('');
-  const [captureFlash, setCaptureFlash] = useState(false);
 
   const activeHub = hubForView(activeView);
-
-  const submitCapture = () => {
-    const text = captureDraft.trim();
-    if (!text || !onQuickCapture) return;
-    onQuickCapture(text);
-    setCaptureDraft('');
-    setCaptureFlash(true);
-    setTimeout(() => setCaptureFlash(false), 900);
-  };
 
   // Baked in at build time by the deploy workflow. Format: "<major>.<minor>.<build>"
   // where <major>.<minor> comes from package.json and <build> is the commit
@@ -192,43 +178,6 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           )}
         </div>
       </div>
-
-      {/* Universal quick-capture bar — Alfred-style always-on capture. Anything
-          typed here lands in the Inbox slice for later triage. */}
-      {onQuickCapture && (
-        <div className="px-4 mb-2">
-          <div
-            className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg transition-colors ${
-              captureFlash
-                ? 'bg-emerald-50 border-emerald-300'
-                : 'bg-gray-50 border-gray-200 focus-within:border-indigo-400 focus-within:bg-white'
-            }`}
-          >
-            <span className="text-gray-400 text-sm">✎</span>
-            <input
-              type="text"
-              value={captureDraft}
-              onChange={(e) => setCaptureDraft(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && submitCapture()}
-              placeholder="Cast a thought · Enter to log"
-              className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none placeholder:text-gray-400"
-            />
-            {captureFlash ? (
-              <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-700">
-                Logged
-              </span>
-            ) : (
-              <button
-                onClick={submitCapture}
-                disabled={!captureDraft.trim()}
-                className="text-[10px] uppercase tracking-wider font-semibold text-indigo-600 hover:text-indigo-700 disabled:text-gray-300"
-              >
-                Log
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Hub tab strip — Today · Log · Charts · Sail */}
       <nav className="flex gap-1 bg-gray-100 rounded-lg p-1 mx-4 mb-1.5">

@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import Header from './components/Header';
 import NowNextBar from './components/NowNextBar';
+import QuickCaptureBar from './components/QuickCaptureBar';
 import WeeklyCalendar from './components/WeeklyCalendar';
 import StatsView from './components/StatsView';
 import BrainDumpSidebar from './components/BrainDumpSidebar';
@@ -280,7 +281,6 @@ function AppMain({
         unscheduledCount={unscheduledTasks.length}
         inboxTriageCount={inboxTriageCount}
         blockCount={blocks.length}
-        onQuickCapture={(text) => captureThought(text)}
       />
 
       <NowNextBar blocks={blocks} onJumpToToday={() => setActiveView('today')} />
@@ -479,6 +479,15 @@ function AppMain({
       ) : (
         <StatsView stats={stats} />
       )}
+
+      {/* Bottom-mounted universal capture bar. Log (Enter) is primary;
+          ↗ Schedule is the secondary escape hatch. Lives at the bottom of
+          the flex column so it lands under the thumb on iPhone with
+          safe-area padding for the home indicator. */}
+      <QuickCaptureBar
+        onLog={(text) => captureThought(text)}
+        onSchedule={(text) => scheduleThis({ taskName: text })}
+      />
     </div>
   );
 }
