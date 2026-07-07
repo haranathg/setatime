@@ -13,6 +13,23 @@ interface DayColumnProps {
   hideHeader?: boolean;
 }
 
+// Shift a hex color's luminance. `amount` in [-1, 1]; negative = darker,
+// positive = lighter. Used to derive an accent-border color from the block's
+// pastel bg for all-day event chrome.
+function shade(hex: string, amount: number): string {
+  const h = hex.replace('#', '');
+  if (h.length !== 6) return hex;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const shift = (c: number) =>
+    Math.max(0, Math.min(255, Math.round(c + (amount < 0 ? c * amount : (255 - c) * amount))));
+  const rr = shift(r).toString(16).padStart(2, '0');
+  const gg = shift(g).toString(16).padStart(2, '0');
+  const bb = shift(b).toString(16).padStart(2, '0');
+  return `#${rr}${gg}${bb}`;
+}
+
 // Snap minutes to the nearest 15-minute slot, clamp to the visible day range.
 function snapMinutesToSlot(minutes: number): number {
   const snapped = Math.round(minutes / 15) * 15;
@@ -78,11 +95,11 @@ export default function DayColumn({ date, blocks, onDayClick, onBlockClick, onTo
                 e.stopPropagation();
                 onBlockClick(b);
               }}
-              className="w-full text-left px-2 py-1 text-[11px] font-medium rounded-md truncate hover:opacity-90 transition-opacity"
-              style={{ backgroundColor: `${b.color}22`, color: b.color, border: `1px solid ${b.color}44` }}
+              className="w-full text-left px-2 py-1 text-[11px] font-medium rounded-md truncate text-gray-900 hover:brightness-95 transition-all border-l-4"
+              style={{ backgroundColor: b.color, borderLeftColor: shade(b.color, -0.35) }}
               title={`All day: ${b.mainTask}`}
             >
-              <span className="text-[9px] uppercase tracking-wider font-bold mr-1 opacity-70">All day</span>
+              <span className="text-[9px] uppercase tracking-wider font-bold mr-1 text-gray-700">All day</span>
               {b.mainTask}
             </button>
           ))}
