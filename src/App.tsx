@@ -4,11 +4,10 @@ import NowNextBar from './components/NowNextBar';
 import WeeklyCalendar from './components/WeeklyCalendar';
 import StatsView from './components/StatsView';
 import BrainDumpSidebar from './components/BrainDumpSidebar';
-import BrainDumpFullPage from './components/BrainDumpFullPage';
 import ChartView from './components/ChartView';
 import HabitsView from './components/HabitsView';
 import BooksView from './components/BooksView';
-import InboxView from './components/InboxView';
+import LogView from './components/LogView';
 import NorthStarsView from './components/NorthStarsView';
 import PredictionLabView from './components/PredictionLabView';
 import TodayView from './components/TodayView';
@@ -125,7 +124,6 @@ function AppMain({
     removeScheduledTask,
     startScheduling,
     cancelScheduling,
-    updateTask,
     deleteTask,
   } = useBrainDump();
 
@@ -225,7 +223,6 @@ function AppMain({
     thoughts: inboxThoughts,
     captureThought,
     triageThought,
-    updateThought: updateInboxThought,
     deleteThought: deleteInboxThought,
   } = useInbox();
 
@@ -253,13 +250,6 @@ function AppMain({
     }
   };
 
-  const handleStartSchedulingFromFullPage = (task: typeof schedulingTask) => {
-    if (task) {
-      startScheduling(task);
-      setActiveView('calendar');
-      setSidebarOpen(false); // close sidebar so the calendar is tappable (on mobile the sidebar is full-screen)
-    }
-  };
 
   const handleScheduleComplete = () => {
     if (schedulingTask) {
@@ -321,17 +311,20 @@ function AppMain({
           />
         </div>
       ) : activeView === 'braindump' ? (
-        <BrainDumpFullPage
-          unscheduledTasks={unscheduledTasks}
-          schedulingTask={schedulingTask}
-          extracting={extracting}
-          onExtractTasks={extractTasks}
-          onAddManualTask={addManualTask}
-          onStartScheduling={handleStartSchedulingFromFullPage}
-          onCancelScheduling={cancelScheduling}
-          onDeleteTask={deleteTask}
-          onUpdateTask={updateTask}
-          onSwitchToCalendar={() => setActiveView('calendar')}
+        // Legacy 'braindump' activeView redirects to the unified Log surface.
+        // Kept as a valid activeView value so any deep-links/tab-bar handlers
+        // that still emit it don't 404 — behaviour is identical to Log.
+        <LogView
+          thoughts={inboxThoughts}
+          onTriage={triageThought}
+          onDeleteThought={deleteInboxThought}
+          onSendThoughtToHold={addManualTask}
+          heldTasks={unscheduledTasks}
+          onScheduleHeldTask={(task) => {
+            startScheduling(task);
+            scheduleThis({ taskName: task.label });
+          }}
+          onDeleteHeldTask={deleteTask}
         />
       ) : activeView === 'chart' ? (
         <ChartView
@@ -367,13 +360,17 @@ function AppMain({
           onDelete={deleteBook}
         />
       ) : activeView === 'inbox' ? (
-        <InboxView
+        <LogView
           thoughts={inboxThoughts}
-          onCapture={captureThought}
           onTriage={triageThought}
-          onUpdate={updateInboxThought}
-          onDelete={deleteInboxThought}
-          onSendToDump={addManualTask}
+          onDeleteThought={deleteInboxThought}
+          onSendThoughtToHold={addManualTask}
+          heldTasks={unscheduledTasks}
+          onScheduleHeldTask={(task) => {
+            startScheduling(task);
+            scheduleThis({ taskName: task.label });
+          }}
+          onDeleteHeldTask={deleteTask}
         />
       ) : activeView === 'today' ? (
         <TodayView

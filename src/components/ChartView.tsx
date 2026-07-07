@@ -80,28 +80,27 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#e8eef4] overflow-hidden">
-      {/* Patient banner — Epic-style */}
-      <PatientBanner noteCount={notes.length} />
-
+    <div className="flex-1 flex flex-col bg-[#fbfaf7] overflow-hidden">
       <div className="flex-1 flex overflow-hidden">
         {/* Encounter list sidebar */}
-        <aside className="w-72 flex-shrink-0 bg-white border-r border-gray-300 flex flex-col">
-          <div className="px-3 py-2 bg-[#1a4a73] text-white text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between">
-            <span>Chart Review · Encounters</span>
-            <span className="text-[10px] font-normal text-gray-300">{notes.length}</span>
+        <aside className="w-72 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
+          <div className="px-4 py-3 border-b border-gray-100 flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Encounters</h2>
+            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+              {notes.length}
+            </span>
           </div>
-          <div className="px-2 py-2 border-b border-gray-200 space-y-1">
-            <div className="flex gap-1">
+          <div className="px-3 py-2.5 border-b border-gray-100 space-y-1.5">
+            <div className="flex gap-1.5">
               <button
                 onClick={() => handleNew('daily')}
-                className="flex-1 px-2 py-1.5 text-[11px] font-semibold text-white bg-[#1a4a73] hover:bg-[#0f3557] rounded-sm transition-colors"
+                className="flex-1 px-2 py-1.5 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
               >
                 + Daily
               </button>
               <button
                 onClick={() => handleNew('weekly')}
-                className="flex-1 px-2 py-1.5 text-[11px] font-semibold text-[#1a4a73] bg-white border border-[#1a4a73] hover:bg-[#e8eef4] rounded-sm transition-colors"
+                className="flex-1 px-2 py-1.5 text-[11px] font-semibold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 rounded-lg transition-colors"
               >
                 + Weekly
               </button>
@@ -109,7 +108,7 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
             <button
               onClick={handleCopyForward}
               disabled={!hasPrior}
-              className="w-full px-2 py-1.5 text-[11px] font-semibold text-[#d4a017] bg-white border border-[#d4a017] hover:bg-[#fef9e7] disabled:opacity-40 disabled:cursor-not-allowed rounded-sm transition-colors"
+              className="w-full px-2 py-1.5 text-[11px] font-semibold text-amber-700 bg-white border border-amber-200 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
               title={hasPrior ? 'Start a new note pre-filled with open problems and incomplete plan tasks from the most recent encounter' : 'Need a prior encounter to copy forward from'}
             >
               ↻ Copy forward
@@ -130,15 +129,17 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
                     <li key={n.id}>
                       <button
                         onClick={() => setSelectedId(n.id)}
-                        className={`w-full text-left px-3 py-2 border-b border-gray-100 transition-colors ${
-                          isSelected ? 'bg-[#fef9e7] border-l-4 border-l-[#d4a017]' : 'hover:bg-gray-50'
+                        className={`w-full text-left px-3 py-2.5 border-b border-gray-50 transition-colors ${
+                          isSelected
+                            ? 'bg-indigo-50/70 border-l-2 border-l-indigo-500'
+                            : 'hover:bg-gray-50'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-0.5">
                           <span className="text-[11px] font-semibold text-gray-900 font-mono">
                             {formatLongDate(n.date)}
                           </span>
-                          <span className="text-[9px] uppercase tracking-wider text-[#1a4a73] font-bold">
+                          <span className="text-[9px] uppercase tracking-wider font-bold text-indigo-700 bg-indigo-100 rounded-full px-1.5 py-0.5">
                             {n.encounterType === 'daily' ? 'D' : n.encounterType === 'weekly' ? 'W' : 'O'}
                           </span>
                         </div>
@@ -159,7 +160,7 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
         </aside>
 
         {/* Main note workspace */}
-        <main className="flex-1 overflow-y-auto bg-[#e8eef4]">
+        <main className="flex-1 overflow-y-auto bg-[#fbfaf7]">
           {selected ? (
             <NoteEditor
               key={selected.id}
@@ -172,7 +173,7 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
             />
           ) : (
             <div className="h-full flex items-center justify-center">
-              <div className="text-center max-w-md p-8 bg-white border border-gray-300 rounded-sm shadow-sm">
+              <div className="text-center max-w-md p-8 bg-white border border-gray-200 rounded-2xl shadow-sm">
                 <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-2">
                   No Encounter Selected
                 </div>
@@ -182,7 +183,7 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
                 </p>
                 <button
                   onClick={() => handleNew('daily')}
-                  className="px-4 py-2 text-sm font-semibold text-white bg-[#1a4a73] hover:bg-[#0f3557] rounded-sm transition-colors"
+                  className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
                 >
                   + New Daily Check-In
                 </button>
@@ -195,68 +196,9 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
   );
 }
 
-// ---------- Patient banner ----------
-
-function PatientBanner({ noteCount }: { noteCount: number }) {
-  const today = new Date();
-  return (
-    <div className="bg-gradient-to-b from-[#1a4a73] to-[#0f3557] text-white border-b-2 border-[#d4a017]">
-      <div className="px-4 py-2 flex items-stretch gap-6 text-[11px]">
-        {/* Identity block */}
-        <div className="flex items-center gap-3 pr-6 border-r border-white/20">
-          <div className="w-12 h-12 rounded-full bg-white/10 border border-white/30 flex items-center justify-center text-lg font-bold">
-            S
-          </div>
-          <div>
-            <div className="text-base font-bold tracking-tight leading-tight">SELF, PATIENT</div>
-            <div className="text-[10px] text-white/70 leading-tight font-mono">
-              MRN: 00000001 · DOB: —— · Sex: —
-            </div>
-          </div>
-        </div>
-
-        {/* Demographic facts */}
-        <BannerField label="Age" value="—" />
-        <BannerField label="PCP" value="Self" />
-        <BannerField label="Allergies" value="NKDA" warn />
-        <BannerField label="Code Status" value="Full Code" />
-        <BannerField label="Encounters" value={String(noteCount)} />
-
-        <div className="ml-auto flex items-center gap-3">
-          <div className="text-right">
-            <div className="text-[9px] uppercase tracking-wider text-white/60">Today</div>
-            <div className="text-[11px] font-mono">
-              {today.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tab strip */}
-      <div className="px-4 flex gap-0 bg-[#0f3557] border-t border-white/10">
-        {['Chart Review', 'SOAP Note', 'Problem List', 'Plan'].map((t, i) => (
-          <div
-            key={t}
-            className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider border-r border-white/10 ${
-              i === 1 ? 'bg-white text-[#1a4a73]' : 'text-white/70'
-            }`}
-          >
-            {t}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function BannerField({ label, value, warn }: { label: string; value: string; warn?: boolean }) {
-  return (
-    <div className="flex flex-col justify-center">
-      <div className="text-[9px] uppercase tracking-wider text-white/60 leading-tight">{label}</div>
-      <div className={`text-[12px] font-mono leading-tight ${warn ? 'text-[#ffd966]' : 'text-white'}`}>{value}</div>
-    </div>
-  );
-}
+// Patient banner removed in favor of the app-consistent soft look. The
+// individual card headers below still carry the encounter identity metadata
+// (date, type, provider, status).
 
 // ---------- Note editor with SOAP sections ----------
 
@@ -288,36 +230,36 @@ function NoteEditor({
   }, [note.id, note.date, note.subjective, note.objective, note.assessment, note.plan, onSyncActivities]);
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-3">
-      {/* Note header */}
-      <div className="bg-white border border-gray-300 rounded-sm shadow-sm">
-        <div className="px-4 py-2 bg-[#1a4a73] text-white flex items-center justify-between">
+    <div className="max-w-4xl mx-auto p-5 space-y-4">
+      {/* Note header — softer, app-consistent look */}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 flex items-baseline justify-between">
           <div className="flex items-baseline gap-3">
-            <span className="text-[11px] font-bold uppercase tracking-wider">Progress Note</span>
-            <span className="text-[10px] text-white/70 font-mono">ID: {note.id.slice(0, 8).toUpperCase()}</span>
+            <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Progress note</h2>
+            <span className="text-[10px] text-gray-400 font-mono">#{note.id.slice(0, 6).toUpperCase()}</span>
           </div>
           <button
             onClick={onDelete}
-            className="text-[10px] uppercase tracking-wider font-semibold text-white/70 hover:text-white px-2 py-0.5 rounded-sm hover:bg-red-700/40 transition-colors"
+            className="text-[10px] uppercase tracking-wider font-semibold text-gray-400 hover:text-red-500 transition-colors"
             title="Delete note"
           >
             Delete
           </button>
         </div>
         <div className="px-4 py-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-[11px]">
-          <FieldRow label="Encounter Date">
+          <FieldRow label="Date">
             <input
               type="date"
               value={note.date}
               onChange={(e) => onUpdate(note.id, { date: e.target.value })}
-              className="w-full px-2 py-1 text-[12px] border border-gray-300 rounded-sm font-mono focus:outline-none focus:ring-1 focus:ring-[#1a4a73] focus:border-[#1a4a73]"
+              className="w-full px-2 py-1.5 text-[12px] border border-gray-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400"
             />
           </FieldRow>
-          <FieldRow label="Encounter Type">
+          <FieldRow label="Type">
             <select
               value={note.encounterType}
               onChange={(e) => onUpdate(note.id, { encounterType: e.target.value as ChartNote['encounterType'] })}
-              className="w-full px-2 py-1 text-[12px] border border-gray-300 rounded-sm bg-white focus:outline-none focus:ring-1 focus:ring-[#1a4a73] focus:border-[#1a4a73]"
+              className="w-full px-2 py-1.5 text-[12px] border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400"
             >
               <option value="daily">Daily Check-In</option>
               <option value="weekly">Weekly Review</option>
@@ -325,18 +267,18 @@ function NoteEditor({
             </select>
           </FieldRow>
           <FieldRow label="Provider">
-            <div className="px-2 py-1 text-[12px] text-gray-700 font-mono bg-gray-50 border border-gray-200 rounded-sm">SELF, MD-IN-TRAINING</div>
+            <div className="px-2 py-1.5 text-[12px] text-gray-600 font-mono bg-gray-50 border border-gray-100 rounded-lg">Self</div>
           </FieldRow>
           <FieldRow label="Status">
             {note.signedAt ? (
-              <div className="px-2 py-1 text-[12px] text-green-700 font-semibold bg-green-50 border border-green-200 rounded-sm flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              <div className="px-2 py-1.5 text-[12px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 Signed · {formatTime(note.signedAt)}
               </div>
             ) : (
-              <div className="px-2 py-1 text-[12px] text-amber-700 font-semibold bg-amber-50 border border-amber-200 rounded-sm flex items-center gap-1">
+              <div className="px-2 py-1.5 text-[12px] text-amber-700 font-semibold bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                Draft · auto-saved
+                Draft
               </div>
             )}
           </FieldRow>
@@ -406,12 +348,12 @@ function SoapSection({
   // Derived live from the text so the chips track every keystroke.
   const tagCounts = useMemo(() => countTags(extractActivityTags(value)), [value]);
   return (
-    <section className="bg-white border border-gray-300 rounded-sm shadow-sm overflow-hidden">
-      <header className="flex items-stretch border-b border-gray-300">
-        <div className="w-10 flex-shrink-0 bg-[#1a4a73] text-white flex items-center justify-center text-lg font-bold font-mono">
+    <section className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+      <header className="flex items-stretch border-b border-gray-100">
+        <div className="w-10 flex-shrink-0 bg-indigo-500 text-white flex items-center justify-center text-lg font-bold font-mono">
           {letter}
         </div>
-        <div className="flex-1 px-3 py-2 bg-gray-50">
+        <div className="flex-1 px-3 py-2 bg-gray-50/60">
           <div className="text-[12px] font-bold uppercase tracking-wider text-gray-800">{label}</div>
           <div className="text-[10px] text-gray-500 leading-tight mt-0.5">{hint}</div>
         </div>
@@ -424,11 +366,11 @@ function SoapSection({
             .map(([name, count]) => (
               <span
                 key={name}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-mono text-emerald-800 bg-white border border-emerald-200 rounded-sm"
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-mono text-emerald-800 bg-white border border-emerald-200 rounded-md"
               >
                 +{name}
                 {count > 1 && (
-                  <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-100 px-1 rounded-sm">
+                  <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-100 px-1 rounded-md">
                     ×{count}
                   </span>
                 )}
@@ -441,7 +383,7 @@ function SoapSection({
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
         placeholder={`Enter ${label.toLowerCase()}… (tip: type +water, +coffee, etc. to log activities)`}
-        className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 resize-y focus:outline-none focus:bg-[#fffceb] placeholder:text-gray-300"
+        className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 resize-y focus:outline-none focus:bg-indigo-50/30 placeholder:text-gray-300"
       />
     </section>
   );
@@ -476,7 +418,7 @@ function SignatureBlock({
 
   if (note.signedAt) {
     return (
-      <div className="bg-white border border-green-300 rounded-sm shadow-sm overflow-hidden">
+      <div className="bg-white border border-emerald-200 rounded-2xl shadow-sm overflow-hidden">
         <div className="px-3 py-1.5 bg-green-50 border-b border-green-200 flex items-center justify-between">
           <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-green-800">
             <span className="w-2 h-2 rounded-full bg-green-500" />
@@ -504,7 +446,7 @@ function SignatureBlock({
   }
 
   return (
-    <div className="bg-white border border-amber-300 rounded-sm shadow-sm overflow-hidden">
+    <div className="bg-white border border-amber-200 rounded-2xl shadow-sm overflow-hidden">
       <div className="px-3 py-1.5 bg-amber-50 border-b border-amber-200 flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-amber-800">
         <span className="w-2 h-2 rounded-full bg-amber-500" />
         Draft · not yet signed
@@ -515,7 +457,7 @@ function SignatureBlock({
         </div>
         <button
           onClick={sign}
-          className="flex-shrink-0 px-4 py-2 text-[12px] font-semibold uppercase tracking-wider text-white bg-[#1a4a73] hover:bg-[#0f3557] rounded-sm transition-colors"
+          className="flex-shrink-0 px-4 py-2 text-[12px] font-semibold uppercase tracking-wider text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
           title="Stamp this note as signed at the current date and time"
         >
           ✓ Sign Note
@@ -559,9 +501,9 @@ function ProblemsList({
   const openCount = problems.filter((p) => !p.resolved).length;
 
   return (
-    <section className="bg-white border border-gray-300 rounded-sm shadow-sm overflow-hidden">
-      <header className="flex items-stretch border-b border-gray-300">
-        <div className="w-10 flex-shrink-0 bg-[#d4a017] text-white flex items-center justify-center text-lg font-bold font-mono">
+    <section className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+      <header className="flex items-stretch border-b border-gray-200">
+        <div className="w-10 flex-shrink-0 bg-amber-500 text-white flex items-center justify-center text-lg font-bold font-mono">
           #
         </div>
         <div className="flex-1 px-3 py-2 bg-gray-50 flex items-center justify-between">
@@ -588,7 +530,7 @@ function ProblemsList({
                 type="checkbox"
                 checked={!!p.resolved}
                 onChange={(e) => updateProblem(p.id, { resolved: e.target.checked })}
-                className="mt-1.5 w-3.5 h-3.5 accent-[#1a4a73]"
+                className="mt-1.5 w-3.5 h-3.5 accent-indigo-600"
                 title={p.resolved ? 'Resolved — uncheck to reopen' : 'Mark resolved'}
               />
               <div className="flex-1 min-w-0">
@@ -597,7 +539,7 @@ function ProblemsList({
                   value={p.label}
                   onChange={(e) => updateProblem(p.id, { label: e.target.value })}
                   placeholder="Short label, e.g. Sleep debt"
-                  className={`w-full px-2 py-1 text-[13px] font-mono border border-gray-200 rounded-sm focus:outline-none focus:ring-1 focus:ring-[#1a4a73] focus:border-[#1a4a73] ${
+                  className={`w-full px-2 py-1 text-[13px] font-mono border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-500 ${
                     p.resolved ? 'line-through text-gray-400' : 'text-gray-900'
                   }`}
                 />
@@ -606,7 +548,7 @@ function ProblemsList({
                   value={p.detail || ''}
                   onChange={(e) => updateProblem(p.id, { detail: e.target.value })}
                   placeholder="Optional detail or context…"
-                  className="mt-1 w-full px-2 py-1 text-[11px] text-gray-600 border border-transparent rounded-sm focus:outline-none focus:border-gray-200 focus:bg-gray-50"
+                  className="mt-1 w-full px-2 py-1 text-[11px] text-gray-600 border border-transparent rounded-md focus:outline-none focus:border-gray-200 focus:bg-gray-50"
                 />
               </div>
               <button
@@ -623,7 +565,7 @@ function ProblemsList({
       <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
         <button
           onClick={addProblem}
-          className="text-[11px] font-semibold uppercase tracking-wider text-[#1a4a73] hover:text-[#0f3557] transition-colors"
+          className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700 hover:text-indigo-800 transition-colors"
         >
           + Problem
         </button>
@@ -677,9 +619,9 @@ function PlanSection({
   };
 
   return (
-    <section className="bg-white border border-gray-300 rounded-sm shadow-sm overflow-hidden">
-      <header className="flex items-stretch border-b border-gray-300">
-        <div className="w-10 flex-shrink-0 bg-[#1a4a73] text-white flex items-center justify-center text-lg font-bold font-mono">
+    <section className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+      <header className="flex items-stretch border-b border-gray-200">
+        <div className="w-10 flex-shrink-0 bg-indigo-600 text-white flex items-center justify-center text-lg font-bold font-mono">
           P
         </div>
         <div className="flex-1 px-3 py-2 bg-gray-50">
@@ -692,12 +634,12 @@ function PlanSection({
 
       {/* Problem list mirror — passive, so you can see what you're planning against */}
       {openProblems.length > 0 && (
-        <div className="px-3 py-2 bg-[#fef9e7] border-b border-[#f0e4b8] text-[11px] text-gray-700">
-          <span className="text-[9px] uppercase tracking-wider text-[#1a4a73] font-bold mr-2">Planning against</span>
+        <div className="px-3 py-2 bg-amber-50 border-b border-amber-100 text-[11px] text-gray-700">
+          <span className="text-[9px] uppercase tracking-wider text-indigo-700 font-bold mr-2">Planning against</span>
           {openProblems.map((p) => (
             <span
               key={p.id}
-              className="inline-block mr-1.5 mb-0.5 px-1.5 py-0.5 bg-white border border-gray-300 rounded-sm font-mono"
+              className="inline-block mr-1.5 mb-0.5 px-1.5 py-0.5 bg-white border border-gray-200 rounded-md font-mono"
             >
               {p.label || '(unnamed)'}
             </span>
@@ -718,7 +660,7 @@ function PlanSection({
                 type="checkbox"
                 checked={t.done}
                 onChange={(e) => updateTask(t.id, { done: e.target.checked })}
-                className="w-3.5 h-3.5 accent-[#1a4a73]"
+                className="w-3.5 h-3.5 accent-indigo-600"
                 title={t.done ? 'Done' : 'Mark done'}
               />
               <input
@@ -726,7 +668,7 @@ function PlanSection({
                 value={t.text}
                 onChange={(e) => updateTask(t.id, { text: e.target.value })}
                 placeholder="What will you do?"
-                className={`flex-1 min-w-0 px-2 py-1 text-[13px] font-mono border border-gray-200 rounded-sm focus:outline-none focus:ring-1 focus:ring-[#1a4a73] focus:border-[#1a4a73] ${
+                className={`flex-1 min-w-0 px-2 py-1 text-[13px] font-mono border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-500 ${
                   t.done ? 'line-through text-gray-400' : 'text-gray-900'
                 }`}
               />
@@ -736,14 +678,14 @@ function PlanSection({
                   if (label) onScheduleThis({ taskName: label });
                 }}
                 disabled={!t.text.trim()}
-                className="flex-shrink-0 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-700 bg-white border border-sky-700 hover:bg-sky-50 disabled:opacity-30 disabled:cursor-not-allowed rounded-sm transition-colors"
+                className="flex-shrink-0 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-700 bg-white border border-sky-700 hover:bg-sky-50 disabled:opacity-30 disabled:cursor-not-allowed rounded-md transition-colors"
                 title="Jump to the calendar with this task pre-filled"
               >
                 ↳ Schedule
               </button>
               {t.dumpTaskId ? (
                 <span
-                  className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-green-700 bg-green-50 border border-green-200 rounded-sm"
+                  className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-green-700 bg-green-50 border border-green-200 rounded-md"
                   title="Already stowed in the Hold"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
@@ -753,7 +695,7 @@ function PlanSection({
                 <button
                   onClick={() => pushToDump(t.id)}
                   disabled={!t.text.trim()}
-                  className="flex-shrink-0 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#1a4a73] bg-white border border-[#1a4a73] hover:bg-[#e8eef4] disabled:opacity-30 disabled:cursor-not-allowed rounded-sm transition-colors"
+                  className="flex-shrink-0 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-indigo-700 bg-white border border-indigo-500 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed rounded-md transition-colors"
                   title="Stow this task in the Hold so you can schedule it later"
                 >
                   ↗ Send to Hold
@@ -773,14 +715,14 @@ function PlanSection({
       <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
         <button
           onClick={addTask}
-          className="text-[11px] font-semibold uppercase tracking-wider text-[#1a4a73] hover:text-[#0f3557] transition-colors"
+          className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700 hover:text-indigo-800 transition-colors"
         >
           + Task
         </button>
       </div>
 
       {/* Free-text plan — narrative context */}
-      <div className="border-t border-gray-300">
+      <div className="border-t border-gray-200">
         <div className="px-3 py-1.5 bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 font-semibold border-b border-gray-200">
           Narrative · goals, experiments, things to monitor
         </div>
@@ -803,11 +745,11 @@ function PlanNarrativeTextarea({ value, onChange }: { value: string; onChange: (
             .map(([name, count]) => (
               <span
                 key={name}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-mono text-emerald-800 bg-white border border-emerald-200 rounded-sm"
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-mono text-emerald-800 bg-white border border-emerald-200 rounded-md"
               >
                 +{name}
                 {count > 1 && (
-                  <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-100 px-1 rounded-sm">
+                  <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-100 px-1 rounded-md">
                     ×{count}
                   </span>
                 )}
@@ -820,7 +762,7 @@ function PlanNarrativeTextarea({ value, onChange }: { value: string; onChange: (
         onChange={(e) => onChange(e.target.value)}
         rows={5}
         placeholder="Enter plan narrative… (tip: type +water, +coffee, etc. to log activities)"
-        className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 resize-y focus:outline-none focus:bg-[#fffceb] placeholder:text-gray-300"
+        className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 resize-y focus:outline-none focus:bg-indigo-50/30 placeholder:text-gray-300"
       />
     </>
   );
@@ -839,8 +781,8 @@ function ActivityLogPanel({ log, notes }: { log: ActivityLogEntry[]; notes: Char
   }, [log]);
 
   return (
-    <div className="border-t-2 border-gray-300 flex flex-col" style={{ maxHeight: '40%' }}>
-      <div className="px-3 py-2 bg-[#1a4a73] text-white text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between flex-shrink-0">
+    <div className="border-t border-gray-100 flex flex-col" style={{ maxHeight: '40%' }}>
+      <div className="px-3 py-2 bg-indigo-600 text-white text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between flex-shrink-0">
         <span>Activity Log</span>
         <span className="text-[10px] font-normal text-gray-300">{totals.length} tag{totals.length === 1 ? '' : 's'}</span>
       </div>
@@ -859,7 +801,7 @@ function ActivityLogPanel({ log, notes }: { log: ActivityLogEntry[]; notes: Char
                   className="w-full text-left px-3 py-1.5 flex items-center justify-between hover:bg-emerald-50 transition-colors"
                 >
                   <span className="text-[12px] font-mono text-emerald-800">+{name}</span>
-                  <span className="text-[11px] font-semibold text-gray-600 bg-emerald-50 border border-emerald-200 rounded-sm px-1.5">
+                  <span className="text-[11px] font-semibold text-gray-600 bg-emerald-50 border border-emerald-200 rounded-md px-1.5">
                     {total}
                   </span>
                 </button>
@@ -911,10 +853,10 @@ function ActivityHistoryModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="bg-white border border-gray-300 rounded-sm shadow-xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden"
+        className="bg-white border border-gray-200 rounded-md shadow-xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-4 py-2 bg-[#1a4a73] text-white flex items-center justify-between">
+        <div className="px-4 py-2 bg-indigo-600 text-white flex items-center justify-between">
           <div className="text-[11px] font-bold uppercase tracking-wider">Activity · +{tag}</div>
           <button
             onClick={onClose}
@@ -949,10 +891,10 @@ function ActivityHistoryModal({
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] uppercase tracking-wider text-[#1a4a73] font-bold">
+                      <span className="text-[10px] uppercase tracking-wider text-indigo-700 font-bold">
                         {SECTION_LETTER[e.section]}
                       </span>
-                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-sm px-1.5">
+                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-1.5">
                         ×{e.count}
                       </span>
                     </div>
