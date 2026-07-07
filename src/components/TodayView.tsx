@@ -148,10 +148,21 @@ export default function TodayView({
   const todayKey = today.toISOString().slice(0, 10);
   const now = currentMinutes(today);
 
+  // All-day events for today. Skip timeline math for these — they render as
+  // a banner above the Now/Up-next cards.
+  const allDayToday = useMemo(
+    () => todaysBlocks.filter((b) => b.isAllDay && b.date === todayKey),
+    [todaysBlocks, todayKey]
+  );
+  const timedBlocks = useMemo(
+    () => todaysBlocks.filter((b) => !b.isAllDay),
+    [todaysBlocks]
+  );
+
   const states: BlockState[] = useMemo(() => {
     // Pick the subtasks that belong to today, regardless of which block they came from.
     // Cross-midnight subtasks may live on a block dated yesterday but have date=today.
-    const enriched = todaysBlocks.map<BlockState>((block) => {
+    const enriched = timedBlocks.map<BlockState>((block) => {
       const todaySubTasks = block.subTasks.filter(
         (s) => !s.date || s.date === todayKey || (block.date === todayKey && !s.date)
       );
@@ -181,7 +192,7 @@ export default function TodayView({
       else enriched[i].status = 'upcoming';
     }
     return enriched;
-  }, [todaysBlocks, todayKey, now]);
+  }, [timedBlocks, todayKey, now]);
 
   const current = states.find((s) => s.status === 'current') || null;
   const upcoming = states.filter((s) => s.status === 'upcoming');
@@ -314,6 +325,31 @@ export default function TodayView({
           onEditPin={onEditPin}
           onRemovePin={onRemovePin}
         />
+
+        {/* All-day banner — reserved-day events surface here as compact chips */}
+        {allDayToday.length > 0 && (
+          <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-2">
+              All-day today
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {allDayToday.map((b) => (
+                <span
+                  key={b.id}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-medium"
+                  style={{
+                    backgroundColor: `${b.color}22`,
+                    color: b.color,
+                    border: `1px solid ${b.color}44`,
+                  }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: b.color }} />
+                  {b.mainTask}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Now pin */}
         {current ? (

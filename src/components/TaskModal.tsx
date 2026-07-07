@@ -55,6 +55,9 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [rescheduleInput, setRescheduleInput] = useState('');
   const [showReschedule, setShowReschedule] = useState(false);
+  // "Reserve the day" mode. Skips time selection; the block renders as a band
+  // above the hour grid. Sub-tasks with specific times still work inside it.
+  const [isAllDay, setIsAllDay] = useState(false);
 
   const mainInputRef = useRef<HTMLInputElement>(null);
   const subInputRef = useRef<HTMLInputElement>(null);
@@ -64,6 +67,7 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
       setMainTask(editingBlock.mainTask);
       setMainTime(editingBlock.mainTime);
       setSubTasks(editingBlock.subTasks);
+      setIsAllDay(!!editingBlock.isAllDay);
       setMainParsed(true);
     } else if (prefillTime && prefillTaskName) {
       // Scheduling a brain-dump task by tapping a time slot — we have both
@@ -96,6 +100,14 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
   }, [onClose]);
 
   const handleMainSubmit = () => {
+    // All-day mode: the input is name-only, no time parsing needed.
+    if (isAllDay && mainInput.trim()) {
+      setMainTask(mainInput.trim());
+      setMainTime('00:00');
+      setMainParsed(true);
+      setTimeout(() => subInputRef.current?.focus(), 50);
+      return;
+    }
     const parsed = parseTaskInput(mainInput, activeDate);
     if (parsed) {
       // User typed a time in the input — explicit wins over any prefill.
@@ -255,16 +267,20 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
   };
 
   const handleSave = () => {
-    if (!mainTask || !mainTime) return;
+    // In all-day mode we don't need a real mainTime — the block renders as a
+    // band above the hour grid. Store "00:00" as a sentinel so downstream code
+    // that expects a string doesn't have to change.
+    if (!mainTask || (!isAllDay && !mainTime)) return;
 
     const block: TaskBlock = {
       id: editingBlock?.id || uuidv4(),
       date: dateKeyOf(activeDate),
       mainTask,
-      mainTime,
+      mainTime: isAllDay ? '00:00' : mainTime,
       subTasks,
       color: editingBlock?.color || BLOCK_COLORS_RAW[Math.floor(Math.random() * BLOCK_COLORS_RAW.length)],
       createdAt: editingBlock?.createdAt || new Date().toISOString(),
+      isAllDay: isAllDay || undefined,
     };
 
     onSave(block);
@@ -405,13 +421,34 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
             </div>
           )}
 
+          {/* All-day toggle. When engaged, the block reserves the whole day —
+              no time picker, no suggestions. Useful when you want to book
+              Saturday for Great America and schedule specifics later. */}
+          <div className="flex items-center justify-between px-1">
+            <label className="text-[11px] font-semibold text-gray-700 flex items-center gap-2">
+              Reserve the whole day
+              <span className="text-[10px] text-gray-400 font-normal">All-day event</span>
+            </label>
+            <button
+              onClick={() => setIsAllDay(!isAllDay)}
+              className={`w-10 h-6 rounded-full border-2 transition-colors flex items-center ${
+                isAllDay
+                  ? 'bg-indigo-600 border-indigo-600 justify-end'
+                  : 'bg-white border-gray-300 justify-start'
+              }`}
+              title={isAllDay ? 'Disable — pick a specific time' : 'Enable — book the whole day'}
+            >
+              <span className="w-4 h-4 bg-white rounded-full shadow-sm mx-0.5" />
+            </button>
+          </div>
+
           {/* Main task input */}
           {!mainParsed ? (
             <div>
               <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                {mainTime ? 'Name your task' : 'What do you need to do?'}
+                {isAllDay ? 'Name your all-day event' : mainTime ? 'Name your task' : 'What do you need to do?'}
               </label>
-              {mainTime && (
+              {!isAllDay && mainTime && (
                 <div className="mt-1 mb-2 flex items-center gap-2">
                   <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
                     {formatTime24to12(mainTime)}
@@ -429,7 +466,7 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
               {/* Time suggestion chips — surface a handful of empty slots so the
                   user rarely has to type a time. Hidden once a time is picked
                   (or when editing). */}
-              {!mainTime && timeSuggestions.length > 0 && (
+              {!isAllDay && !mainTime && timeSuggestions.length > 0 && (
                 <div className="mb-3">
                   <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
                     Suggested times
@@ -467,11 +504,19 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
                 value={mainInput}
                 onChange={(e) => setMainInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleMainSubmit()}
-                placeholder={mainTime ? 'e.g. "go for a run"' : 'e.g. "9am go for a run"'}
+                placeholder={
+                  isAllDay
+                    ? 'e.g. "Great America day"'
+                    : mainTime
+                    ? 'e.g. "go for a run"'
+                    : 'e.g. "9am go for a run"'
+                }
                 className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
               <p className="text-[11px] text-gray-400 mt-1">
-                {mainTime
+                {isAllDay
+                  ? 'Press Enter to reserve the whole day. Add sub-tasks with specific times inside if you want.'
+                  : mainTime
                   ? 'Press Enter to use the picked time, or include a new time like "7pm meeting"'
                   : 'Tap a suggested time above or type "9am task"'}
               </p>
@@ -480,8 +525,12 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
             <div className="bg-gray-50 rounded-xl p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                    {formatTime24to12(mainTime)}
+                  <span
+                    className={`text-xs font-medium px-2 py-0.5 rounded ${
+                      isAllDay ? 'text-amber-700 bg-amber-50' : 'text-indigo-600 bg-indigo-50'
+                    }`}
+                  >
+                    {isAllDay ? 'All day' : formatTime24to12(mainTime)}
                   </span>
                   <span className="ml-2 text-sm font-semibold text-gray-900">{mainTask}</span>
                 </div>

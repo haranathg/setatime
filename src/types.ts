@@ -17,10 +17,16 @@ export interface TaskBlock {
   id: string;
   date: string; // "YYYY-MM-DD"
   mainTask: string;
-  mainTime: string; // "HH:MM" 24hr format
+  mainTime: string; // "HH:MM" 24hr format. When isAllDay=true this is unused for
+                    // rendering but kept as a valid string ("00:00") so existing
+                    // code paths stay type-safe.
   subTasks: SubTask[];
   color: string;
   createdAt: string; // ISO timestamp
+  // "Reserve the day" mode. Renders as a band above the hour grid instead of
+  // at a specific time. Sub-tasks with real times still render normally within
+  // the day — you can lock in the day, schedule specifics later.
+  isAllDay?: boolean;
   // When present, this block was synthesized from a dashboard spiral with a
   // schedule. It is not stored in the `blocks` slice — it's expanded at read
   // time. Callers must NOT pass virtual blocks back through addBlock/updateBlock.
