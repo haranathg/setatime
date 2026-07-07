@@ -243,7 +243,7 @@ export default function BrainDumpFullPage({
         {/* Brain dump input */}
         <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-gray-900">Brain Dump</h2>
+            <h2 className="text-lg font-semibold text-gray-900">The Hold</h2>
             {isSupported && (
               <button
                 onClick={toggleVoice}

@@ -66,7 +66,7 @@ export default function BrainDumpSidebar({
             ? 'right-80 top-1/2 -translate-y-1/2 bg-gray-200 text-gray-600 px-1.5 py-4 rounded-l-lg'
             : 'sm:right-0 sm:top-1/2 sm:-translate-y-1/2 sm:px-1.5 sm:py-4 sm:rounded-l-lg bottom-6 right-5 sm:bottom-auto w-14 h-14 sm:w-auto sm:h-auto rounded-full bg-white sm:bg-indigo-600 sm:text-white text-gray-700 border border-gray-200 sm:border-0'
         }`}
-        title={isOpen ? 'Hide Brain Dump' : 'Brain Dump'}
+        title={isOpen ? 'Hide the Hold' : 'Open the Hold'}
       >
         {isOpen ? (
           <span className="text-xs font-medium" style={{ writingMode: 'vertical-rl' }}>&times;</span>
@@ -74,7 +74,7 @@ export default function BrainDumpSidebar({
           <>
             {/* Desktop: vertical text */}
             <span className="hidden sm:block text-xs font-medium" style={{ writingMode: 'vertical-rl' }}>
-              {`Brain Dump${unscheduledTasks.length > 0 ? ` (${unscheduledTasks.length})` : ''}`}
+              {`The Hold${unscheduledTasks.length > 0 ? ` (${unscheduledTasks.length})` : ''}`}
             </span>
             {/* Mobile: brain icon FAB */}
             <span className="sm:hidden flex items-center justify-center relative">
@@ -109,7 +109,7 @@ export default function BrainDumpSidebar({
       >
         {/* Header */}
         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">Brain Dump</h2>
+          <h2 className="text-base font-semibold text-gray-900">The Hold</h2>
           <button onClick={onToggle} className="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
         </div>
 

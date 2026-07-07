@@ -279,6 +279,7 @@ function AppMain({
         unscheduledCount={unscheduledTasks.length}
         inboxTriageCount={inboxTriageCount}
         blockCount={blocks.length}
+        onQuickCapture={(text) => captureThought(text)}
       />
 
       <NowNextBar blocks={blocks} onJumpToToday={() => setActiveView('today')} />

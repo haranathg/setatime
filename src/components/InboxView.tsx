@@ -319,7 +319,7 @@ function ThoughtCard({
           )}
           {sentToDump && (
             <span className="px-1.5 py-0.5 bg-green-50 text-green-700 rounded text-[10px] font-semibold">
-              ✓ in Dump
+              ✓ in Hold
             </span>
           )}
           {isTopOfTriage && (
@@ -358,7 +358,7 @@ function ThoughtCard({
                   onClick={onSendToDump}
                   className="px-2.5 py-1 text-[12px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
                 >
-                  → Add to Dump
+                  → Add to Hold
                 </button>
               )}
               <ActionButton color="blue" onClick={() => onTriage('future')}>Move to Future</ActionButton>

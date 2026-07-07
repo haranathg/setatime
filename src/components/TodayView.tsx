@@ -1290,7 +1290,7 @@ function IndicatorTile({
         <button
           onClick={onPushToDump}
           className="absolute top-1 right-1 text-[10px] uppercase tracking-wider font-bold leading-none px-1.5 py-1 rounded-md bg-white ring-1 ring-current shadow-sm hover:bg-red-500 hover:text-white hover:ring-red-500 transition-colors"
-          title="Push as an urgent task to the dump"
+          title="Push as an urgent task to the Hold"
         >
           ↗
         </button>
@@ -1673,7 +1673,7 @@ function AgedDumpStrip({
       <header className="px-4 py-2 bg-sky-50 border-b border-sky-200 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-base">📥</span>
-          <h3 className="text-[13px] font-semibold text-sky-900">Aging in the dump</h3>
+          <h3 className="text-[13px] font-semibold text-sky-900">Aging in the Hold</h3>
         </div>
         <span className="text-[10px] uppercase tracking-wider font-bold text-sky-700">
           {tasks.length} task{tasks.length === 1 ? '' : 's'} · schedule or drop
@@ -1701,7 +1701,7 @@ function AgedDumpStrip({
               </button>
               <button
                 onClick={() => {
-                  if (confirm(`Drop "${t.label}"? It'll be removed from the dump.`)) {
+                  if (confirm(`Drop "${t.label}"? It'll be removed from the Hold.`)) {
                     onDrop(t.id);
                   }
                 }}
