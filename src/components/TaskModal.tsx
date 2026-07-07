@@ -358,15 +358,36 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ height: '100dvh' }}>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center"
+      // `100svh` uses the smallest possible viewport height (constant when the
+      // keyboard is up), avoiding a jumpy resize on iOS Safari when the input
+      // opens the keyboard. `overscroll-contain` on the body below also stops
+      // background page scroll leaking in.
+      style={{ height: '100svh' }}
+      // When the modal container itself gets a focus event bubbling up from
+      // an input, iOS Safari sometimes doesn't scroll the input into view
+      // because the modal is fixed. Force-scroll on any focus inside.
+      onFocus={(e) => {
+        const target = e.target as HTMLElement;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+          setTimeout(() => {
+            target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+          }, 250);
+        }
+      }}
+    >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
       {/* Modal */}
       <div
-        className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-xl flex flex-col animate-slide-up"
+        className="relative bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-xl flex flex-col animate-slide-up overscroll-contain"
         style={{
-          maxHeight: 'calc(85dvh - env(safe-area-inset-bottom, 0px))',
+          // `svh` for a stable ceiling when the keyboard opens. Together with
+          // the flex layout and scrollable body, this keeps the header/footer
+          // visible while the middle scrolls to expose focused inputs.
+          maxHeight: 'calc(100svh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         }}
       >
