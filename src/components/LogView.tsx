@@ -175,12 +175,11 @@ function TriageRow({
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <button
           onClick={() => {
+            // MOVE, not copy: promote to Hold, then discard from Triage in
+            // the same click. Prevents duplicate Hold entries from
+            // accidental double-taps and keeps the Triage list tight.
             onSendToHold(thought.text);
-            // Marking the thought as "promoted to task" (same as InboxView).
-            // The thought stays in triage so the user can also assign a
-            // future date if they want. For a stricter merge, we could
-            // triage as 'now' here — but keeping it visible lets the user
-            // chain actions.
+            onTriage(thought.id, 'discarded');
           }}
           className="px-2 py-1 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"
           title="Move this thought into the Hold so you can schedule it later"
