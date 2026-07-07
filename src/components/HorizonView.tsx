@@ -225,6 +225,22 @@ function KPICard({ label, value, sub }: { label: string; value: string; sub?: st
 
 // ---------- Life Weeks grid ----------
 
+// Cell dimensions per the new calendar-style layout.
+const CELL_PX = 8;                  // side of a single week cell
+const CELL_GAP_PX = 1;              // gap between weeks within a month
+const MONTH_GAP_PX = 4;             // gap between month groups
+const CELLS_PER_MONTH = 4;          // ~4 weeks per month (approximation)
+const MONTHS_PER_YEAR = 12;
+const ROW_GAP_PX = 2;               // gap between year rows
+
+const MONTH_LABELS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+
+// Map (yearOffset, monthIdx, weekOfMonthIdx) → approximate real Date for
+// era-membership + now-detection checks. Not calendar-accurate but stable.
+function cellDate(birthYear: number, yearOffset: number, monthIdx: number, weekIdx: number): Date {
+  return new Date(birthYear + yearOffset, monthIdx, weekIdx * 7 + 1);
+}
+
 function LifeWeeksGrid({
   birth,
   lifespanYears,
@@ -236,154 +252,198 @@ function LifeWeeksGrid({
   eras: HorizonEra[];
   now: Date;
 }) {
-  const nowWeek = weekIndex(now, birth);
-  const [hover, setHover] = useState<number | null>(null);
+  const [hover, setHover] = useState<{ yr: number; mo: number; wk: number } | null>(null);
+  const birthYear = birth.getFullYear();
+  const birthMonth = birth.getMonth();
+  const birthWeekOfMonth = Math.floor((birth.getDate() - 1) / 7);
 
-  // Precompute era boundaries as week-indices for O(1) cell lookup.
-  const eraSpans = useMemo(() => {
-    return eras.map((e) => {
-      const startIdx = weekIndex(parseYMD(e.startDate), birth);
-      const endIdx = e.endDate
-        ? weekIndex(parseYMD(e.endDate), birth)
-        : e.isEstimated
-        ? // Estimated ongoing eras: assume 4 years if no end. Just for visual.
-          startIdx + WEEKS_PER_YEAR * 4
-        : nowWeek; // ongoing to present
-      return {
-        era: e,
-        startIdx: Math.max(0, startIdx),
-        endIdx: Math.min(lifespanYears * WEEKS_PER_YEAR, endIdx),
-      };
-    });
-  }, [eras, birth, nowWeek, lifespanYears]);
+  const nowYear = now.getFullYear();
+  const nowMonth = now.getMonth();
+  const nowWeekOfMonth = Math.floor((now.getDate() - 1) / 7);
 
-  // For each week index, find the most recent era whose start <= this week.
-  // If multiple overlap the last-starting wins visually. Undefined = no era.
-  function eraForWeek(idx: number) {
-    let winner: (typeof eraSpans)[0] | null = null;
-    for (const span of eraSpans) {
-      if (idx >= span.startIdx && idx <= span.endIdx) {
-        if (!winner || span.startIdx > winner.startIdx) winner = span;
+  const eraRanges = useMemo(() => {
+    return eras.map((e) => ({
+      era: e,
+      start: parseYMD(e.startDate),
+      end: e.endDate ? parseYMD(e.endDate) : null,
+    }));
+  }, [eras]);
+
+  // Determine era for a given real Date. When multiple overlap the latest-
+  // starting one wins (matches the era-list sort semantics elsewhere).
+  const eraForDate = (d: Date) => {
+    let winner: (typeof eraRanges)[0] | null = null;
+    for (const r of eraRanges) {
+      if (d >= r.start) {
+        const endBound = r.end ?? (r.era.isEstimated ? new Date(r.start.getFullYear() + 4, r.start.getMonth(), r.start.getDate()) : now);
+        if (d <= endBound) {
+          if (!winner || r.start > winner.start) winner = r;
+        }
       }
     }
     return winner;
-  }
+  };
+
+  // Year row height so labels align perfectly with cell rows.
+  const rowHeightPx = CELL_PX;
 
   const hoverInfo = (() => {
-    if (hover == null) return null;
-    const date = new Date(birth.getTime() + hover * MS_PER_WEEK);
-    const age = Math.floor(hover / WEEKS_PER_YEAR);
-    const span = eraForWeek(hover);
-    const isFuture = hover > nowWeek;
-    return { date, age, span, isFuture };
+    if (!hover) return null;
+    const d = cellDate(birthYear, hover.yr, hover.mo, hover.wk);
+    const age = hover.yr - (d.getMonth() < birthMonth ? 1 : 0); // rough
+    const span = eraForDate(d);
+    const isFuture = d > now;
+    const isPreBirth = d < birth;
+    return { date: d, age, span, isFuture, isPreBirth };
   })();
 
-  const years = Array.from({ length: lifespanYears }, (_, y) => y);
+  const rowYears = Array.from({ length: lifespanYears + 1 }, (_, i) => i);
 
   return (
     <section className="bg-white border border-gray-200 rounded-2xl p-4">
       <header className="flex items-center justify-between mb-3">
-        <h2 className="text-[13px] font-semibold text-gray-800">Life in weeks</h2>
+        <h2 className="text-[13px] font-semibold text-gray-800">Life calendar</h2>
         <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
-          {lifespanYears} years · {(lifespanYears * WEEKS_PER_YEAR).toLocaleString()} weeks
+          {lifespanYears} years · month by month
         </span>
       </header>
 
-      <div className="relative">
-        {/* Year labels on the left every 10 rows */}
-        <div className="flex gap-2">
-          <div className="w-6 flex flex-col text-right pt-0.5">
-            {years.map((y) => (
-              <div
-                key={y}
-                className={`text-[8px] font-mono leading-[8px] h-[8px] ${y % 10 === 0 ? 'text-gray-500' : 'text-transparent'}`}
-                style={{ marginBottom: 2 }}
-              >
-                {y}
-              </div>
-            ))}
-          </div>
-          <div className="flex-1 overflow-x-auto">
+      <div className="overflow-x-auto">
+        {/* Month header row */}
+        <div className="flex items-end gap-0 mb-1.5" style={{ paddingLeft: 44 }}>
+          {MONTH_LABELS.map((m, i) => (
             <div
-              className="grid"
+              key={i}
+              className="text-[9px] font-mono text-gray-400 text-center"
               style={{
-                gridTemplateColumns: `repeat(${WEEKS_PER_YEAR}, 6px)`,
-                gridAutoRows: '6px',
-                gap: '2px',
+                width: CELLS_PER_MONTH * CELL_PX + (CELLS_PER_MONTH - 1) * CELL_GAP_PX,
+                marginRight: i < MONTHS_PER_YEAR - 1 ? MONTH_GAP_PX : 0,
               }}
             >
-              {years.map((y) =>
-                Array.from({ length: WEEKS_PER_YEAR }, (_, w) => {
-                  const idx = y * WEEKS_PER_YEAR + w;
-                  const span = eraForWeek(idx);
-                  const isFuture = idx > nowWeek;
-                  const isEstimatedEra = span?.era.isEstimated;
-
-                  let className = 'rounded-[1px] transition-colors ';
-                  let style: React.CSSProperties = {};
-
-                  if (span) {
-                    const color = colorFor(span.era.color);
-                    if (isFuture && isEstimatedEra) {
-                      // Future estimated era: lighter dot
-                      style.backgroundColor = color.hex + '55';
-                    } else {
-                      style.backgroundColor = color.hex;
-                    }
-                  } else if (isFuture) {
-                    className += 'bg-gray-100';
-                  } else {
-                    className += 'bg-gray-300';
-                  }
-
-                  const isNow = idx === nowWeek;
-                  if (isNow) {
-                    className += ' ring-2 ring-offset-1 ring-indigo-600';
-                    style.zIndex = 10;
-                    style.position = 'relative';
-                  }
-
-                  return (
-                    <button
-                      key={idx}
-                      onMouseEnter={() => setHover(idx)}
-                      onMouseLeave={() => setHover((h) => (h === idx ? null : h))}
-                      className={className}
-                      style={style}
-                      aria-label={`Week ${idx}, age ${Math.floor(idx / WEEKS_PER_YEAR)}`}
-                    />
-                  );
-                })
-              )}
+              {m}
             </div>
-          </div>
+          ))}
         </div>
 
-        {/* Hover info */}
-        {hoverInfo && (
-          <div className="mt-3 flex items-center gap-2 text-[11px] text-gray-600 leading-tight">
-            <span className="font-mono text-gray-800">
-              Age {hoverInfo.age} · {hoverInfo.date.toLocaleDateString(undefined, {
-                year: 'numeric',
-                month: 'short',
-              })}
-            </span>
-            {hoverInfo.isFuture && (
-              <span className="text-[10px] uppercase tracking-wider text-gray-400">Future</span>
-            )}
-            {hoverInfo.span && (
-              <span
-                className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full ${
-                  colorFor(hoverInfo.span.era.color).bg
-                } ${colorFor(hoverInfo.span.era.color).text}`}
-              >
-                {hoverInfo.span.era.name}
-                {hoverInfo.span.era.isEstimated && ' · est'}
-              </span>
-            )}
-          </div>
-        )}
+        {/* Year rows */}
+        <div className="flex flex-col" style={{ gap: `${ROW_GAP_PX}px` }}>
+          {rowYears.map((yr) => {
+            const actualYear = birthYear + yr;
+            // Show a year label every 5 years, plus always birth year and current
+            // year.
+            const showLabel =
+              yr === 0 ||
+              actualYear === nowYear ||
+              actualYear % 5 === 0;
+
+            return (
+              <div key={yr} className="flex items-center gap-2" style={{ height: rowHeightPx }}>
+                <div
+                  className="w-9 text-right text-[9px] font-mono text-gray-500 flex-shrink-0 leading-none"
+                  style={{ lineHeight: `${rowHeightPx}px` }}
+                >
+                  {showLabel ? actualYear : ''}
+                </div>
+                <div className="flex items-center gap-0">
+                  {MONTH_LABELS.map((_, monthIdx) => (
+                    <div
+                      key={monthIdx}
+                      className="flex items-center"
+                      style={{
+                        gap: `${CELL_GAP_PX}px`,
+                        marginRight: monthIdx < MONTHS_PER_YEAR - 1 ? MONTH_GAP_PX : 0,
+                      }}
+                    >
+                      {Array.from({ length: CELLS_PER_MONTH }, (_, weekIdx) => {
+                        const isPreBirth =
+                          actualYear < birthYear ||
+                          (actualYear === birthYear &&
+                            (monthIdx < birthMonth ||
+                              (monthIdx === birthMonth && weekIdx < birthWeekOfMonth)));
+                        const isNow =
+                          actualYear === nowYear &&
+                          monthIdx === nowMonth &&
+                          weekIdx === nowWeekOfMonth;
+                        const d = cellDate(birthYear, yr, monthIdx, weekIdx);
+                        const isFuture = d > now;
+                        const span = isPreBirth ? null : eraForDate(d);
+
+                        let style: React.CSSProperties = {
+                          width: CELL_PX,
+                          height: CELL_PX,
+                        };
+                        let className = 'rounded-[2px] transition-colors ';
+
+                        if (isPreBirth) {
+                          className += 'bg-transparent';
+                        } else if (span) {
+                          const c = colorFor(span.era.color);
+                          if (isFuture && span.era.isEstimated) {
+                            style.backgroundColor = c.hex + '55';
+                          } else {
+                            style.backgroundColor = c.hex;
+                          }
+                        } else if (isFuture) {
+                          className += 'bg-gray-100';
+                        } else {
+                          className += 'bg-gray-300';
+                        }
+
+                        if (isNow) {
+                          className += ' ring-2 ring-offset-1 ring-indigo-600';
+                          style.zIndex = 10;
+                          style.position = 'relative';
+                        }
+
+                        return (
+                          <button
+                            key={weekIdx}
+                            onMouseEnter={() => setHover({ yr, mo: monthIdx, wk: weekIdx })}
+                            onMouseLeave={() =>
+                              setHover((h) =>
+                                h && h.yr === yr && h.mo === monthIdx && h.wk === weekIdx ? null : h
+                              )
+                            }
+                            className={className}
+                            style={style}
+                            aria-label={`Age ${yr}, ${MONTH_LABELS[monthIdx]}, week ${weekIdx + 1}`}
+                          />
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Hover info */}
+      {hoverInfo && (
+        <div className="mt-3 flex items-center gap-2 text-[11px] text-gray-600 leading-tight">
+          <span className="font-mono text-gray-800">
+            {hoverInfo.date.toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}
+            {!hoverInfo.isPreBirth && ` · age ${hoverInfo.age}`}
+          </span>
+          {hoverInfo.isPreBirth && (
+            <span className="text-[10px] uppercase tracking-wider text-gray-400">Before birth</span>
+          )}
+          {hoverInfo.isFuture && !hoverInfo.isPreBirth && (
+            <span className="text-[10px] uppercase tracking-wider text-gray-400">Future</span>
+          )}
+          {hoverInfo.span && (
+            <span
+              className={`inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded-full ${
+                colorFor(hoverInfo.span.era.color).bg
+              } ${colorFor(hoverInfo.span.era.color).text}`}
+            >
+              {hoverInfo.span.era.name}
+              {hoverInfo.span.era.isEstimated && ' · est'}
+            </span>
+          )}
+        </div>
+      )}
     </section>
   );
 }
