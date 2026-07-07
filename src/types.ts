@@ -380,6 +380,34 @@ export interface AppState {
   dashboard?: DashboardState;
   northStars?: NorthStarsState;
   stateLog?: StateLogState;
+  horizon?: HorizonState;
+}
+
+// ---------- Horizon (life-scale perspective) ----------
+//
+// Zoom-out view. Life Weeks grid + user-defined Eras (Med school, Residency,
+// Family life…) that give the arc structure. Opt-in surface — never persistent
+// on Today. The whole point is to visit it *when you want* perspective, not to
+// have it looming over you. Research on Terror Management Theory is clear:
+// scheduled contemplative reflection is generative; sudden reminders are
+// anxiety-inducing. This surface is designed for the former.
+
+export interface HorizonEra {
+  id: string;
+  name: string;             // "Med school", "Residency", "Family life"
+  color: string;             // palette id — 'indigo' | 'sky' | 'emerald' | ...
+  startDate: string;         // "YYYY-MM-DD"; year-only inputs stored as YYYY-01-01
+  endDate?: string;          // undefined = ongoing OR future-estimated (see isEstimated)
+  isEstimated?: boolean;     // true = future-projected. Grid renders these lighter/dashed.
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HorizonState {
+  birthDate?: string;        // "YYYY-MM-DD"
+  lifespanYears: number;     // default 90; user-editable
+  eras: HorizonEra[];
 }
 
 // ---------- State log ----------

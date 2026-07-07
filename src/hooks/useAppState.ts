@@ -56,6 +56,7 @@ export function useAppState() {
               dashboard: cloud.dashboard ?? local.dashboard,
               northStars: cloud.northStars ?? local.northStars,
               stateLog: cloud.stateLog ?? local.stateLog,
+              horizon: cloud.horizon ?? local.horizon,
             });
           }
           setSyncError(null);
@@ -124,6 +125,7 @@ export function useAppState() {
           dashboard: cloud.dashboard ?? current.dashboard,
           northStars: cloud.northStars ?? current.northStars,
           stateLog: cloud.stateLog ?? current.stateLog,
+          horizon: cloud.horizon ?? current.horizon,
         });
       }
       setSyncError(null);

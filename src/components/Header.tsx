@@ -11,7 +11,8 @@ export type ActiveView =
   | 'inbox'
   | 'today'
   | 'predictions'
-  | 'stars';
+  | 'stars'
+  | 'horizon';
 
 export type Hub = 'today' | 'log' | 'charts' | 'sail';
 
@@ -20,7 +21,7 @@ export type Hub = 'today' | 'log' | 'charts' | 'sail';
 export function hubForView(view: ActiveView): Hub {
   if (view === 'today') return 'today';
   if (view === 'inbox' || view === 'braindump') return 'log'; // Hold merged into Log
-  if (view === 'chart' || view === 'predictions' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats') {
+  if (view === 'chart' || view === 'predictions' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats' || view === 'horizon') {
     return 'charts';
   }
   return 'sail'; // calendar
@@ -273,6 +274,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
               { view: 'chart' as const, label: 'Notes', title: 'Chart notes: SOAP-style self check-ins' },
               { view: 'predictions' as const, label: 'Lab', title: 'Prediction Lab: test forecasts against reality' },
               { view: 'stars' as const, label: 'Stars', title: 'North Stars: 1–3 long-term anchors' },
+              { view: 'horizon' as const, label: 'Horizon', title: 'Zoom out: the whole arc of your life' },
               { view: 'books' as const, label: 'Books', title: 'Reading tracker' },
               { view: 'habits' as const, label: 'Habits', title: 'Behavioral-activation votes' },
               { view: 'stats' as const, label: 'Stats', title: 'Numbers over time' },
