@@ -19,11 +19,11 @@ export type Hub = 'today' | 'log' | 'charts' | 'sail';
 // and the sub-tab strip visibility.
 export function hubForView(view: ActiveView): Hub {
   if (view === 'today') return 'today';
-  if (view === 'inbox') return 'log';
+  if (view === 'inbox' || view === 'braindump') return 'log'; // Hold merged into Log
   if (view === 'chart' || view === 'predictions' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats') {
     return 'charts';
   }
-  return 'sail'; // calendar + braindump
+  return 'sail'; // calendar
 }
 
 // Tapping a hub goes to that hub's default view. Later versions could
@@ -50,7 +50,7 @@ interface HeaderProps {
   onQuickCapture?: (text: string) => void;
 }
 
-export default function Header({ activeView, onViewChange, syncing, syncError, onRefreshFromCloud, onExportICal, unscheduledCount = 0, inboxTriageCount = 0, blockCount = 0, onQuickCapture }: HeaderProps) {
+export default function Header({ activeView, onViewChange, syncing, syncError, onRefreshFromCloud, onExportICal, inboxTriageCount = 0, blockCount = 0, onQuickCapture }: HeaderProps) {
   const [showSync, setShowSync] = useState(false);
   const [key, setKey] = useState(getSecretKey());
   const [saved, setSaved] = useState(false);
@@ -240,9 +240,9 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           ] as const
         ).map(({ hub, label, title }) => {
           const active = activeHub === hub;
-          // Badges on hubs whose sub-views carry unread work.
-          const showInboxBadge = hub === 'log' && inboxTriageCount > 0;
-          const showHoldBadge = hub === 'sail' && unscheduledCount > 0;
+          // Log hub carries a badge that sums the triage-needed count. Held
+          // tasks are the pool, not "behind" — they don't inflate the badge.
+          const showLogBadge = hub === 'log' && inboxTriageCount > 0;
           return (
             <button
               key={hub}
@@ -255,14 +255,9 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
               title={title}
             >
               {label}
-              {showInboxBadge && (
+              {showLogBadge && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 text-[10px] font-bold bg-amber-500 text-white rounded-full flex items-center justify-center tabular-nums">
                   {inboxTriageCount}
-                </span>
-              )}
-              {showHoldBadge && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 text-[10px] font-bold bg-indigo-600 text-white rounded-full flex items-center justify-center tabular-nums">
-                  {unscheduledCount}
                 </span>
               )}
             </button>
@@ -302,39 +297,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
         </nav>
       )}
 
-      {activeHub === 'sail' && (
-        <nav className="flex gap-1 mx-4 mb-2 overflow-x-auto no-scrollbar">
-          {(
-            [
-              { view: 'calendar' as const, label: 'Calendar', title: 'Weekly calendar with blocks' },
-              { view: 'braindump' as const, label: 'Hold', title: 'Cargo hold: tasks waiting to be scheduled' },
-            ] as const
-          ).map(({ view, label, title }) => {
-            const active = activeView === view;
-            // Hold pill carries the unscheduled count.
-            const showBadge = view === 'braindump' && unscheduledCount > 0;
-            return (
-              <button
-                key={view}
-                onClick={() => onViewChange(view)}
-                className={`relative flex-shrink-0 whitespace-nowrap px-2.5 py-1 text-[12px] font-medium rounded-full transition-colors ${
-                  active
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-gray-500 hover:text-gray-800 border border-gray-200'
-                }`}
-                title={title}
-              >
-                {label}
-                {showBadge && (
-                  <span className={`ml-1 text-[10px] font-bold tabular-nums ${active ? 'text-white' : 'text-indigo-600'}`}>
-                    {unscheduledCount}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-      )}
+      {/* Sail hub has just Calendar now; the Hold view lives inside Log. */}
     </header>
   );
 }
