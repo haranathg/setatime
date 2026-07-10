@@ -12,8 +12,10 @@ import type {
   NorthStar,
   BrainDumpTask,
   StateLogEntry,
-  StateFeeling,
+  EnergyLevel,
+  EnergyDirection,
 } from '../types';
+import { effectiveEnergy } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
 import { isCheckedToday } from '../hooks/usePins';
 import type { IndicatorView } from '../hooks/useDashboard';
@@ -66,7 +68,12 @@ interface TodayViewProps {
   // State log — periodic "Feeling ___ because ___" entries
   stateLogTodaysEntries: StateLogEntry[];
   stateLogRecentReasons: string[];
-  onAddStateLogEntry: (feeling: StateFeeling, reasons: string[], note?: string) => StateLogEntry;
+  onAddStateLogEntry: (input: {
+    energy: EnergyLevel;
+    direction?: EnergyDirection;
+    reasons: string[];
+    note?: string;
+  }) => StateLogEntry;
   onDeleteStateLogEntry: (id: string) => void;
 }
 
@@ -1760,43 +1767,42 @@ function AgedDumpStrip({
 // state and attribution explicit is calibrating in its own right). v2b
 // will mine correlations and feed suggestions into TaskModal.
 
-const FEELING_OPTIONS: {
-  value: StateFeeling;
+// Nautical energy dial. Doldrums (dead calm, no wind) → Following seas (aligned
+// current + wind at your back). Colors go rose → amber → gray → sky → emerald
+// so a glance at the Today trail shows the day's trajectory instantly.
+const ENERGY_OPTIONS: {
+  value: EnergyLevel;
   label: string;
   emoji: string;
-  colorRing: string;
-  colorBg: string;
-  colorText: string;
+  ring: string;
+  bg: string;
+  text: string;
+  dot: string; // solid color for the trail dot
 }[] = [
-  {
-    value: 'off',
-    label: 'Off',
-    emoji: '○',
-    colorRing: 'ring-rose-300',
-    colorBg: 'bg-rose-50',
-    colorText: 'text-rose-700',
-  },
-  {
-    value: 'neutral',
-    label: 'Neutral',
-    emoji: '◐',
-    colorRing: 'ring-gray-300',
-    colorBg: 'bg-gray-50',
-    colorText: 'text-gray-700',
-  },
-  {
-    value: 'good',
-    label: 'Good',
-    emoji: '●',
-    colorRing: 'ring-emerald-300',
-    colorBg: 'bg-emerald-50',
-    colorText: 'text-emerald-700',
-  },
+  { value: 1, label: 'Doldrums', emoji: '🪫', ring: 'ring-rose-300', bg: 'bg-rose-50', text: 'text-rose-700', dot: 'bg-rose-500' },
+  { value: 2, label: 'Fog', emoji: '🌫', ring: 'ring-amber-300', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
+  { value: 3, label: 'Cruising', emoji: '⛵', ring: 'ring-gray-300', bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-500' },
+  { value: 4, label: 'Tailwind', emoji: '💨', ring: 'ring-sky-300', bg: 'bg-sky-50', text: 'text-sky-700', dot: 'bg-sky-500' },
+  { value: 5, label: 'Following seas', emoji: '🌊', ring: 'ring-emerald-300', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
 ];
 
-function feelingStyle(feeling: StateFeeling) {
-  return FEELING_OPTIONS.find((o) => o.value === feeling) ?? FEELING_OPTIONS[1];
+function energyStyle(level: EnergyLevel) {
+  return ENERGY_OPTIONS.find((o) => o.value === level) ?? ENERGY_OPTIONS[2];
 }
+
+// Direction chips — did the reasons top up your reserves or spend them down?
+// Kept as three explicit options (not a "leave blank to mean neutral" implicit
+// default) so the meaning stays legible in the log.
+const DIRECTION_OPTIONS: {
+  value: EnergyDirection;
+  label: string;
+  glyph: string;
+  activeClass: string;
+}[] = [
+  { value: 'recharged', label: 'Recharged', glyph: '↑', activeClass: 'bg-emerald-50 border-emerald-300 text-emerald-800' },
+  { value: 'neutral',   label: 'Neutral',   glyph: '·', activeClass: 'bg-gray-100 border-gray-300 text-gray-800' },
+  { value: 'drained',   label: 'Drained',   glyph: '↓', activeClass: 'bg-rose-50 border-rose-300 text-rose-800' },
+];
 
 function formatClockTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -1810,18 +1816,25 @@ function StateLogStrip({
 }: {
   todaysEntries: StateLogEntry[];
   recentReasons: string[];
-  onAdd: (feeling: StateFeeling, reasons: string[], note?: string) => StateLogEntry;
+  onAdd: (input: {
+    energy: EnergyLevel;
+    direction?: EnergyDirection;
+    reasons: string[];
+    note?: string;
+  }) => StateLogEntry;
   onDelete: (id: string) => void;
 }) {
-  // Selecting a feeling opens the reason editor. Nothing selected → the
-  // strip stays compact with just the three chip buttons.
-  const [pendingFeeling, setPendingFeeling] = useState<StateFeeling | null>(null);
+  // Picking an energy level opens the reason editor. Nothing selected → the
+  // strip stays compact with just the 5-chip dial.
+  const [pendingEnergy, setPendingEnergy] = useState<EnergyLevel | null>(null);
+  const [direction, setDirection] = useState<EnergyDirection>('neutral');
   const [reasonDraft, setReasonDraft] = useState('');
   const [reasons, setReasons] = useState<string[]>([]);
   const [note, setNote] = useState('');
 
   const cancel = () => {
-    setPendingFeeling(null);
+    setPendingEnergy(null);
+    setDirection('neutral');
     setReasonDraft('');
     setReasons([]);
     setNote('');
@@ -1843,12 +1856,17 @@ function StateLogStrip({
   };
 
   const submit = () => {
-    if (!pendingFeeling) return;
+    if (!pendingEnergy) return;
     // Commit any half-typed draft so a Tab-and-Save flow doesn't lose it.
     const trimmed = reasonDraft.trim().toLowerCase();
     const finalReasons =
       trimmed && !reasons.includes(trimmed) ? [...reasons, trimmed] : reasons;
-    onAdd(pendingFeeling, finalReasons, note);
+    onAdd({
+      energy: pendingEnergy,
+      direction,
+      reasons: finalReasons,
+      note,
+    });
     cancel();
   };
 
@@ -1860,41 +1878,65 @@ function StateLogStrip({
         <h3 className="text-[13px] font-semibold text-gray-800">Log a moment</h3>
         <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
           {todaysEntries.length === 0
-            ? 'How are you right now?'
+            ? 'How are you sailing right now?'
             : `${todaysEntries.length} today`}
         </span>
       </header>
 
       <div className="px-4 py-3 space-y-3">
-        {/* Feeling picker */}
-        <div className="flex gap-2 justify-center">
-          {FEELING_OPTIONS.map((opt) => {
-            const active = pendingFeeling === opt.value;
+        {/* Energy dial — 5-level nautical scale from Doldrums to Following seas */}
+        <div className="grid grid-cols-5 gap-1.5">
+          {ENERGY_OPTIONS.map((opt) => {
+            const active = pendingEnergy === opt.value;
             return (
               <button
                 key={opt.value}
-                onClick={() => setPendingFeeling(active ? null : opt.value)}
-                className={`flex-1 max-w-[7rem] px-3 py-2 rounded-xl transition-all flex items-center justify-center gap-2 ${
+                onClick={() => setPendingEnergy(active ? null : opt.value)}
+                className={`flex flex-col items-center justify-center px-1 py-2 rounded-xl transition-all ${
                   active
-                    ? `${opt.colorBg} ring-2 ${opt.colorRing} ${opt.colorText}`
+                    ? `${opt.bg} ring-2 ${opt.ring} ${opt.text}`
                     : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
                 }`}
-                title={`Feeling ${opt.label.toLowerCase()}`}
+                title={opt.label}
               >
-                <span
-                  className={`text-lg leading-none ${active ? opt.colorText : 'text-gray-400'}`}
-                >
-                  {opt.emoji}
+                <span className="text-base leading-none">{opt.emoji}</span>
+                <span className="mt-1 text-[10px] font-semibold leading-tight text-center">
+                  {opt.label}
                 </span>
-                <span className="text-sm font-semibold">{opt.label}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Reason editor — appears once a feeling is picked */}
-        {pendingFeeling && (
-          <div className="space-y-2">
+        {/* Reason editor — appears once an energy level is picked */}
+        {pendingEnergy && (
+          <div className="space-y-3">
+            {/* Direction toggle — did this recharge or drain you? */}
+            <div>
+              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+                Trend
+              </div>
+              <div className="flex gap-1.5">
+                {DIRECTION_OPTIONS.map((d) => {
+                  const active = direction === d.value;
+                  return (
+                    <button
+                      key={d.value}
+                      onClick={() => setDirection(d.value)}
+                      className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
+                        active
+                          ? d.activeClass
+                          : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className="text-sm leading-none">{d.glyph}</span>
+                      <span>{d.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div>
               <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
                 Because…
@@ -1993,7 +2035,9 @@ function StateLogStrip({
           </div>
         )}
 
-        {/* Today's compact chip strip */}
+        {/* Today's compact chip strip. Older entries may only carry the legacy
+            3-bucket `feeling`; effectiveEnergy() maps both to the 1-5 scale so
+            the day's trajectory reads consistently. */}
         {todaysEntries.length > 0 && (
           <div className="pt-1">
             <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
@@ -2001,14 +2045,19 @@ function StateLogStrip({
             </div>
             <ul className="space-y-1">
               {todaysEntries.map((e) => {
-                const s = feelingStyle(e.feeling);
+                const s = energyStyle(effectiveEnergy(e));
+                const dirGlyph =
+                  e.direction === 'recharged' ? '↑' :
+                  e.direction === 'drained' ? '↓' :
+                  null;
                 return (
                   <li key={e.id} className="flex items-center gap-2 group">
                     <span
-                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] ${s.colorBg} ${s.colorText}`}
+                      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] ${s.bg} ${s.text}`}
                     >
                       <span>{s.emoji}</span>
                       <span className="font-semibold">{formatClockTime(e.loggedAt)}</span>
+                      {dirGlyph && <span className="leading-none">{dirGlyph}</span>}
                     </span>
                     <span className="flex-1 min-w-0 truncate text-[12px] text-gray-700">
                       {e.reasons.length > 0 ? e.reasons.join(' · ') : (e.note || '—')}
