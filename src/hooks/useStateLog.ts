@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { StateLogEntry, StateFeeling } from '../types';
+import type { StateLogEntry, StateFeeling, EnergyLevel, EnergyDirection } from '../types';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
 
@@ -67,17 +67,48 @@ export function useStateLog() {
     }
   }, [entries, loaded]);
 
+  // Add an entry using the new energy-scale API. Callers that still pass the
+  // legacy 3-bucket feeling go through `addEntryLegacy` below (Horizon's
+  // contemplation prompt for now).
   const addEntry = useCallback(
-    (feeling: StateFeeling, reasons: string[], note?: string): StateLogEntry => {
-      const normalized = reasons
+    (input: {
+      energy: EnergyLevel;
+      direction?: EnergyDirection;
+      reasons: string[];
+      note?: string;
+    }): StateLogEntry => {
+      const normalized = input.reasons
         .map((r) => r.trim().toLowerCase())
         .filter((r) => r.length > 0)
-        // Dedupe within this entry so ["run", "run"] doesn't double-weight later.
         .filter((r, i, arr) => arr.indexOf(r) === i);
       const entry: StateLogEntry = {
         id: uuidv4(),
         loggedAt: new Date().toISOString(),
-        feeling,
+        energy: input.energy,
+        direction: input.direction,
+        reasons: normalized,
+        note: input.note?.trim() || undefined,
+      };
+      setEntries((prev) => [entry, ...prev]);
+      return entry;
+    },
+    []
+  );
+
+  // Legacy path — kept so any surface that still emits the 3-bucket feeling
+  // (e.g. the Horizon contemplation prompt) doesn't need to change. Maps the
+  // old value onto the new scale using effectiveEnergy's inverse.
+  const addEntryLegacy = useCallback(
+    (feeling: StateFeeling, reasons: string[], note?: string): StateLogEntry => {
+      const energy: EnergyLevel = feeling === 'off' ? 2 : feeling === 'good' ? 4 : 3;
+      const normalized = reasons
+        .map((r) => r.trim().toLowerCase())
+        .filter((r) => r.length > 0)
+        .filter((r, i, arr) => arr.indexOf(r) === i);
+      const entry: StateLogEntry = {
+        id: uuidv4(),
+        loggedAt: new Date().toISOString(),
+        energy,
         reasons: normalized,
         note: note?.trim() || undefined,
       };
@@ -130,6 +161,7 @@ export function useStateLog() {
     recentReasons,
     loaded,
     addEntry,
+    addEntryLegacy,
     updateEntry,
     deleteEntry,
   };

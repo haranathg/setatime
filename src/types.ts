@@ -418,22 +418,42 @@ export interface HorizonState {
 
 // ---------- State log ----------
 //
-// Periodic "Feeling ___ because ___" entries. No rule mining yet — the point
-// of v2a is just to start accumulating data. The act of logging itself is
-// half the intervention (making state and its attribution explicit). v2b will
-// mine correlations from this slice to bias TaskModal suggestions.
-export type StateFeeling = 'off' | 'neutral' | 'good';
+// Periodic "How's your energy · because ___" entries. The 1-5 dial is nautical
+// (Doldrums · Fog · Cruising · Tailwind · Following seas) so you can see
+// direction of drift at a glance instead of choosing from a 3-bucket feeling.
+// Each entry can optionally tag whether the reasons *recharged* or *drained*
+// you — the signal that later powers pattern mining ("what puts wind in my
+// sails").
+//
+// Legacy 3-bucket `feeling` field kept as optional for pre-scale-upgrade
+// entries; read paths use `effectiveEnergy(entry)` which prefers `energy` and
+// falls back to a mapping of the legacy value.
+
+export type EnergyLevel = 1 | 2 | 3 | 4 | 5;
+export type EnergyDirection = 'recharged' | 'drained' | 'neutral';
+export type StateFeeling = 'off' | 'neutral' | 'good'; // deprecated; kept for back-compat reads
 
 export interface StateLogEntry {
   id: string;
-  loggedAt: string;   // ISO
-  feeling: StateFeeling;
-  reasons: string[];  // free-text tags user believes contributed to this state
-  note?: string;      // optional free-form context
+  loggedAt: string;             // ISO
+  energy?: EnergyLevel;         // 1-5; required for new entries
+  direction?: EnergyDirection;  // did the reasons recharge or drain you?
+  feeling?: StateFeeling;       // legacy 3-bucket; only present on pre-upgrade entries
+  reasons: string[];            // free-text tags user believes contributed to this state
+  note?: string;                // optional free-form context
 }
 
 export interface StateLogState {
   entries: StateLogEntry[];
+}
+
+// Prefer new energy field; map legacy feeling to a coarse point on the scale.
+// Off → 2 (Fog), Neutral → 3 (Cruising), Good → 4 (Tailwind).
+export function effectiveEnergy(entry: StateLogEntry): EnergyLevel {
+  if (entry.energy !== undefined) return entry.energy;
+  if (entry.feeling === 'off') return 2;
+  if (entry.feeling === 'good') return 4;
+  return 3;
 }
 
 // ---------- North Stars ----------

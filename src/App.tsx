@@ -172,6 +172,7 @@ function AppMain({
     todaysEntries: stateLogTodaysEntries,
     recentReasons: stateLogRecentReasons,
     addEntry: addStateLogEntry,
+    addEntryLegacy: addStateLogEntryLegacy,
     deleteEntry: deleteStateLogEntry,
   } = useStateLog();
 
@@ -473,7 +474,7 @@ function AppMain({
           onUpdateEra={updateHorizonEra}
           onDeleteEra={deleteHorizonEra}
           onLogContemplation={(feeling, reasons, note) => {
-            addStateLogEntry(feeling, reasons, note);
+            addStateLogEntryLegacy(feeling, reasons, note);
           }}
         />
       ) : (
