@@ -21,10 +21,10 @@ export type Hub = 'today' | 'log' | 'charts' | 'sail';
 export function hubForView(view: ActiveView): Hub {
   if (view === 'today') return 'today';
   if (view === 'inbox' || view === 'braindump') return 'log'; // Hold merged into Log
-  if (view === 'chart' || view === 'predictions' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats' || view === 'horizon') {
+  if (view === 'chart' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats' || view === 'horizon') {
     return 'charts';
   }
-  return 'sail'; // calendar
+  return 'sail'; // calendar + predictions (Lab)
 }
 
 // Tapping a hub goes to that hub's default view. Later versions could
@@ -221,7 +221,6 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           {(
             [
               { view: 'chart' as const, label: 'Notes', title: 'Chart notes: SOAP-style self check-ins' },
-              { view: 'predictions' as const, label: 'Lab', title: 'Prediction Lab: test forecasts against reality' },
               { view: 'stars' as const, label: 'Stars', title: 'North Stars: 1–3 long-term anchors' },
               { view: 'horizon' as const, label: 'Horizon', title: 'Zoom out: the whole arc of your life' },
               { view: 'books' as const, label: 'Books', title: 'Reading tracker' },
@@ -248,7 +247,33 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
         </nav>
       )}
 
-      {/* Sail hub has just Calendar now; the Hold view lives inside Log. */}
+      {/* Sail hub sub-pills — Calendar (schedule) + Lab (predict + leap → schedule) */}
+      {activeHub === 'sail' && (
+        <nav className="flex gap-1 mx-4 mb-2 overflow-x-auto no-scrollbar">
+          {(
+            [
+              { view: 'calendar' as const, label: 'Calendar', title: 'Weekly calendar with blocks' },
+              { view: 'predictions' as const, label: 'Lab', title: 'Prediction Lab: predict, leap, initiate' },
+            ] as const
+          ).map(({ view, label, title }) => {
+            const active = activeView === view;
+            return (
+              <button
+                key={view}
+                onClick={() => onViewChange(view)}
+                className={`flex-shrink-0 whitespace-nowrap px-2.5 py-1 text-[12px] font-medium rounded-full transition-colors ${
+                  active
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white text-gray-500 hover:text-gray-800 border border-gray-200'
+                }`}
+                title={title}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </nav>
+      )}
     </header>
   );
 }
