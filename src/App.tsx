@@ -8,6 +8,7 @@ import BrainDumpSidebar from './components/BrainDumpSidebar';
 import ChartView from './components/ChartView';
 import HabitsView from './components/HabitsView';
 import BooksView from './components/BooksView';
+import GroundingView from './components/GroundingView';
 import HorizonView from './components/HorizonView';
 import LogView from './components/LogView';
 import NorthStarsView from './components/NorthStarsView';
@@ -80,7 +81,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon'>('today');
+  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding'>('today');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -97,8 +98,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon';
-  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon') => void;
+  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding';
+  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -256,7 +257,7 @@ function AppMain({
     (t) => t.status === 'inbox' || (t.status === 'future' && !!t.futureSurfaceDate && t.futureSurfaceDate <= todayKey)
   ).length;
 
-  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon') => {
+  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -465,6 +466,8 @@ function AppMain({
           onScheduleThis={scheduleThis}
           onSendToDump={addManualTask}
         />
+      ) : activeView === 'grounding' ? (
+        <GroundingView />
       ) : activeView === 'horizon' ? (
         <HorizonView
           state={horizonState}
