@@ -12,7 +12,8 @@ export type ActiveView =
   | 'today'
   | 'predictions'
   | 'stars'
-  | 'horizon';
+  | 'horizon'
+  | 'grounding';
 
 export type Hub = 'today' | 'log' | 'charts' | 'sail';
 
@@ -24,7 +25,7 @@ export function hubForView(view: ActiveView): Hub {
   if (view === 'chart' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats' || view === 'horizon') {
     return 'charts';
   }
-  return 'sail'; // calendar + predictions (Lab)
+  return 'sail'; // calendar + grounding + predictions (Lab)
 }
 
 // Tapping a hub goes to that hub's default view. Later versions could
@@ -253,6 +254,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           {(
             [
               { view: 'calendar' as const, label: 'Calendar', title: 'Weekly calendar with blocks' },
+              { view: 'grounding' as const, label: 'Grounding', title: 'Steady the helm — box breathing timer' },
               { view: 'predictions' as const, label: 'Lab', title: 'Prediction Lab: predict, leap, initiate' },
             ] as const
           ).map(({ view, label, title }) => {
