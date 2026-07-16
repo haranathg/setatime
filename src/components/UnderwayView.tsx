@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { BrainDumpTask } from '../types';
+import type { BrainDumpTask, UnderwaySession, UnderwayOutcome } from '../types';
 
 // Underway — synthetic body-doubling.
 //
@@ -19,7 +19,7 @@ import type { BrainDumpTask } from '../types';
 // Nautical fit: Sail is the act of moving. Calendar is charting; Grounding
 // is steadying the helm; Underway is actually sailing.
 
-type Phase = 'pick' | 'preflight' | 'size' | 'underway' | 'wrap';
+type Phase = 'home' | 'quickstart' | 'pick' | 'preflight' | 'size' | 'underway' | 'wrap';
 
 type PickedTask = {
   label: string;
@@ -63,7 +63,7 @@ const PREFLIGHT_ITEMS: {
 ];
 
 type CheckIn = { atMs: number; note: string };
-type Outcome = 'done' | 'partial' | 'bailed' | 'time-up';
+type Outcome = UnderwayOutcome;
 
 function formatMMSS(totalSec: number): string {
   const m = Math.floor(totalSec / 60);
@@ -76,6 +76,10 @@ interface UnderwayViewProps {
   unscheduledTasks: BrainDumpTask[];
   onDeleteDumpTask: (id: string) => void;
   onNavigateToGrounding: () => void;
+  todaysSessions: UnderwaySession[];
+  weekCount: number;
+  recentTaskLabels: string[];
+  onAddSession: (input: Omit<UnderwaySession, 'id'>) => UnderwaySession;
 }
 
 export default function UnderwayView({
@@ -83,8 +87,12 @@ export default function UnderwayView({
   unscheduledTasks,
   onDeleteDumpTask,
   onNavigateToGrounding,
+  todaysSessions,
+  weekCount,
+  recentTaskLabels,
+  onAddSession,
 }: UnderwayViewProps) {
-  const [phase, setPhase] = useState<Phase>('pick');
+  const [phase, setPhase] = useState<Phase>('home');
   const [picked, setPicked] = useState<PickedTask | null>(null);
   const [preflight, setPreflight] = useState<PreflightState>({
     caffeine: false, fed: false, slept: false, grounded: false,
@@ -162,7 +170,7 @@ export default function UnderwayView({
   }, [elapsedMs, phase, size, sessionDurationMs, checkInMinutes, checkIns.length, pendingCheckIn]);
 
   const resetAll = () => {
-    setPhase('pick');
+    setPhase('home');
     setPicked(null);
     setPreflight({ caffeine: false, fed: false, slept: false, grounded: false });
     setSize(null);
@@ -211,11 +219,38 @@ export default function UnderwayView({
   };
 
   const finishAndReset = () => {
+    // Persist a record of the session so the streak indicator + future
+    // "same as last time" chips have something to feed on. Any outcome
+    // gets a session — bailing counts as showing up.
+    if (picked && sessionStartMs !== null && size !== null && outcome !== null) {
+      onAddSession({
+        taskLabel: picked.label,
+        sizeMin: size,
+        outcome,
+        startedAt: new Date(sessionStartMs).toISOString(),
+        durationSec: Math.floor(elapsedMs / 1000),
+        note: wrapNote.trim() || undefined,
+        nextMicrostep: nextMicrostep.trim() || undefined,
+        source: picked.source,
+      });
+    }
     // If the picked task came from the dump and was fully done, drop it.
     if (outcome === 'done' && picked?.source === 'dump' && picked.dumpId) {
       onDeleteDumpTask(picked.dumpId);
     }
     resetAll();
+  };
+
+  // Quickstart path — from Home, one task input + pace + go, then straight
+  // to Underway. No Pre-flight, no Size picker screen, no ceremony.
+  const startQuickstart = (label: string, sizeMin: 2 | 15 | 60) => {
+    setPicked({ label, source: 'freeform' });
+    setSize(sizeMin);
+    setSessionStartMs(Date.now());
+    setElapsedMs(0);
+    setCheckIns([]);
+    setPendingCheckIn(false);
+    setPhase('underway');
   };
 
   // ---------- Sub-view: Pick ----------
@@ -239,10 +274,32 @@ export default function UnderwayView({
 
   // ---------- Render ----------
 
+  if (phase === 'home') {
+    return (
+      <HomePhase
+        todaysSessions={todaysSessions}
+        weekCount={weekCount}
+        onStartNow={() => setPhase('quickstart')}
+        onOpenFullSetup={() => setPhase('pick')}
+      />
+    );
+  }
+
+  if (phase === 'quickstart') {
+    return (
+      <QuickstartPhase
+        recentLabels={recentTaskLabels}
+        onBack={() => setPhase('home')}
+        onGo={(label, sizeMin) => startQuickstart(label, sizeMin)}
+      />
+    );
+  }
+
   if (phase === 'pick') {
     return (
       <PickPhase
         list={pickList}
+        onBack={() => setPhase('home')}
         onPickDump={(t) => {
           setPicked({ label: t.label, source: 'dump', dumpId: t.id });
           setPhase('preflight');
@@ -321,14 +378,251 @@ export default function UnderwayView({
   );
 }
 
+// ---------- Home ----------
+//
+// The EF/ADHD rescue front door. One giant "Start now" button and nothing
+// else demanding a decision. Everything else on this screen is passive:
+// a streak chip so you can see the shape of your week, and today's
+// sessions so you have witness of what you already did today.
+//
+// Deliberately quiet: no notifications, no urgent-red, no ceremony. The
+// hardest part of a session is starting it; the design of this screen
+// is that "start" is a single action away, with defaults chosen for you.
+
+function HomePhase({
+  todaysSessions,
+  weekCount,
+  onStartNow,
+  onOpenFullSetup,
+}: {
+  todaysSessions: UnderwaySession[];
+  weekCount: number;
+  onStartNow: () => void;
+  onOpenFullSetup: () => void;
+}) {
+  return (
+    <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="max-w-md mx-auto px-4 py-6 space-y-5">
+        <header className="text-center">
+          <h2 className="text-lg font-semibold text-gray-900">Underway</h2>
+          <p className="text-xs text-gray-500 mt-1">
+            One tap. One task. The rest sorts itself out.
+          </p>
+        </header>
+
+        <button
+          onClick={onStartNow}
+          className="w-full py-6 rounded-3xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md active:scale-[0.99] transition-transform"
+        >
+          <div className="text-3xl font-bold tracking-tight">Start now</div>
+          <div className="text-[13px] font-medium text-indigo-100 mt-1">
+            15 min · one thing · you can bail anytime
+          </div>
+        </button>
+
+        {/* Streak — visible progress fights the "was that even productive?" fog */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-white border border-gray-200 rounded-2xl px-3 py-3 text-center">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500">
+              This week
+            </div>
+            <div className="text-3xl font-bold text-gray-900 tabular-nums">
+              {weekCount}
+            </div>
+            <div className="text-[10px] text-gray-500 mt-0.5">
+              {weekCount === 1 ? 'session' : 'sessions'}
+            </div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-2xl px-3 py-3 text-center">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500">
+              Today
+            </div>
+            <div className="text-3xl font-bold text-gray-900 tabular-nums">
+              {todaysSessions.length}
+            </div>
+            <div className="text-[10px] text-gray-500 mt-0.5">
+              {todaysSessions.length === 1 ? 'session' : 'sessions'}
+            </div>
+          </div>
+        </div>
+
+        {/* Today's witness — what you already did today */}
+        {todaysSessions.length > 0 && (
+          <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            <header className="px-4 py-2 border-b border-gray-100 text-[10px] uppercase tracking-wider font-bold text-gray-500">
+              Today's log
+            </header>
+            <ul>
+              {todaysSessions.slice(0, 5).map((s) => (
+                <li key={s.id} className="px-4 py-2 border-b border-gray-100 last:border-0">
+                  <div className="flex items-center gap-2">
+                    <OutcomeDot outcome={s.outcome} />
+                    <span className="flex-1 text-sm text-gray-800 truncate">
+                      {s.taskLabel}
+                    </span>
+                    <span className="text-[11px] text-gray-500 tabular-nums">
+                      {s.sizeMin}m
+                    </span>
+                  </div>
+                  {s.note && (
+                    <div className="text-[11px] text-gray-500 mt-0.5 pl-4">{s.note}</div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Escape hatch to the full ceremonial loop — quiet, not primary */}
+        <button
+          onClick={onOpenFullSetup}
+          className="w-full text-[12px] text-gray-500 hover:text-gray-800 underline underline-offset-2"
+        >
+          Set up a full session (Pre-flight · Size · Wrap)
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function OutcomeDot({ outcome }: { outcome: UnderwayOutcome }) {
+  const color =
+    outcome === 'done'    ? 'bg-emerald-500' :
+    outcome === 'partial' ? 'bg-indigo-500'  :
+    outcome === 'bailed'  ? 'bg-slate-400'   :
+                            'bg-sky-500';
+  return <span className={`w-2 h-2 rounded-full ${color}`} aria-hidden />;
+}
+
+// ---------- Quickstart ----------
+//
+// One text field, one pace, one GO button. Skips Pre-flight and the Size
+// picker screen. Autofocuses the text field so a screen reader / keyboard
+// user can just start typing. Recent-labels chips let repeat tasks
+// become a zero-typing start.
+//
+// Intentional non-features: no 3-2-1 countdown (triggers performance
+// anxiety in EF brains — the whole point of Underway is to be low-stakes
+// to start), no "are you sure?", no confirmation modal.
+
+function QuickstartPhase({
+  recentLabels,
+  onBack,
+  onGo,
+}: {
+  recentLabels: string[];
+  onBack: () => void;
+  onGo: (label: string, sizeMin: 2 | 15 | 60) => void;
+}) {
+  const [label, setLabel] = useState('');
+  const [sizeMin, setSizeMin] = useState<2 | 15 | 60>(15);
+
+  const canGo = label.trim().length > 0;
+  const go = () => {
+    if (!canGo) return;
+    onGo(label.trim(), sizeMin);
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="max-w-md mx-auto px-4 py-6 space-y-5">
+        <header className="text-center">
+          <button
+            onClick={onBack}
+            className="text-[11px] text-gray-500 hover:text-gray-800 mb-1"
+          >
+            ← Back
+          </button>
+          <h2 className="text-lg font-semibold text-gray-900">Start now</h2>
+          <p className="text-xs text-gray-500 mt-1">
+            What are you doing? Any answer works.
+          </p>
+        </header>
+
+        <input
+          autoFocus
+          type="text"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && canGo) {
+              e.preventDefault();
+              go();
+            }
+          }}
+          placeholder="e.g. reply to that email"
+          className="w-full px-4 py-4 text-base border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+        />
+
+        {recentLabels.length > 0 && (
+          <div>
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+              Recent
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {recentLabels.map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setLabel(r)}
+                  className="px-2.5 py-1 text-[12px] rounded-full bg-white border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/40 text-gray-700"
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+            How long?
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {([2, 15, 60] as const).map((m) => {
+              const active = sizeMin === m;
+              return (
+                <button
+                  key={m}
+                  onClick={() => setSizeMin(m)}
+                  className={`py-3 rounded-xl text-sm font-semibold transition-colors ${
+                    active
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-white text-gray-700 border border-gray-200 hover:border-indigo-400'
+                  }`}
+                >
+                  {m} min
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <button
+          onClick={go}
+          disabled={!canGo}
+          className="w-full py-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-2xl font-bold tracking-tight transition-colors"
+        >
+          Go
+        </button>
+
+        <p className="text-[11px] text-gray-400 text-center">
+          No countdown, no ceremony. The timer starts the moment you tap Go.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ---------- Pick ----------
 
 function PickPhase({
   list,
+  onBack,
   onPickDump,
   onPickFreeform,
 }: {
   list: (BrainDumpTask & { aged: boolean })[];
+  onBack: () => void;
   onPickDump: (t: BrainDumpTask) => void;
   onPickFreeform: (label: string) => void;
 }) {
@@ -337,6 +631,12 @@ function PickPhase({
     <div className="flex-1 overflow-y-auto bg-gray-50">
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
         <header className="text-center">
+          <button
+            onClick={onBack}
+            className="text-[11px] text-gray-500 hover:text-gray-800 mb-1"
+          >
+            ← Back
+          </button>
           <h2 className="text-lg font-semibold text-gray-900">Underway</h2>
           <p className="text-xs text-gray-500 mt-1">
             Pick one thing. Not three, not the whole list. One.
@@ -614,16 +914,17 @@ function UnderwayPhase({
           </h2>
         </div>
 
-        {/* Timer ring + big countdown */}
-        <div className="relative w-40 h-40 mx-auto">
+        {/* Timer ring + big countdown — deliberately oversized so it reads
+            across the room. Time blindness needs BIG. */}
+        <div className="relative w-72 h-72 sm:w-80 sm:h-80 mx-auto">
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
             <circle
               cx="50" cy="50" r={RADIUS}
-              fill="none" stroke="#e5e7eb" strokeWidth="4"
+              fill="none" stroke="#e5e7eb" strokeWidth="3"
             />
             <circle
               cx="50" cy="50" r={RADIUS}
-              fill="none" stroke="#4f46e5" strokeWidth="4"
+              fill="none" stroke="#4f46e5" strokeWidth="3"
               strokeDasharray={CIRC}
               strokeDashoffset={dashOffset}
               strokeLinecap="round"
@@ -631,10 +932,10 @@ function UnderwayPhase({
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-3xl font-bold text-gray-900 tabular-nums leading-none">
+            <div className="text-6xl sm:text-7xl font-bold text-gray-900 tabular-nums leading-none">
               {formatMMSS(remainingSec)}
             </div>
-            <div className="text-[10px] uppercase tracking-wider text-gray-400 mt-1">
+            <div className="text-[11px] uppercase tracking-wider text-gray-400 mt-2">
               of {sizeMin} min
             </div>
           </div>
@@ -771,81 +1072,98 @@ function WrapPhase({
     'time-up': { label: 'Time up',       sub: 'You ran the full session.',                  chip: 'bg-sky-50 text-sky-800 border-sky-200'            },
   };
   const m = OUTCOME_META[outcome];
+  const [showMore, setShowMore] = useState(false);
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50">
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
+        {/* Outcome chip is the primary artifact — big, colored, felt.
+            The Wrap screen used to have five fields; that's a wall at the
+            end when the person is already spent. One field + one button
+            is enough. Everything else is expandable. */}
         <header className="text-center">
-          <div className={`inline-block px-3 py-1 rounded-full text-[11px] font-semibold border ${m.chip}`}>
+          <div className={`inline-block px-4 py-1.5 rounded-full text-sm font-semibold border ${m.chip}`}>
             {m.label}
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mt-2">Wrap</h2>
-          <p className="text-xs text-gray-500 mt-1">{m.sub}</p>
+          <p className="text-xs text-gray-500 mt-2">{m.sub}</p>
+          <div className="text-[13px] font-semibold text-gray-800 mt-3">{taskLabel}</div>
         </header>
 
-        {/* Summary */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wider text-gray-500">Time</div>
-            <div className="text-lg font-semibold text-gray-900 tabular-nums">
-              {formatMMSS(totalSec)}
-            </div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wider text-gray-500">Check-ins</div>
-            <div className="text-lg font-semibold text-gray-900 tabular-nums">{checkIns.length}</div>
-          </div>
-          <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wider text-gray-500">Started</div>
-            <div className="text-lg font-semibold text-gray-900 tabular-nums">
-              {startedAt
-                ? new Date(startedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-                : '—'}
-            </div>
-          </div>
-        </div>
-
-        {/* Task banner */}
-        <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">Task</div>
-          <div className="text-sm font-semibold text-gray-900 mt-0.5">{taskLabel}</div>
-        </div>
-
-        {/* Next microstep — the memory hand-off to future you */}
-        {outcome !== 'done' && (
-          <div>
-            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
-              Next microstep (optional)
-            </div>
-            <input
-              type="text"
-              value={nextMicrostep}
-              onChange={(e) => onNextMicrostepChange(e.target.value)}
-              placeholder="When you come back to this, start with…"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
-            />
-          </div>
-        )}
-
-        {/* One-line reflection */}
+        {/* One-line reflection — the only required field */}
         <div>
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
             One line — how did that go?
           </div>
           <input
+            autoFocus
             type="text"
             value={wrapNote}
             onChange={(e) => onWrapNoteChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                onFinish();
+              }
+            }}
             placeholder="Focused / scattered / surprisingly easy / hard start"
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+            className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
           />
         </div>
 
         <button
           onClick={onFinish}
-          className="w-full px-4 py-3 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700"
+          className="w-full py-4 rounded-2xl text-lg font-semibold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
         >
           {outcome === 'done' ? 'Finish — drop from hold' : 'Finish'}
         </button>
+
+        {/* Everything else lives behind a soft disclosure so it can't wall
+            you at the end. Time · check-ins · start time · next microstep. */}
+        <button
+          onClick={() => setShowMore((s) => !s)}
+          className="w-full text-[12px] text-gray-500 hover:text-gray-800 underline underline-offset-2"
+        >
+          {showMore ? 'Hide details' : 'Add more (time · next step)'}
+        </button>
+
+        {showMore && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
+                <div className="text-[10px] uppercase tracking-wider text-gray-500">Time</div>
+                <div className="text-lg font-semibold text-gray-900 tabular-nums">
+                  {formatMMSS(totalSec)}
+                </div>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
+                <div className="text-[10px] uppercase tracking-wider text-gray-500">Check-ins</div>
+                <div className="text-lg font-semibold text-gray-900 tabular-nums">{checkIns.length}</div>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
+                <div className="text-[10px] uppercase tracking-wider text-gray-500">Started</div>
+                <div className="text-lg font-semibold text-gray-900 tabular-nums">
+                  {startedAt
+                    ? new Date(startedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+                    : '—'}
+                </div>
+              </div>
+            </div>
+
+            {outcome !== 'done' && (
+              <div>
+                <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+                  Next microstep (optional)
+                </div>
+                <input
+                  type="text"
+                  value={nextMicrostep}
+                  onChange={(e) => onNextMicrostepChange(e.target.value)}
+                  placeholder="When you come back to this, start with…"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                />
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
