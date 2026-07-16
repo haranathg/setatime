@@ -387,6 +387,7 @@ export interface AppState {
   northStars?: NorthStarsState;
   stateLog?: StateLogState;
   horizon?: HorizonState;
+  underway?: UnderwayState;
 }
 
 // ---------- Horizon (life-scale perspective) ----------
@@ -445,6 +446,31 @@ export interface StateLogEntry {
 
 export interface StateLogState {
   entries: StateLogEntry[];
+}
+
+// ---------- Underway (focus sessions) ----------
+//
+// Each completed session is one entry here. Persistence matters for the
+// EF/ADHD case specifically — being able to *see* your own history is
+// what makes the experience non-evaporating. Powers the streak indicator
+// on the Underway home + future "same as last time" chips.
+
+export type UnderwayOutcome = 'done' | 'partial' | 'bailed' | 'time-up';
+
+export interface UnderwaySession {
+  id: string;
+  taskLabel: string;
+  sizeMin: number;                 // committed size (2 / 15 / 60)
+  outcome: UnderwayOutcome;
+  startedAt: string;               // ISO
+  durationSec: number;             // actual time spent underway
+  note?: string;                   // one-line reflection from Wrap
+  nextMicrostep?: string;          // hand-off to future you
+  source: 'dump' | 'freeform';
+}
+
+export interface UnderwayState {
+  sessions: UnderwaySession[];
 }
 
 // Prefer new energy field; map legacy feeling to a coarse point on the scale.

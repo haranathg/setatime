@@ -29,6 +29,7 @@ import { usePins } from './hooks/usePins';
 import { usePredictions } from './hooks/usePredictions';
 import { useHorizon } from './hooks/useHorizon';
 import { useStateLog } from './hooks/useStateLog';
+import { useUnderway } from './hooks/useUnderway';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -177,6 +178,13 @@ function AppMain({
     addEntryLegacy: addStateLogEntryLegacy,
     deleteEntry: deleteStateLogEntry,
   } = useStateLog();
+
+  const {
+    todaysSessions: underwayTodaysSessions,
+    weekCount: underwayWeekCount,
+    recentTaskLabels: underwayRecentLabels,
+    addSession: addUnderwaySession,
+  } = useUnderway();
 
   const {
     state: horizonState,
@@ -475,6 +483,10 @@ function AppMain({
           unscheduledTasks={unscheduledTasks}
           onDeleteDumpTask={deleteTask}
           onNavigateToGrounding={() => setActiveView('grounding')}
+          todaysSessions={underwayTodaysSessions}
+          weekCount={underwayWeekCount}
+          recentTaskLabels={underwayRecentLabels}
+          onAddSession={addUnderwaySession}
         />
       ) : activeView === 'horizon' ? (
         <HorizonView
