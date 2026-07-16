@@ -13,7 +13,8 @@ export type ActiveView =
   | 'predictions'
   | 'stars'
   | 'horizon'
-  | 'grounding';
+  | 'grounding'
+  | 'underway';
 
 export type Hub = 'today' | 'log' | 'charts' | 'sail';
 
@@ -255,6 +256,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
             [
               { view: 'calendar' as const, label: 'Calendar', title: 'Weekly calendar with blocks' },
               { view: 'grounding' as const, label: 'Grounding', title: 'Steady the helm — box breathing timer' },
+              { view: 'underway' as const, label: 'Underway', title: 'One task, one session — synthetic body-doubling' },
               { view: 'predictions' as const, label: 'Lab', title: 'Prediction Lab: predict, leap, initiate' },
             ] as const
           ).map(({ view, label, title }) => {
