@@ -122,15 +122,47 @@ function formatMMSS(totalSec: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+// Produce a paste-ready markdown block for a saved session — used by the
+// review UI's "copy log" button. Keeps the same format as the in-session
+// copy so pasting into a Google doc / notes app looks consistent.
+function formatSessionMarkdown(s: UnderwaySession): string {
+  const startMs = new Date(s.startedAt).getTime();
+  const startDisplay = new Date(startMs).toLocaleString([], {
+    weekday: 'short', month: 'short', day: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
+  const lines: string[] = [];
+  lines.push(`# ${s.taskLabel}`);
+  lines.push(`Started: ${startDisplay}`);
+  lines.push(`Duration: ${s.sizeMin} min planned · ${formatMMSS(s.durationSec)} elapsed · ${s.outcome}`);
+  lines.push('');
+  if (s.entries && s.entries.length > 0) {
+    lines.push('## Log');
+    for (const e of s.entries) {
+      const t = new Date(startMs + e.atMs).toLocaleTimeString([], {
+        hour: 'numeric', minute: '2-digit',
+      });
+      const prefix = e.emotion ? `${e.emotion} ` : '';
+      lines.push(`- ${t}  ${prefix}${e.text}`);
+    }
+    lines.push('');
+  }
+  if (s.note) lines.push(`Reflection: ${s.note}`);
+  if (s.nextMicrostep) lines.push(`Next microstep: ${s.nextMicrostep}`);
+  return lines.join('\n');
+}
+
 interface UnderwayViewProps {
   agedDumpTasks: BrainDumpTask[];
   unscheduledTasks: BrainDumpTask[];
   onDeleteDumpTask: (id: string) => void;
   onNavigateToGrounding: () => void;
   todaysSessions: UnderwaySession[];
+  allSessions: UnderwaySession[];       // full history for the Past Sessions section
   weekCount: number;
   recentTaskLabels: string[];
   onAddSession: (input: Omit<UnderwaySession, 'id'>) => UnderwaySession;
+  onDeleteSession: (id: string) => void;
 }
 
 export default function UnderwayView({
@@ -139,9 +171,11 @@ export default function UnderwayView({
   onDeleteDumpTask,
   onNavigateToGrounding,
   todaysSessions,
+  allSessions,
   weekCount,
   recentTaskLabels,
   onAddSession,
+  onDeleteSession,
 }: UnderwayViewProps) {
   const [phase, setPhase] = useState<Phase>('home');
   const [picked, setPicked] = useState<PickedTask | null>(null);
@@ -159,6 +193,13 @@ export default function UnderwayView({
   const [entryDraft, setEntryDraft] = useState('');
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [pendingCheckIn, setPendingCheckIn] = useState(false);
+
+  // Overtime handling — instead of auto-jumping to Wrap when the clock
+  // hits 0, we open a soft "End session?" prompt once. If the user
+  // taps Keep going, `extending` sticks and the timer counts up as
+  // overtime. They can still Done/Some/Bail at any point.
+  const [endPromptOpen, setEndPromptOpen] = useState(false);
+  const [extending, setExtending] = useState(false);
 
   // Wrap state
   const [outcome, setOutcome] = useState<Outcome | null>(null);
@@ -206,11 +247,15 @@ export default function UnderwayView({
   useEffect(() => {
     if (phase !== 'underway' || !size) return;
 
-    // End of session — jump to wrap with time-up outcome.
+    // End of committed time. Instead of hard-jumping to Wrap, open a
+    // soft "End session?" prompt once. If the user has already tapped
+    // "Keep going", `extending` is true and we don't re-prompt — timer
+    // just keeps counting up. They can still Done/Some/Bail anytime.
     if (elapsedMs >= sessionDurationMs) {
-      setOutcome('time-up');
-      setPhase('wrap');
-      return;
+      if (!extending && !endPromptOpen) {
+        setEndPromptOpen(true);
+      }
+      // Do NOT return — check-in nudges still work in overtime too.
     }
 
     // Nudge a check-in banner at each scheduled minute mark. The banner
@@ -233,7 +278,7 @@ export default function UnderwayView({
       const loggedSinceMark = entries.some((e) => e.atMs >= lastMarkMs);
       if (!loggedSinceMark) setPendingCheckIn(true);
     }
-  }, [elapsedMs, phase, size, sessionDurationMs, checkInMinutes, entries, pendingCheckIn]);
+  }, [elapsedMs, phase, size, sessionDurationMs, checkInMinutes, entries, pendingCheckIn, extending, endPromptOpen]);
 
   const resetAll = () => {
     setPhase('home');
@@ -245,6 +290,8 @@ export default function UnderwayView({
     setEntryDraft('');
     setEntries([]);
     setPendingCheckIn(false);
+    setEndPromptOpen(false);
+    setExtending(false);
     setOutcome(null);
     setNextMicrostep('');
     setWrapNote('');
@@ -255,6 +302,8 @@ export default function UnderwayView({
     setElapsedMs(0);
     setEntries([]);
     setPendingCheckIn(false);
+    setEndPromptOpen(false);
+    setExtending(false);
     setPhase('underway');
   };
 
@@ -370,7 +419,19 @@ export default function UnderwayView({
     setElapsedMs(0);
     setEntries([]);
     setPendingCheckIn(false);
+    setEndPromptOpen(false);
+    setExtending(false);
     setPhase('underway');
+  };
+
+  const endFromPrompt = () => {
+    setEndPromptOpen(false);
+    setOutcome('time-up');
+    setPhase('wrap');
+  };
+  const keepGoing = () => {
+    setEndPromptOpen(false);
+    setExtending(true);
   };
 
   // ---------- Sub-view: Pick ----------
@@ -395,12 +456,19 @@ export default function UnderwayView({
   // ---------- Render ----------
 
   if (phase === 'home') {
+    // "Past" = everything that isn't in today's list. useUnderway already
+    // sorts sessions newest-first, and todaysSessions is a filtered subset
+    // of the same list.
+    const todaysIds = new Set(todaysSessions.map((s) => s.id));
+    const pastSessions = allSessions.filter((s) => !todaysIds.has(s.id));
     return (
       <HomePhase
         todaysSessions={todaysSessions}
+        pastSessions={pastSessions}
         weekCount={weekCount}
         onStartNow={() => setPhase('quickstart')}
         onOpenFullSetup={() => setPhase('pick')}
+        onDeleteSession={onDeleteSession}
       />
     );
   }
@@ -465,6 +533,12 @@ export default function UnderwayView({
         sizeMin={size!}
         remainingSec={remainingSec}
         progressFraction={progressFraction}
+        elapsedMs={elapsedMs}
+        sessionDurationMs={sessionDurationMs}
+        extending={extending}
+        endPromptOpen={endPromptOpen}
+        onEnd={endFromPrompt}
+        onKeepGoing={keepGoing}
         entries={entries}
         pendingCheckIn={pendingCheckIn}
         entryDraft={entryDraft}
@@ -512,15 +586,21 @@ export default function UnderwayView({
 
 function HomePhase({
   todaysSessions,
+  pastSessions,
   weekCount,
   onStartNow,
   onOpenFullSetup,
+  onDeleteSession,
 }: {
   todaysSessions: UnderwaySession[];
+  pastSessions: UnderwaySession[];  // sessions from before today
   weekCount: number;
   onStartNow: () => void;
   onOpenFullSetup: () => void;
+  onDeleteSession: (id: string) => void;
 }) {
+  const [showAllPast, setShowAllPast] = useState(false);
+  const visiblePast = showAllPast ? pastSessions : pastSessions.slice(0, 10);
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50">
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
@@ -571,32 +651,36 @@ function HomePhase({
         {todaysSessions.length > 0 && (
           <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
             <header className="px-4 py-2 border-b border-gray-100 text-[10px] uppercase tracking-wider font-bold text-gray-500">
-              Today's log
+              Today's log · tap to review
             </header>
             <ul>
-              {todaysSessions.slice(0, 5).map((s) => (
-                <li key={s.id} className="px-4 py-2 border-b border-gray-100 last:border-0">
-                  <div className="flex items-center gap-2">
-                    <OutcomeDot outcome={s.outcome} />
-                    <span className="flex-1 text-sm text-gray-800 truncate">
-                      {s.taskLabel}
-                    </span>
-                    {s.entries && s.entries.length > 0 && (
-                      <span
-                        className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full px-1.5 py-0.5 tabular-nums"
-                        title={`${s.entries.length} journal ${s.entries.length === 1 ? 'entry' : 'entries'}`}
-                      >
-                        📓 {s.entries.length}
-                      </span>
-                    )}
-                    <span className="text-[11px] text-gray-500 tabular-nums">
-                      {s.sizeMin}m
-                    </span>
-                  </div>
-                  {s.note && (
-                    <div className="text-[11px] text-gray-500 mt-0.5 pl-4">{s.note}</div>
-                  )}
-                </li>
+              {todaysSessions.map((s) => (
+                <SessionRow key={s.id} session={s} onDelete={onDeleteSession} />
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Past sessions — everything older than today, expandable to see
+            the full journal + notes. Capped at 10 by default with a
+            "Show all" toggle so history stays browsable but doesn't run
+            the page long. */}
+        {pastSessions.length > 0 && (
+          <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+            <header className="px-4 py-2 border-b border-gray-100 text-[10px] uppercase tracking-wider font-bold text-gray-500 flex items-center justify-between">
+              <span>Past sessions ({pastSessions.length})</span>
+              {pastSessions.length > 10 && (
+                <button
+                  onClick={() => setShowAllPast((v) => !v)}
+                  className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 normal-case tracking-normal"
+                >
+                  {showAllPast ? 'Show fewer' : 'Show all'}
+                </button>
+              )}
+            </header>
+            <ul>
+              {visiblePast.map((s) => (
+                <SessionRow key={s.id} session={s} showDate onDelete={onDeleteSession} />
               ))}
             </ul>
           </section>
@@ -611,6 +695,148 @@ function HomePhase({
         </button>
       </div>
     </div>
+  );
+}
+
+// ---------- SessionRow — expandable session detail ----------
+
+function SessionRow({
+  session,
+  showDate = false,
+  onDelete,
+}: {
+  session: UnderwaySession;
+  showDate?: boolean;
+  onDelete: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const s = session;
+  const startMs = new Date(s.startedAt).getTime();
+  const dateStr = new Date(s.startedAt).toLocaleDateString([], {
+    month: 'short', day: 'numeric',
+  });
+  const timeStr = new Date(s.startedAt).toLocaleTimeString([], {
+    hour: 'numeric', minute: '2-digit',
+  });
+
+  const copyLog = async () => {
+    try {
+      await navigator.clipboard.writeText(formatSessionMarkdown(s));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Clipboard permission — silently ignore.
+    }
+  };
+
+  const confirmDelete = () => {
+    if (confirm(`Delete this session (${s.taskLabel})? This can't be undone.`)) {
+      onDelete(s.id);
+    }
+  };
+
+  return (
+    <li className="border-b border-gray-100 last:border-0">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full px-4 py-2 text-left hover:bg-gray-50"
+      >
+        <div className="flex items-center gap-2">
+          <OutcomeDot outcome={s.outcome} />
+          <span className="flex-1 text-sm text-gray-800 truncate">
+            {s.taskLabel}
+          </span>
+          {s.entries && s.entries.length > 0 && (
+            <span
+              className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full px-1.5 py-0.5 tabular-nums"
+              title={`${s.entries.length} journal ${s.entries.length === 1 ? 'entry' : 'entries'}`}
+            >
+              📓 {s.entries.length}
+            </span>
+          )}
+          <span className="text-[11px] text-gray-500 tabular-nums">
+            {showDate ? `${dateStr}·${s.sizeMin}m` : `${s.sizeMin}m`}
+          </span>
+          <span className={`text-gray-300 text-xs transition-transform ${open ? 'rotate-90' : ''}`}>
+            ▶
+          </span>
+        </div>
+        {s.note && !open && (
+          <div className="text-[11px] text-gray-500 mt-0.5 pl-4 truncate">{s.note}</div>
+        )}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-3 pt-1 space-y-2 bg-gray-50/60 border-t border-gray-100">
+          <div className="flex items-center justify-between text-[11px] text-gray-500">
+            <span>
+              {timeStr} · {formatMMSS(s.durationSec)} elapsed · {s.outcome}
+            </span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={copyLog}
+                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                title="Copy full log as markdown"
+              >
+                {copied ? '✓ copied' : '⧉ copy log'}
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="text-[11px] font-semibold text-gray-400 hover:text-red-500"
+                title="Delete session"
+              >
+                delete
+              </button>
+            </div>
+          </div>
+
+          {s.note && (
+            <div className="text-[12px] text-gray-700 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mr-1">
+                Reflection:
+              </span>
+              {s.note}
+            </div>
+          )}
+          {s.nextMicrostep && (
+            <div className="text-[12px] text-gray-700 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mr-1">
+                Next microstep:
+              </span>
+              {s.nextMicrostep}
+            </div>
+          )}
+
+          {s.entries && s.entries.length > 0 ? (
+            <ul className="space-y-1 pt-1">
+              {s.entries.map((e) => {
+                const t = new Date(startMs + e.atMs).toLocaleTimeString([], {
+                  hour: 'numeric', minute: '2-digit',
+                });
+                return (
+                  <li key={e.id} className="flex items-start gap-2 text-[12px] leading-relaxed">
+                    <span className="text-gray-400 tabular-nums font-mono whitespace-nowrap pt-0.5">
+                      {t}
+                    </span>
+                    {e.emotion && (
+                      <span className="text-sm leading-none pt-0.5" aria-hidden>{e.emotion}</span>
+                    )}
+                    <span className="flex-1 min-w-0 text-gray-800 break-words">
+                      <LinkifiedText text={e.text} />
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <div className="text-[11px] text-gray-400 italic pt-1">
+              No journal entries were logged during this session.
+            </div>
+          )}
+        </div>
+      )}
+    </li>
   );
 }
 
@@ -997,6 +1223,12 @@ function UnderwayPhase({
   sizeMin,
   remainingSec,
   progressFraction,
+  elapsedMs,
+  sessionDurationMs,
+  extending,
+  endPromptOpen,
+  onEnd,
+  onKeepGoing,
   entries,
   pendingCheckIn,
   entryDraft,
@@ -1014,6 +1246,12 @@ function UnderwayPhase({
   sizeMin: SizeMinutes;
   remainingSec: number;
   progressFraction: number;
+  elapsedMs: number;
+  sessionDurationMs: number;
+  extending: boolean;
+  endPromptOpen: boolean;
+  onEnd: () => void;
+  onKeepGoing: () => void;
   entries: JournalEntry[];
   pendingCheckIn: boolean;
   entryDraft: string;
@@ -1029,7 +1267,17 @@ function UnderwayPhase({
 }) {
   const RADIUS = 42;
   const CIRC = 2 * Math.PI * RADIUS;
-  const dashOffset = CIRC * (1 - progressFraction);
+
+  // Overtime = past the committed size and we've committed to keep going
+  // (or the end prompt is currently sitting open).
+  const isOvertime = elapsedMs >= sessionDurationMs;
+  const overtimeSec = Math.max(0, Math.floor((elapsedMs - sessionDurationMs) / 1000));
+
+  // Ring stays full in overtime and shifts color from indigo → sky so the
+  // change of mode is felt without being alarming.
+  const dashOffset = isOvertime ? 0 : CIRC * (1 - progressFraction);
+  const ringColor = extending ? '#0ea5e9' : '#4f46e5';
+  const numberColor = extending ? 'text-sky-700' : 'text-gray-900';
 
   // Auto-collect URLs from all entries for the compact links strip.
   // Deduped, capped so the strip never dominates the layout.
@@ -1076,7 +1324,10 @@ function UnderwayPhase({
           </button>
         </div>
 
-        {/* Timer ring — big and visceral. Time blindness needs BIG. */}
+        {/* Timer ring — big and visceral. Time blindness needs BIG.
+            In overtime the ring stays full and re-tints sky; the center
+            number switches to +MM:SS overtime with an "over N min"
+            subtitle so the state change is obvious. */}
         <div className="relative w-56 h-56 sm:w-64 sm:h-64 mx-auto">
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
             <circle
@@ -1085,22 +1336,61 @@ function UnderwayPhase({
             />
             <circle
               cx="50" cy="50" r={RADIUS}
-              fill="none" stroke="#4f46e5" strokeWidth="3"
+              fill="none" stroke={ringColor} strokeWidth="3"
               strokeDasharray={CIRC}
               strokeDashoffset={dashOffset}
               strokeLinecap="round"
-              style={{ transition: 'stroke-dashoffset 200ms linear' }}
+              style={{ transition: 'stroke-dashoffset 200ms linear, stroke 300ms linear' }}
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-5xl sm:text-6xl font-bold text-gray-900 tabular-nums leading-none">
-              {formatMMSS(remainingSec)}
+            <div className={`text-5xl sm:text-6xl font-bold tabular-nums leading-none ${numberColor}`}>
+              {extending ? `+${formatMMSS(overtimeSec)}` : formatMMSS(remainingSec)}
             </div>
             <div className="text-[11px] uppercase tracking-wider text-gray-400 mt-2">
-              of {sizeMin} min
+              {extending ? `over ${sizeMin} min` : `of ${sizeMin} min`}
             </div>
           </div>
         </div>
+
+        {/* End-of-time prompt — one-shot when the committed clock hits 0.
+            Uses emerald not red so the tone stays affirming: hitting your
+            committed time is a win, not an alarm. */}
+        {endPromptOpen && (
+          <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 space-y-3">
+            <div>
+              <div className="text-sm font-semibold text-emerald-900">
+                Time's up — end session?
+              </div>
+              <div className="text-[11px] text-emerald-800 mt-1 leading-relaxed">
+                You committed to {sizeMin} min and you're there. End cleanly,
+                or keep going — the timer will count up as extension.
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={onEnd}
+                className="px-3 py-2.5 rounded-xl text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700"
+              >
+                End
+              </button>
+              <button
+                onClick={onKeepGoing}
+                className="px-3 py-2.5 rounded-xl text-sm font-semibold text-emerald-800 bg-white border border-emerald-300 hover:bg-emerald-50"
+              >
+                Keep going →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Quiet extension banner — shown after the user chose Keep going
+            so the timer state stays legible without re-prompting. */}
+        {extending && !endPromptOpen && (
+          <div className="text-[11px] text-sky-800 bg-sky-50 border border-sky-200 rounded-xl px-3 py-1.5 text-center">
+            In extension — {formatMMSS(overtimeSec)} past {sizeMin} min. Done/Some/Bail whenever.
+          </div>
+        )}
 
         {/* Auto-collected links from journal entries — quick access to
             docs/tabs pasted while working. */}
