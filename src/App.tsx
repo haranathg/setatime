@@ -182,10 +182,12 @@ function AppMain({
   } = useStateLog();
 
   const {
+    sessions: underwayAllSessions,
     todaysSessions: underwayTodaysSessions,
     weekCount: underwayWeekCount,
     recentTaskLabels: underwayRecentLabels,
     addSession: addUnderwaySession,
+    deleteSession: deleteUnderwaySession,
   } = useUnderway();
 
   const {
@@ -492,9 +494,11 @@ function AppMain({
           onDeleteDumpTask={deleteTask}
           onNavigateToGrounding={() => setActiveView('grounding')}
           todaysSessions={underwayTodaysSessions}
+          allSessions={underwayAllSessions}
           weekCount={underwayWeekCount}
           recentTaskLabels={underwayRecentLabels}
           onAddSession={addUnderwaySession}
+          onDeleteSession={deleteUnderwaySession}
         />
       ) : activeView === 'compass' ? (
         <CompassView
