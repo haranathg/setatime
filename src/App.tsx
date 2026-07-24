@@ -10,6 +10,7 @@ import HabitsView from './components/HabitsView';
 import BooksView from './components/BooksView';
 import GroundingView from './components/GroundingView';
 import UnderwayView from './components/UnderwayView';
+import CompassView from './components/CompassView';
 import HorizonView from './components/HorizonView';
 import LogView from './components/LogView';
 import NorthStarsView from './components/NorthStarsView';
@@ -30,6 +31,7 @@ import { usePredictions } from './hooks/usePredictions';
 import { useHorizon } from './hooks/useHorizon';
 import { useStateLog } from './hooks/useStateLog';
 import { useUnderway } from './hooks/useUnderway';
+import { useCompass } from './hooks/useCompass';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -83,7 +85,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway'>('today');
+  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass'>('today');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -100,8 +102,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway';
-  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway') => void;
+  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass';
+  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -187,6 +189,12 @@ function AppMain({
   } = useUnderway();
 
   const {
+    entries: compassEntries,
+    weekCount: compassWeekCount,
+    addEntry: addCompassEntry,
+  } = useCompass();
+
+  const {
     state: horizonState,
     setBirthDate: setHorizonBirthDate,
     setLifespan: setHorizonLifespan,
@@ -266,7 +274,7 @@ function AppMain({
     (t) => t.status === 'inbox' || (t.status === 'future' && !!t.futureSurfaceDate && t.futureSurfaceDate <= todayKey)
   ).length;
 
-  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway') => {
+  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -487,6 +495,13 @@ function AppMain({
           weekCount={underwayWeekCount}
           recentTaskLabels={underwayRecentLabels}
           onAddSession={addUnderwaySession}
+        />
+      ) : activeView === 'compass' ? (
+        <CompassView
+          entries={compassEntries}
+          weekCount={compassWeekCount}
+          onSaveEntry={addCompassEntry}
+          onSendToHold={addManualTask}
         />
       ) : activeView === 'horizon' ? (
         <HorizonView

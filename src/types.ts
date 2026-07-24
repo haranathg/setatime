@@ -388,6 +388,7 @@ export interface AppState {
   stateLog?: StateLogState;
   horizon?: HorizonState;
   underway?: UnderwayState;
+  compass?: CompassState;
 }
 
 // ---------- Horizon (life-scale perspective) ----------
@@ -471,6 +472,40 @@ export interface UnderwaySession {
 
 export interface UnderwayState {
   sessions: UnderwaySession[];
+}
+
+// ---------- Compass (Circle of Control worksheet) ----------
+//
+// A CBT/ACT-flavored exercise for anxiety reduction: name what's on your
+// mind, sort each piece into Control / Influence / Concern, then either
+// act on it, plan influence, or explicitly set it down.
+//
+// The therapeutic move is "clean pain vs dirty pain" — actionable problems
+// are worth energy, rumination on the uncontrollable is not. Making that
+// distinction explicit is calibrating in its own right, even before you
+// take a single action.
+//
+// "Getting help" is deliberately surfaced as a first-class Control action
+// — many people forget that asking IS in their control.
+
+export type ControlCategory = 'control' | 'influence' | 'concern';
+
+export interface CompassItem {
+  id: string;
+  text: string;
+  category?: ControlCategory;   // undefined = not yet sorted
+  nextStep?: string;            // for control/influence
+  released?: boolean;           // for concern — user has "set it down"
+}
+
+export interface CompassEntry {
+  id: string;
+  createdAt: string;            // ISO
+  items: CompassItem[];
+}
+
+export interface CompassState {
+  entries: CompassEntry[];
 }
 
 // Prefer new energy field; map legacy feeling to a coarse point on the scale.
