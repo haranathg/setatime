@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { BrainDumpTask, UnderwaySession, UnderwayOutcome } from '../types';
+import { v4 as uuidv4 } from 'uuid';
+import type { BrainDumpTask, UnderwaySession, UnderwayOutcome, UnderwayJournalEntry } from '../types';
 
 // Underway — synthetic body-doubling.
 //
@@ -62,8 +63,58 @@ const PREFLIGHT_ITEMS: {
   { key: 'grounded', label: 'Grounded',  hint: 'Nervous system settled' },
 ];
 
-type CheckIn = { atMs: number; note: string };
+// Local alias for the persisted journal entry — matches UnderwayJournalEntry
+// exactly. We keep the alias so the in-session code reads cleanly.
+type JournalEntry = UnderwayJournalEntry;
 type Outcome = UnderwayOutcome;
+
+// Quick one-tap mood chips for the interstitial input. Emojis chosen for
+// distinct silhouette so a fast scan-back through a log reads instantly.
+const MOOD_CHIPS: { emoji: string; label: string }[] = [
+  { emoji: '🔥', label: 'Flow' },
+  { emoji: '🌀', label: 'Distracted' },
+  { emoji: '😰', label: 'Stuck' },
+  { emoji: '💡', label: 'Idea' },
+  { emoji: '😴', label: 'Tired' },
+];
+
+// Lift URLs out of an entry so we can show them in a compact "Links from
+// this session" strip. The regex is deliberately loose — it just catches
+// http(s) URLs that show up somewhere in the entry text.
+const URL_RE = /(https?:\/\/[^\s)]+)/g;
+function extractUrls(text: string): string[] {
+  return text.match(URL_RE) || [];
+}
+function tryHost(u: string): string {
+  try { return new URL(u).host.replace(/^www\./, ''); } catch { return u; }
+}
+
+// Render a string with any http(s) URLs as clickable anchors, leaving
+// the surrounding text untouched. Kept simple — no rich autolink for
+// bare domains, only explicit http(s) URLs.
+function LinkifiedText({ text }: { text: string }) {
+  const parts = text.split(URL_RE);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (i % 2 === 1) {
+          return (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-indigo-700 underline underline-offset-2 hover:text-indigo-900 break-all"
+            >
+              {part}
+            </a>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
 
 function formatMMSS(totalSec: number): string {
   const m = Math.floor(totalSec / 60);
@@ -102,9 +153,11 @@ export default function UnderwayView({
   // Underway session state — a fresh session every time we enter Underway.
   const [sessionStartMs, setSessionStartMs] = useState<number | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const [currentStep, setCurrentStep] = useState('');
-  const [checkInDraft, setCheckInDraft] = useState('');
-  const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
+  // Interstitial journal — the growing timestamped stream that replaces
+  // the old single-microstep field. Entries are stored newest-first for
+  // display; persisted in that same order when the session wraps.
+  const [entryDraft, setEntryDraft] = useState('');
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [pendingCheckIn, setPendingCheckIn] = useState(false);
 
   // Wrap state
@@ -160,14 +213,27 @@ export default function UnderwayView({
       return;
     }
 
-    // Trigger a check-in prompt at each scheduled minute mark.
+    // Nudge a check-in banner at each scheduled minute mark. The banner
+    // is a passive prompt — it lives above the always-visible interstitial
+    // input; user logs anything (typed or a mood chip) and it dismisses.
     const elapsedMin = Math.floor(elapsedMs / 60000);
-    const alreadyRecorded = checkIns.length;
-    const nextMinuteMark = checkInMinutes[alreadyRecorded];
-    if (nextMinuteMark !== undefined && elapsedMin >= nextMinuteMark && !pendingCheckIn) {
-      setPendingCheckIn(true);
+    // We count how many checkInMinutes have passed to decide whether we
+    // should currently be prompting. Once user logs anything after a
+    // prompt, we advance past that mark.
+    const totalPromptsSoFar = checkInMinutes.filter((m) => elapsedMin >= m).length;
+    // Prompts consumed = entries logged since the last prompt trigger.
+    // Simpler: prompt whenever a new mark has been reached AND we're not
+    // already prompting.
+    if (totalPromptsSoFar > 0 && !pendingCheckIn) {
+      // Only re-prompt if the mark just crossed (no entries logged AT or
+      // AFTER that mark's ms yet); this is a loose heuristic, fine for
+      // the size options we support (2 / 15 / 60 min).
+      const lastMark = checkInMinutes[totalPromptsSoFar - 1];
+      const lastMarkMs = lastMark * 60000;
+      const loggedSinceMark = entries.some((e) => e.atMs >= lastMarkMs);
+      if (!loggedSinceMark) setPendingCheckIn(true);
     }
-  }, [elapsedMs, phase, size, sessionDurationMs, checkInMinutes, checkIns.length, pendingCheckIn]);
+  }, [elapsedMs, phase, size, sessionDurationMs, checkInMinutes, entries, pendingCheckIn]);
 
   const resetAll = () => {
     setPhase('home');
@@ -176,9 +242,8 @@ export default function UnderwayView({
     setSize(null);
     setSessionStartMs(null);
     setElapsedMs(0);
-    setCurrentStep('');
-    setCheckInDraft('');
-    setCheckIns([]);
+    setEntryDraft('');
+    setEntries([]);
     setPendingCheckIn(false);
     setOutcome(null);
     setNextMicrostep('');
@@ -188,21 +253,72 @@ export default function UnderwayView({
   const startUnderway = () => {
     setSessionStartMs(Date.now());
     setElapsedMs(0);
-    setCheckIns([]);
+    setEntries([]);
     setPendingCheckIn(false);
     setPhase('underway');
   };
 
-  const submitCheckIn = () => {
-    const note = checkInDraft.trim();
-    if (!note) return;
-    setCheckIns((prev) => [...prev, { atMs: elapsedMs, note }]);
-    setCheckInDraft('');
+  // Log the current draft as a new entry. Called on Enter or the Log
+  // button. Dismisses the check-in banner if one is active.
+  const submitEntry = () => {
+    const text = entryDraft.trim();
+    if (!text) return;
+    setEntries((prev) => [{ id: uuidv4(), atMs: elapsedMs, text }, ...prev]);
+    setEntryDraft('');
     setPendingCheckIn(false);
   };
-  const skipCheckIn = () => {
-    setCheckIns((prev) => [...prev, { atMs: elapsedMs, note: '(kept going)' }]);
+
+  // One-tap mood chip — logs a mood-only entry with the chip label as
+  // the visible text and the emoji as the emotion badge. Dismisses the
+  // check-in banner too.
+  const logMood = (emoji: string, label: string) => {
+    setEntries((prev) => [
+      { id: uuidv4(), atMs: elapsedMs, text: label, emotion: emoji },
+      ...prev,
+    ]);
     setPendingCheckIn(false);
+  };
+
+  const removeEntry = (id: string) => {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+  };
+
+  // Copy the full session log to the clipboard as paste-friendly
+  // markdown. Works during and after the session.
+  const copyLog = async () => {
+    if (!picked) return;
+    const startIso = sessionStartMs
+      ? new Date(sessionStartMs).toLocaleString([], {
+          weekday: 'short', month: 'short', day: 'numeric',
+          hour: 'numeric', minute: '2-digit',
+        })
+      : '';
+    // Reverse so the copied log is chronological (oldest → newest),
+    // even though the UI shows newest-first.
+    const chronological = [...entries].reverse();
+    const lines: string[] = [];
+    lines.push(`# ${picked.label}`);
+    if (startIso) lines.push(`Started: ${startIso}`);
+    if (size) lines.push(`Duration: ${size} min planned · ${formatMMSS(Math.floor(elapsedMs / 1000))} elapsed`);
+    lines.push('');
+    if (chronological.length > 0) {
+      lines.push('## Log');
+      for (const e of chronological) {
+        const t = sessionStartMs
+          ? new Date(sessionStartMs + e.atMs).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+          : formatMMSS(Math.floor(e.atMs / 1000));
+        const prefix = e.emotion ? `${e.emotion} ` : '';
+        lines.push(`- ${t}  ${prefix}${e.text}`);
+      }
+      lines.push('');
+    }
+    const md = lines.join('\n');
+    try {
+      await navigator.clipboard.writeText(md);
+    } catch {
+      // Clipboard permission edge case — silently skip. User can still
+      // see the log on screen.
+    }
   };
 
   const bail = () => {
@@ -223,6 +339,9 @@ export default function UnderwayView({
     // "same as last time" chips have something to feed on. Any outcome
     // gets a session — bailing counts as showing up.
     if (picked && sessionStartMs !== null && size !== null && outcome !== null) {
+      // Persist the journal in chronological (oldest → newest) order so
+      // the saved log reads naturally when reviewed later.
+      const chronological = [...entries].reverse();
       onAddSession({
         taskLabel: picked.label,
         sizeMin: size,
@@ -232,6 +351,7 @@ export default function UnderwayView({
         note: wrapNote.trim() || undefined,
         nextMicrostep: nextMicrostep.trim() || undefined,
         source: picked.source,
+        entries: chronological.length > 0 ? chronological : undefined,
       });
     }
     // If the picked task came from the dump and was fully done, drop it.
@@ -248,7 +368,7 @@ export default function UnderwayView({
     setSize(sizeMin);
     setSessionStartMs(Date.now());
     setElapsedMs(0);
-    setCheckIns([]);
+    setEntries([]);
     setPendingCheckIn(false);
     setPhase('underway');
   };
@@ -345,14 +465,15 @@ export default function UnderwayView({
         sizeMin={size!}
         remainingSec={remainingSec}
         progressFraction={progressFraction}
-        currentStep={currentStep}
-        onCurrentStepChange={setCurrentStep}
-        checkIns={checkIns}
+        entries={entries}
         pendingCheckIn={pendingCheckIn}
-        checkInDraft={checkInDraft}
-        onCheckInDraftChange={setCheckInDraft}
-        onSubmitCheckIn={submitCheckIn}
-        onSkipCheckIn={skipCheckIn}
+        entryDraft={entryDraft}
+        onEntryDraftChange={setEntryDraft}
+        onSubmitEntry={submitEntry}
+        onLogMood={logMood}
+        onRemoveEntry={removeEntry}
+        onCopyLog={copyLog}
+        sessionStartMs={sessionStartMs}
         onBail={bail}
         onDone={markDone}
         onPartial={markPartial}
@@ -367,7 +488,7 @@ export default function UnderwayView({
       taskLabel={picked!.label}
       outcome={outcome!}
       totalSec={totalSec}
-      checkIns={checkIns}
+      entryCount={entries.length}
       nextMicrostep={nextMicrostep}
       onNextMicrostepChange={setNextMicrostep}
       wrapNote={wrapNote}
@@ -460,6 +581,14 @@ function HomePhase({
                     <span className="flex-1 text-sm text-gray-800 truncate">
                       {s.taskLabel}
                     </span>
+                    {s.entries && s.entries.length > 0 && (
+                      <span
+                        className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full px-1.5 py-0.5 tabular-nums"
+                        title={`${s.entries.length} journal ${s.entries.length === 1 ? 'entry' : 'entries'}`}
+                      >
+                        📓 {s.entries.length}
+                      </span>
+                    )}
                     <span className="text-[11px] text-gray-500 tabular-nums">
                       {s.sizeMin}m
                     </span>
@@ -868,14 +997,15 @@ function UnderwayPhase({
   sizeMin,
   remainingSec,
   progressFraction,
-  currentStep,
-  onCurrentStepChange,
-  checkIns,
+  entries,
   pendingCheckIn,
-  checkInDraft,
-  onCheckInDraftChange,
-  onSubmitCheckIn,
-  onSkipCheckIn,
+  entryDraft,
+  onEntryDraftChange,
+  onSubmitEntry,
+  onLogMood,
+  onRemoveEntry,
+  onCopyLog,
+  sessionStartMs,
   onBail,
   onDone,
   onPartial,
@@ -884,39 +1014,70 @@ function UnderwayPhase({
   sizeMin: SizeMinutes;
   remainingSec: number;
   progressFraction: number;
-  currentStep: string;
-  onCurrentStepChange: (s: string) => void;
-  checkIns: CheckIn[];
+  entries: JournalEntry[];
   pendingCheckIn: boolean;
-  checkInDraft: string;
-  onCheckInDraftChange: (s: string) => void;
-  onSubmitCheckIn: () => void;
-  onSkipCheckIn: () => void;
+  entryDraft: string;
+  onEntryDraftChange: (s: string) => void;
+  onSubmitEntry: () => void;
+  onLogMood: (emoji: string, label: string) => void;
+  onRemoveEntry: (id: string) => void;
+  onCopyLog: () => void;
+  sessionStartMs: number | null;
   onBail: () => void;
   onDone: () => void;
   onPartial: () => void;
 }) {
-  // Ring geometry
   const RADIUS = 42;
   const CIRC = 2 * Math.PI * RADIUS;
   const dashOffset = CIRC * (1 - progressFraction);
 
+  // Auto-collect URLs from all entries for the compact links strip.
+  // Deduped, capped so the strip never dominates the layout.
+  const collectedLinks = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const e of entries) {
+      for (const u of extractUrls(e.text)) {
+        if (seen.has(u)) continue;
+        seen.add(u);
+        out.push(u);
+        if (out.length >= 8) return out;
+      }
+    }
+    return out;
+  }, [entries]);
+
+  const [copied, setCopied] = useState(false);
+  const doCopy = async () => {
+    await onCopyLog();
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50">
       <div className="max-w-md mx-auto px-4 py-5 space-y-4">
-        {/* Task banner — calm typography, not urgent */}
-        <div className="text-center">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
-            Right now
+        {/* Task banner — compact, gives the timer + stream more room */}
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+              Right now
+            </div>
+            <h2 className="text-base font-semibold text-gray-900 leading-snug truncate">
+              {taskLabel}
+            </h2>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mt-0.5 leading-snug">
-            {taskLabel}
-          </h2>
+          <button
+            onClick={doCopy}
+            className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 whitespace-nowrap"
+            title="Copy session log as markdown"
+          >
+            {copied ? '✓ copied' : '⧉ copy log'}
+          </button>
         </div>
 
-        {/* Timer ring + big countdown — deliberately oversized so it reads
-            across the room. Time blindness needs BIG. */}
-        <div className="relative w-72 h-72 sm:w-80 sm:h-80 mx-auto">
+        {/* Timer ring — big and visceral. Time blindness needs BIG. */}
+        <div className="relative w-56 h-56 sm:w-64 sm:h-64 mx-auto">
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
             <circle
               cx="50" cy="50" r={RADIUS}
@@ -932,7 +1093,7 @@ function UnderwayPhase({
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <div className="text-6xl sm:text-7xl font-bold text-gray-900 tabular-nums leading-none">
+            <div className="text-5xl sm:text-6xl font-bold text-gray-900 tabular-nums leading-none">
               {formatMMSS(remainingSec)}
             </div>
             <div className="text-[11px] uppercase tracking-wider text-gray-400 mt-2">
@@ -941,74 +1102,122 @@ function UnderwayPhase({
           </div>
         </div>
 
-        {/* The ONE current step */}
-        <div>
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
-            One microstep
-          </div>
-          <input
-            type="text"
-            value={currentStep}
-            onChange={(e) => onCurrentStepChange(e.target.value)}
-            placeholder="What are you doing right now?"
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
-          />
-        </div>
-
-        {/* Rhythmic check-in prompt — the body-doubling heartbeat */}
-        {pendingCheckIn && (
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 space-y-2">
-            <div className="text-[11px] font-semibold text-amber-900">
-              Still with it? Say one line — anything.
+        {/* Auto-collected links from journal entries — quick access to
+            docs/tabs pasted while working. */}
+        {collectedLinks.length > 0 && (
+          <div>
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+              Links from this session
             </div>
-            <div className="flex gap-2">
-              <input
-                autoFocus
-                type="text"
-                value={checkInDraft}
-                onChange={(e) => onCheckInDraftChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && checkInDraft.trim()) {
-                    onSubmitCheckIn();
-                  }
-                }}
-                placeholder="stuck / rolling / distracted / almost"
-                className="flex-1 min-w-0 px-3 py-2 text-sm border border-amber-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
-              />
-              <button
-                onClick={onSubmitCheckIn}
-                disabled={!checkInDraft.trim()}
-                className="px-3 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 rounded-lg disabled:opacity-40"
-              >
-                Log
-              </button>
-              <button
-                onClick={onSkipCheckIn}
-                className="px-2 py-2 text-xs font-semibold text-amber-700 hover:text-amber-900"
-              >
-                Skip
-              </button>
+            <div className="flex flex-wrap gap-1.5">
+              {collectedLinks.map((u) => (
+                <a
+                  key={u}
+                  href={u}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-mono text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-full hover:bg-indigo-100 max-w-full truncate"
+                  title={u}
+                >
+                  🔗 {tryHost(u)}
+                </a>
+              ))}
             </div>
           </div>
         )}
 
-        {/* Witness log — accumulating record of the session */}
-        {checkIns.length > 0 && (
-          <div>
-            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
-              Log
-            </div>
-            <ul className="space-y-1">
-              {checkIns.map((c, i) => (
-                <li key={i} className="flex items-start gap-2 text-[12px]">
-                  <span className="text-gray-400 tabular-nums font-mono">
-                    {formatMMSS(Math.floor(c.atMs / 1000))}
-                  </span>
-                  <span className="text-gray-700">{c.note}</span>
-                </li>
-              ))}
-            </ul>
+        {/* Interstitial input — always visible. Enter → log. Pending
+            check-in shows a subtle amber banner ABOVE the input instead
+            of a modal; input placeholder shifts too. */}
+        {pendingCheckIn && (
+          <div className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            Check-in nudge — say one line (or tap a mood chip). Anything counts.
           </div>
+        )}
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 flex-1">
+              Interstitial log
+            </div>
+            <div className="text-[10px] text-gray-400 tabular-nums">
+              {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <input
+              autoFocus
+              type="text"
+              value={entryDraft}
+              onChange={(e) => onEntryDraftChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && entryDraft.trim()) {
+                  e.preventDefault();
+                  onSubmitEntry();
+                }
+              }}
+              placeholder={
+                pendingCheckIn
+                  ? 'What\'s happening right now?'
+                  : 'Log a thought, feeling, next step, or paste a link…'
+              }
+              className={`flex-1 min-w-0 px-3 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 ${
+                pendingCheckIn
+                  ? 'border-amber-300 focus:ring-amber-400'
+                  : 'border-gray-200 focus:ring-indigo-400'
+              }`}
+            />
+            <button
+              onClick={onSubmitEntry}
+              disabled={!entryDraft.trim()}
+              className="px-3 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl disabled:opacity-40"
+            >
+              Log
+            </button>
+          </div>
+
+          {/* Mood chips — one-tap emotion logging */}
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {MOOD_CHIPS.map((m) => (
+              <button
+                key={m.emoji}
+                onClick={() => onLogMood(m.emoji, m.label)}
+                className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-gray-700 bg-white border border-gray-200 rounded-full hover:border-indigo-300 hover:bg-indigo-50/40"
+              >
+                <span className="text-sm leading-none">{m.emoji}</span>
+                <span>{m.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* The stream — newest at top so recent thought is always in view.
+            Timestamps show clock time when we have a session start; fall
+            back to elapsed mm:ss. URLs in text render as clickable links. */}
+        {entries.length > 0 && (
+          <ul className="space-y-1 border-t border-gray-200 pt-2">
+            {entries.map((e) => (
+              <li key={e.id} className="group flex items-start gap-2 text-[12px] leading-relaxed">
+                <span className="text-gray-400 tabular-nums font-mono whitespace-nowrap pt-0.5">
+                  {sessionStartMs
+                    ? new Date(sessionStartMs + e.atMs).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+                    : formatMMSS(Math.floor(e.atMs / 1000))}
+                </span>
+                {e.emotion && (
+                  <span className="text-sm leading-none pt-0.5" aria-hidden>{e.emotion}</span>
+                )}
+                <span className="flex-1 min-w-0 text-gray-800 break-words">
+                  <LinkifiedText text={e.text} />
+                </span>
+                <button
+                  onClick={() => onRemoveEntry(e.id)}
+                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 text-sm leading-none transition-opacity"
+                  title="Remove"
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
 
         {/* Action row — Done + Partial (both are ok) + Bail (always visible) */}
@@ -1046,7 +1255,7 @@ function WrapPhase({
   taskLabel,
   outcome,
   totalSec,
-  checkIns,
+  entryCount,
   nextMicrostep,
   onNextMicrostepChange,
   wrapNote,
@@ -1057,7 +1266,7 @@ function WrapPhase({
   taskLabel: string;
   outcome: Outcome;
   totalSec: number;
-  checkIns: CheckIn[];
+  entryCount: number;
   nextMicrostep: string;
   onNextMicrostepChange: (s: string) => void;
   wrapNote: string;
@@ -1135,8 +1344,8 @@ function WrapPhase({
                 </div>
               </div>
               <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
-                <div className="text-[10px] uppercase tracking-wider text-gray-500">Check-ins</div>
-                <div className="text-lg font-semibold text-gray-900 tabular-nums">{checkIns.length}</div>
+                <div className="text-[10px] uppercase tracking-wider text-gray-500">Log entries</div>
+                <div className="text-lg font-semibold text-gray-900 tabular-nums">{entryCount}</div>
               </div>
               <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
                 <div className="text-[10px] uppercase tracking-wider text-gray-500">Started</div>

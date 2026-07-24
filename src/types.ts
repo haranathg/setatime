@@ -458,16 +458,27 @@ export interface StateLogState {
 
 export type UnderwayOutcome = 'done' | 'partial' | 'bailed' | 'time-up';
 
+// One line in the interstitial journal — timestamped observation, next
+// step, mood, or link. Emotion is optional; when set, it's a short glyph
+// like "🔥" or "🌀" that renders as a badge alongside the text.
+export interface UnderwayJournalEntry {
+  id: string;
+  atMs: number;         // ms since session start
+  text: string;
+  emotion?: string;     // optional mood glyph
+}
+
 export interface UnderwaySession {
   id: string;
   taskLabel: string;
-  sizeMin: number;                 // committed size (2 / 15 / 60)
+  sizeMin: number;                    // committed size (2 / 15 / 60)
   outcome: UnderwayOutcome;
-  startedAt: string;               // ISO
-  durationSec: number;             // actual time spent underway
-  note?: string;                   // one-line reflection from Wrap
-  nextMicrostep?: string;          // hand-off to future you
+  startedAt: string;                  // ISO
+  durationSec: number;                // actual time spent underway
+  note?: string;                      // one-line reflection from Wrap
+  nextMicrostep?: string;             // hand-off to future you
   source: 'dump' | 'freeform';
+  entries?: UnderwayJournalEntry[];   // interstitial journal stream
 }
 
 export interface UnderwayState {
