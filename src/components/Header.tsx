@@ -14,7 +14,8 @@ export type ActiveView =
   | 'stars'
   | 'horizon'
   | 'grounding'
-  | 'underway';
+  | 'underway'
+  | 'compass';
 
 export type Hub = 'today' | 'log' | 'charts' | 'sail';
 
@@ -256,6 +257,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
             [
               { view: 'calendar' as const, label: 'Calendar', title: 'Weekly calendar with blocks' },
               { view: 'grounding' as const, label: 'Grounding', title: 'Steady the helm — box breathing timer' },
+              { view: 'compass' as const, label: 'Compass', title: 'Circle of Control — sort what you can steer from what you can\'t' },
               { view: 'underway' as const, label: 'Underway', title: 'One task, one session — synthetic body-doubling' },
               { view: 'predictions' as const, label: 'Lab', title: 'Prediction Lab: predict, leap, initiate' },
             ] as const
