@@ -75,6 +75,15 @@ interface TodayViewProps {
     note?: string;
   }) => StateLogEntry;
   onDeleteStateLogEntry: (id: string) => void;
+  // Activation menu — external memory of the strategies the user forgets
+  // when overwhelmed. Rendered at the top of the view; each button fast-
+  // paths into a specific mode.
+  underwayMantra: string;
+  onGoStuck: () => void;         // → Underway, jump to stuck phase
+  onGoStart: () => void;         // → Underway, jump to quickstart phase
+  onGoPredict: () => void;       // → Predictions
+  onGoSort: () => void;          // → Compass
+  onGoBreathe: () => void;       // → Grounding
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -134,6 +143,12 @@ export default function TodayView({
   stateLogRecentReasons,
   onAddStateLogEntry,
   onDeleteStateLogEntry,
+  underwayMantra,
+  onGoStuck,
+  onGoStart,
+  onGoPredict,
+  onGoSort,
+  onGoBreathe,
 }: TodayViewProps) {
   // Gmail-style "Logged · Undo" toast at the bottom; auto-dismisses after 5s.
   const [undoToast, setUndoToast] = useState<{ id: string; spiralId: string; label: string } | null>(null);
@@ -214,6 +229,14 @@ export default function TodayView({
       <div className="flex-1 overflow-y-auto bg-gray-50">
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
           <Header today={today} doneSubTasks={0} totalSubTasks={0} />
+          <ActivateNowStrip
+            mantra={underwayMantra}
+            onStuck={onGoStuck}
+            onStart={onGoStart}
+            onPredict={onGoPredict}
+            onSort={onGoSort}
+            onBreathe={onGoBreathe}
+          />
           <NorthStarsStrip
             stars={northStars}
             onOpenStar={onOpenStar}
@@ -280,6 +303,15 @@ export default function TodayView({
     <div className="flex-1 overflow-y-auto bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
         <Header today={today} doneSubTasks={doneSubTasks} totalSubTasks={totalSubTasks} />
+
+        <ActivateNowStrip
+          mantra={underwayMantra}
+          onStuck={onGoStuck}
+          onStart={onGoStart}
+          onPredict={onGoPredict}
+          onSort={onGoSort}
+          onBreathe={onGoBreathe}
+        />
 
         <NorthStarsStrip
           stars={northStars}
@@ -1611,6 +1643,128 @@ function IndicatorSettingsModal({
         </div>
       </div>
     </div>
+  );
+}
+
+// ---------- Activate now strip ----------
+//
+// The rescue menu. Overwhelm displaces the working memory that holds your
+// activation strategies, so the fix isn't remembering harder — it's making
+// the app the external memory. This surface renders every strategy the
+// app offers as a big, tap-and-go button, right at the top of Today.
+//
+// The mantra shown above the buttons is the same one the user edits from
+// the Stuck screen — pulled through so it's visible every time they
+// open the app, not just when they specifically go looking.
+
+const ACTIVATE_OPTIONS: {
+  key: 'stuck' | 'start' | 'predict' | 'sort' | 'breathe';
+  emoji: string;
+  label: string;
+  sub: string;
+  tone: string;  // classes for the tile
+}[] = [
+  {
+    key: 'stuck', emoji: '🌱', label: 'Stuck?',
+    sub: 'start ridiculously small · uses your BA reminder',
+    tone: 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-900',
+  },
+  {
+    key: 'start', emoji: '🚀', label: 'Start a session',
+    sub: 'Underway · 15 min · one thing',
+    tone: 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-900',
+  },
+  {
+    key: 'predict', emoji: '🔮', label: 'Make a prediction',
+    sub: 'small bet · prove yourself right · Lab',
+    tone: 'bg-violet-50 hover:bg-violet-100 border-violet-200 text-violet-900',
+  },
+  {
+    key: 'sort', emoji: '🧭', label: 'Sort what\'s on my mind',
+    sub: 'Circle of Control · Compass',
+    tone: 'bg-sky-50 hover:bg-sky-100 border-sky-200 text-sky-900',
+  },
+  {
+    key: 'breathe', emoji: '🌊', label: 'Breathe',
+    sub: '4-4-4-4 box breathing · Grounding',
+    tone: 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-900',
+  },
+];
+
+function ActivateNowStrip({
+  mantra,
+  onStuck,
+  onStart,
+  onPredict,
+  onSort,
+  onBreathe,
+}: {
+  mantra: string;
+  onStuck: () => void;
+  onStart: () => void;
+  onPredict: () => void;
+  onSort: () => void;
+  onBreathe: () => void;
+}) {
+  const handlers = { stuck: onStuck, start: onStart, predict: onPredict, sort: onSort, breathe: onBreathe };
+
+  // "Surprise me" — random pick from the five when the user can't decide.
+  // Direct anti-decision-paralysis affordance; the exact choice matters
+  // less than moving at all.
+  const surpriseMe = () => {
+    const pick = ACTIVATE_OPTIONS[Math.floor(Math.random() * ACTIVATE_OPTIONS.length)];
+    handlers[pick.key]();
+  };
+
+  return (
+    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 border-b border-gray-100 flex items-baseline justify-between">
+        <h3 className="text-[13px] font-semibold text-gray-800">Activate now</h3>
+        <button
+          onClick={surpriseMe}
+          className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800"
+          title="Random pick — when you can't choose"
+        >
+          🎲 surprise me
+        </button>
+      </header>
+
+      {/* Mantra — always visible, so the principle you forget shows up
+          every time you open the app. Tap to jump into Stuck (where it's
+          editable). */}
+      <button
+        onClick={onStuck}
+        className="w-full text-left px-4 py-3 border-b border-gray-100 bg-emerald-50/50 hover:bg-emerald-50 transition-colors"
+        title="Edit on the Stuck screen"
+      >
+        <div className="flex items-start gap-2">
+          <span className="text-sm leading-tight pt-0.5">🌱</span>
+          <p className="flex-1 text-[13px] leading-relaxed text-emerald-900 font-medium">
+            {mantra}
+          </p>
+        </div>
+      </button>
+
+      {/* Stacked action buttons — one strategy per row, large touch targets,
+          scan-in-one-glance labels. */}
+      <ul className="p-3 space-y-2">
+        {ACTIVATE_OPTIONS.map((opt) => (
+          <li key={opt.key}>
+            <button
+              onClick={handlers[opt.key]}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${opt.tone}`}
+            >
+              <span className="text-2xl leading-none">{opt.emoji}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold tracking-tight">{opt.label}</div>
+                <div className="text-[11px] opacity-80 mt-0.5">{opt.sub}</div>
+              </div>
+              <span className="text-gray-400 text-lg">→</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
