@@ -20,7 +20,7 @@ import type { BrainDumpTask, UnderwaySession, UnderwayOutcome, UnderwayJournalEn
 // Nautical fit: Sail is the act of moving. Calendar is charting; Grounding
 // is steadying the helm; Underway is actually sailing.
 
-type Phase = 'home' | 'quickstart' | 'pick' | 'preflight' | 'size' | 'underway' | 'wrap';
+type Phase = 'home' | 'quickstart' | 'stuck' | 'pick' | 'preflight' | 'size' | 'underway' | 'wrap';
 
 type PickedTask = {
   label: string;
@@ -161,8 +161,10 @@ interface UnderwayViewProps {
   allSessions: UnderwaySession[];       // full history for the Past Sessions section
   weekCount: number;
   recentTaskLabels: string[];
+  mantra: string;                       // user's editable BA reminder
   onAddSession: (input: Omit<UnderwaySession, 'id'>) => UnderwaySession;
   onDeleteSession: (id: string) => void;
+  onSetMantra: (m: string) => void;
 }
 
 export default function UnderwayView({
@@ -174,8 +176,10 @@ export default function UnderwayView({
   allSessions,
   weekCount,
   recentTaskLabels,
+  mantra,
   onAddSession,
   onDeleteSession,
+  onSetMantra,
 }: UnderwayViewProps) {
   const [phase, setPhase] = useState<Phase>('home');
   const [picked, setPicked] = useState<PickedTask | null>(null);
@@ -467,6 +471,7 @@ export default function UnderwayView({
         pastSessions={pastSessions}
         weekCount={weekCount}
         onStartNow={() => setPhase('quickstart')}
+        onOpenStuck={() => setPhase('stuck')}
         onOpenFullSetup={() => setPhase('pick')}
         onDeleteSession={onDeleteSession}
       />
@@ -477,6 +482,17 @@ export default function UnderwayView({
     return (
       <QuickstartPhase
         recentLabels={recentTaskLabels}
+        onBack={() => setPhase('home')}
+        onGo={(label, sizeMin) => startQuickstart(label, sizeMin)}
+      />
+    );
+  }
+
+  if (phase === 'stuck') {
+    return (
+      <StuckPhase
+        mantra={mantra}
+        onSetMantra={onSetMantra}
         onBack={() => setPhase('home')}
         onGo={(label, sizeMin) => startQuickstart(label, sizeMin)}
       />
@@ -589,6 +605,7 @@ function HomePhase({
   pastSessions,
   weekCount,
   onStartNow,
+  onOpenStuck,
   onOpenFullSetup,
   onDeleteSession,
 }: {
@@ -596,6 +613,7 @@ function HomePhase({
   pastSessions: UnderwaySession[];  // sessions from before today
   weekCount: number;
   onStartNow: () => void;
+  onOpenStuck: () => void;
   onOpenFullSetup: () => void;
   onDeleteSession: (id: string) => void;
 }) {
@@ -619,6 +637,19 @@ function HomePhase({
           <div className="text-[13px] font-medium text-indigo-100 mt-1">
             15 min · one thing · you can bail anytime
           </div>
+        </button>
+
+        {/* Stuck-mode entry point. Deliberately secondary to Start now, but
+            prominent enough to be findable when overwhelmed. Uses emerald
+            so it reads as help/growth rather than warning. The reminder
+            the app externalizes (BA principle) lives inside this flow. */}
+        <button
+          onClick={onOpenStuck}
+          className="w-full py-3.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-900 flex items-center justify-center gap-2 transition-colors"
+        >
+          <span className="text-lg leading-none">🌱</span>
+          <span className="font-semibold">Stuck?</span>
+          <span className="text-[12px] text-emerald-800">· start something small</span>
         </button>
 
         {/* Streak — visible progress fights the "was that even productive?" fog */}
@@ -968,6 +999,207 @@ function QuickstartPhase({
   );
 }
 
+// ---------- Stuck ----------
+//
+// Behavioral-activation front door. Opens when the user taps "Stuck?"
+// from Home. The screen is a two-part answer to the exact problem the
+// overwhelmed brain has:
+//   1. It shows a persistent, user-editable BA reminder ("mantra") at
+//      the top — the app remembering the principle so you don't have
+//      to hold it in working memory when you can't.
+//   2. It offers a low-friction path into a small session: preset
+//      chips for common tiny actions (mastery / pleasure / values
+//      buckets from BA research), a single input, and a size picker
+//      biased toward 2 min.
+//
+// Copy is deliberately warm and non-shaming. Overwhelm is not a moral
+// failure; noticing you're overwhelmed is the first BA action.
+
+const STUCK_PRESETS: { emoji: string; label: string; task: string }[] = [
+  { emoji: '⚡', label: 'Just start it',       task: 'just start what I was doing' },
+  { emoji: '🚶', label: 'Walk 2 min',          task: 'take a 2-minute walk' },
+  { emoji: '💧', label: 'Water + stretch',     task: 'drink water and stretch' },
+  { emoji: '📩', label: 'Text one person',     task: 'text one person I care about' },
+  { emoji: '🧹', label: 'One tiny task',       task: 'do one 2-minute task that\'s bugging me' },
+  { emoji: '📖', label: 'Read one page',       task: 'read one page of something I care about' },
+];
+
+function StuckPhase({
+  mantra,
+  onSetMantra,
+  onBack,
+  onGo,
+}: {
+  mantra: string;
+  onSetMantra: (m: string) => void;
+  onBack: () => void;
+  onGo: (label: string, sizeMin: 2 | 15 | 60) => void;
+}) {
+  const [label, setLabel] = useState('');
+  const [sizeMin, setSizeMin] = useState<2 | 15 | 60>(2);
+  const [editing, setEditing] = useState(false);
+  const [mantraDraft, setMantraDraft] = useState(mantra);
+
+  const canGo = label.trim().length > 0;
+  const go = () => {
+    if (!canGo) return;
+    onGo(label.trim(), sizeMin);
+  };
+  const saveMantra = () => {
+    onSetMantra(mantraDraft);
+    setEditing(false);
+  };
+  const revertMantra = () => {
+    setMantraDraft(mantra);
+    setEditing(false);
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="max-w-md mx-auto px-4 py-6 space-y-5">
+        <header className="text-center">
+          <button
+            onClick={onBack}
+            className="text-[11px] text-gray-500 hover:text-gray-800 mb-1"
+          >
+            ← Back
+          </button>
+          <h2 className="text-lg font-semibold text-gray-900">Stuck</h2>
+          <p className="text-xs text-gray-500 mt-1">
+            Noticing this is the first step. That already counts.
+          </p>
+        </header>
+
+        {/* Mantra card — external memory of the BA principle. Shown
+            large, editable, front-and-center. This is the piece the
+            user asked for: the app remembers the solution so they
+            don't have to. */}
+        <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-800">
+              Remember
+            </div>
+            {!editing ? (
+              <button
+                onClick={() => { setMantraDraft(mantra); setEditing(true); }}
+                className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
+              >
+                ✏️ edit
+              </button>
+            ) : (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={revertMantra}
+                  className="text-[11px] text-emerald-700 hover:text-emerald-900"
+                >
+                  cancel
+                </button>
+                <button
+                  onClick={saveMantra}
+                  className="text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-0.5 rounded"
+                >
+                  save
+                </button>
+              </div>
+            )}
+          </div>
+          {!editing ? (
+            <p className="text-[14px] leading-relaxed text-emerald-900 font-medium">
+              {mantra}
+            </p>
+          ) : (
+            <textarea
+              autoFocus
+              value={mantraDraft}
+              onChange={(e) => setMantraDraft(e.target.value)}
+              rows={3}
+              placeholder="Write yourself a line you want to hear when you're overwhelmed."
+              className="w-full px-3 py-2 text-sm border border-emerald-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 text-emerald-900"
+            />
+          )}
+        </section>
+
+        {/* Task input — freeform first, chips below for zero-typing. */}
+        <div>
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+            What's the smallest step?
+          </div>
+          <input
+            type="text"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && canGo) {
+                e.preventDefault();
+                go();
+              }
+            }}
+            placeholder="Any small thing counts"
+            className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
+          />
+        </div>
+
+        <div>
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+            Or pick one
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {STUCK_PRESETS.map((p) => (
+              <button
+                key={p.label}
+                onClick={() => setLabel(p.task)}
+                className={`flex items-center gap-1.5 px-3 py-2 text-[12px] rounded-xl border transition-colors ${
+                  label === p.task
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-semibold'
+                    : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-300 hover:bg-emerald-50/30'
+                }`}
+              >
+                <span className="text-sm leading-none">{p.emoji}</span>
+                <span className="text-left">{p.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+            How long?
+          </div>
+          <div className="grid grid-cols-3 gap-1.5">
+            {([2, 15, 60] as const).map((m) => {
+              const active = sizeMin === m;
+              return (
+                <button
+                  key={m}
+                  onClick={() => setSizeMin(m)}
+                  className={`py-3 rounded-xl text-sm font-semibold transition-colors ${
+                    active
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-white text-gray-700 border border-gray-200 hover:border-emerald-400'
+                  }`}
+                >
+                  {m} min
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-gray-400 mt-1.5">
+            2 minutes is the default when stuck. It's short enough that starting is free.
+          </p>
+        </div>
+
+        <button
+          onClick={go}
+          disabled={!canGo}
+          className="w-full py-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-2xl font-bold tracking-tight transition-colors"
+        >
+          Go
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ---------- Pick ----------
 
 function PickPhase({
@@ -1302,6 +1534,11 @@ function UnderwayPhase({
     setTimeout(() => setCopied(false), 1500);
   };
 
+  // Journal stream is collapsed by default — it stays a scratchpad you
+  // reach for, not a wall of text competing for attention. Input + mood
+  // chips remain visible so quick capture is still one tap.
+  const [showStream, setShowStream] = useState(false);
+
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50">
       <div className="max-w-md mx-auto px-4 py-5 space-y-4">
@@ -1480,34 +1717,58 @@ function UnderwayPhase({
           </div>
         </div>
 
-        {/* The stream — newest at top so recent thought is always in view.
-            Timestamps show clock time when we have a session start; fall
-            back to elapsed mm:ss. URLs in text render as clickable links. */}
-        {entries.length > 0 && (
-          <ul className="space-y-1 border-t border-gray-200 pt-2">
-            {entries.map((e) => (
-              <li key={e.id} className="group flex items-start gap-2 text-[12px] leading-relaxed">
-                <span className="text-gray-400 tabular-nums font-mono whitespace-nowrap pt-0.5">
-                  {sessionStartMs
-                    ? new Date(sessionStartMs + e.atMs).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-                    : formatMMSS(Math.floor(e.atMs / 1000))}
-                </span>
-                {e.emotion && (
-                  <span className="text-sm leading-none pt-0.5" aria-hidden>{e.emotion}</span>
-                )}
-                <span className="flex-1 min-w-0 text-gray-800 break-words">
-                  <LinkifiedText text={e.text} />
-                </span>
-                <button
-                  onClick={() => onRemoveEntry(e.id)}
-                  className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 text-sm leading-none transition-opacity"
-                  title="Remove"
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
+        {/* The stream — collapsed by default. Tapping the chip reveals
+            the full timestamped list; hidden state keeps the focus
+            screen quiet. Cleaner default; captures still land in real
+            time via the always-visible input. */}
+        {entries.length > 0 && !showStream && (
+          <button
+            onClick={() => setShowStream(true)}
+            className="w-full text-[11px] text-indigo-700 hover:text-indigo-900 bg-white border border-gray-200 rounded-xl px-3 py-2 flex items-center justify-center gap-1.5"
+          >
+            <span>📓</span>
+            <span className="font-semibold tabular-nums">{entries.length}</span>
+            <span>{entries.length === 1 ? 'entry' : 'entries'} · tap to show</span>
+          </button>
+        )}
+        {entries.length > 0 && showStream && (
+          <div className="border-t border-gray-200 pt-2">
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+                Stream
+              </div>
+              <button
+                onClick={() => setShowStream(false)}
+                className="text-[10px] text-gray-500 hover:text-gray-800"
+              >
+                hide
+              </button>
+            </div>
+            <ul className="space-y-1">
+              {entries.map((e) => (
+                <li key={e.id} className="group flex items-start gap-2 text-[12px] leading-relaxed">
+                  <span className="text-gray-400 tabular-nums font-mono whitespace-nowrap pt-0.5">
+                    {sessionStartMs
+                      ? new Date(sessionStartMs + e.atMs).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+                      : formatMMSS(Math.floor(e.atMs / 1000))}
+                  </span>
+                  {e.emotion && (
+                    <span className="text-sm leading-none pt-0.5" aria-hidden>{e.emotion}</span>
+                  )}
+                  <span className="flex-1 min-w-0 text-gray-800 break-words">
+                    <LinkifiedText text={e.text} />
+                  </span>
+                  <button
+                    onClick={() => onRemoveEntry(e.id)}
+                    className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 text-sm leading-none transition-opacity"
+                    title="Remove"
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {/* Action row — Done + Partial (both are ok) + Bail (always visible) */}

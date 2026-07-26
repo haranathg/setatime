@@ -483,6 +483,10 @@ export interface UnderwaySession {
 
 export interface UnderwayState {
   sessions: UnderwaySession[];
+  // A one-line behavioral-activation reminder the user writes for
+  // themselves. Shown at the top of the "Stuck?" surface so the app
+  // externalizes the principle they forget when overwhelmed.
+  mantra?: string;
 }
 
 // ---------- Compass (Circle of Control worksheet) ----------

@@ -19,8 +19,15 @@ function localDateKey(iso: string): string {
 // what the streak chip surfaces.
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
+// The default behavioral-activation reminder shown on the Stuck screen
+// until the user writes their own. Deliberately compact — the mantra
+// has to be readable in one glance when overwhelmed.
+const DEFAULT_MANTRA =
+  'Action precedes motivation. When stuck, start ridiculously small — 2 minutes counts.';
+
 export function useUnderway() {
   const [sessions, setSessions] = useState<UnderwaySession[]>([]);
+  const [mantra, setMantraState] = useState<string>(DEFAULT_MANTRA);
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -28,6 +35,7 @@ export function useUnderway() {
     const init = async () => {
       const local = loadState();
       setSessions(local.underway?.sessions || []);
+      if (local.underway?.mantra) setMantraState(local.underway.mantra);
       setLoaded(true);
 
       const key = getSecretKey();
@@ -42,6 +50,9 @@ export function useUnderway() {
             }
             setSessions(Array.from(merged.values()));
           }
+          // Cloud mantra wins over local if present — mantra is a single
+          // value, no merge needed; simpler is fine.
+          if (cloud.underway?.mantra) setMantraState(cloud.underway.mantra);
         } catch {
           // sync errors handled elsewhere
         }
@@ -53,7 +64,7 @@ export function useUnderway() {
   useEffect(() => {
     if (!loaded) return;
     const state = loadState();
-    const updated = { ...state, underway: { sessions } };
+    const updated = { ...state, underway: { sessions, mantra } };
     saveState(updated);
 
     const key = getSecretKey();
@@ -67,7 +78,14 @@ export function useUnderway() {
         }
       }, 1500);
     }
-  }, [sessions, loaded]);
+  }, [sessions, mantra, loaded]);
+
+  // Setter for the user's BA mantra. Passing an empty string reverts to
+  // the default so the surface never shows a blank card.
+  const setMantra = useCallback((m: string) => {
+    const trimmed = m.trim();
+    setMantraState(trimmed || DEFAULT_MANTRA);
+  }, []);
 
   const addSession = useCallback(
     (input: Omit<UnderwaySession, 'id'>): UnderwaySession => {
@@ -117,8 +135,10 @@ export function useUnderway() {
     todaysSessions,
     weekCount,
     recentTaskLabels,
+    mantra,
     loaded,
     addSession,
     deleteSession,
+    setMantra,
   };
 }
