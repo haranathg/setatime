@@ -247,6 +247,11 @@ function AppMain({
   // When TodayView surfaces an overdue reflection, set this to jump Lab
   // straight into the reflection wizard for that entry.
   const [reflectPredictionId, setReflectPredictionId] = useState<string | null>(null);
+
+  // Fast-path from Today's Activate menu into a specific Underway phase.
+  // Set to 'stuck' or 'quickstart' just before switching to the underway
+  // view; UnderwayView consumes it on mount and clears via callback.
+  const [underwayInitialPhase, setUnderwayInitialPhase] = useState<'quickstart' | 'stuck' | null>(null);
   const {
     habits,
     createHabit,
@@ -456,6 +461,12 @@ function AppMain({
             scheduleThis({ taskName: task.label });
           }}
           onDropDumpTask={(id) => deleteTask(id)}
+          underwayMantra={underwayMantra}
+          onGoStuck={() => { setUnderwayInitialPhase('stuck'); setActiveView('underway'); }}
+          onGoStart={() => { setUnderwayInitialPhase('quickstart'); setActiveView('underway'); }}
+          onGoPredict={() => setActiveView('predictions')}
+          onGoSort={() => setActiveView('compass')}
+          onGoBreathe={() => setActiveView('grounding')}
         />
       ) : activeView === 'predictions' ? (
         <PredictionLabView
@@ -504,6 +515,8 @@ function AppMain({
           recentTaskLabels={underwayRecentLabels}
           mantra={underwayMantra}
           pinnedResources={underwayPinnedResources}
+          initialPhase={underwayInitialPhase}
+          onConsumedInitialPhase={() => setUnderwayInitialPhase(null)}
           onAddSession={addUnderwaySession}
           onDeleteSession={deleteUnderwaySession}
           onSetMantra={setUnderwayMantra}

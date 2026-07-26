@@ -163,6 +163,11 @@ interface UnderwayViewProps {
   recentTaskLabels: string[];
   mantra: string;                       // user's editable BA reminder
   pinnedResources: UnderwayPinnedResource[];  // curated Stuck-screen resources
+  // When set, the view opens directly into this phase on next mount
+  // (used by Today's Activate menu to fast-path into Stuck / Quickstart).
+  // Consumed via onConsumedInitialPhase to prevent re-firing.
+  initialPhase?: 'quickstart' | 'stuck' | null;
+  onConsumedInitialPhase?: () => void;
   onAddSession: (input: Omit<UnderwaySession, 'id'>) => UnderwaySession;
   onDeleteSession: (id: string) => void;
   onSetMantra: (m: string) => void;
@@ -181,6 +186,8 @@ export default function UnderwayView({
   recentTaskLabels,
   mantra,
   pinnedResources,
+  initialPhase,
+  onConsumedInitialPhase,
   onAddSession,
   onDeleteSession,
   onSetMantra,
@@ -188,6 +195,19 @@ export default function UnderwayView({
   onDeletePinnedResource,
 }: UnderwayViewProps) {
   const [phase, setPhase] = useState<Phase>('home');
+
+  // Handle the Today → Underway fast-path. If an initialPhase is pending
+  // and we're currently at home (fresh open, no in-flight session), jump
+  // to it and clear the flag on the parent. Never disrupt a live session.
+  useEffect(() => {
+    if (!initialPhase) return;
+    if (phase !== 'home') return;
+    setPhase(initialPhase);
+    onConsumedInitialPhase?.();
+    // We only want this to fire when initialPhase changes — phase change
+    // shouldn't retrigger it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPhase]);
   const [picked, setPicked] = useState<PickedTask | null>(null);
   const [preflight, setPreflight] = useState<PreflightState>({
     caffeine: false, fed: false, slept: false, grounded: false,
