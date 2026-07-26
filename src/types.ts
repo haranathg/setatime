@@ -481,12 +481,25 @@ export interface UnderwaySession {
   entries?: UnderwayJournalEntry[];   // interstitial journal stream
 }
 
+// A resource the user has pinned to the Stuck surface — a pep-talk
+// YouTube video, a favorite article PDF, a doc of North Stars, etc.
+// Curated ahead of time so the overwhelmed user doesn't have to hunt.
+export interface UnderwayPinnedResource {
+  id: string;
+  label: string;   // display name
+  url: string;     // http(s) URL (opens in a new tab)
+  emoji?: string;  // auto-detected from URL when created
+}
+
 export interface UnderwayState {
   sessions: UnderwaySession[];
   // A one-line behavioral-activation reminder the user writes for
   // themselves. Shown at the top of the "Stuck?" surface so the app
   // externalizes the principle they forget when overwhelmed.
   mantra?: string;
+  // Curated resources shown on the Stuck surface. Small in count on
+  // purpose — the point is quick access, not a bookmarks manager.
+  pinnedResources?: UnderwayPinnedResource[];
 }
 
 // ---------- Compass (Circle of Control worksheet) ----------

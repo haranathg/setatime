@@ -187,9 +187,12 @@ function AppMain({
     weekCount: underwayWeekCount,
     recentTaskLabels: underwayRecentLabels,
     mantra: underwayMantra,
+    pinnedResources: underwayPinnedResources,
     addSession: addUnderwaySession,
     deleteSession: deleteUnderwaySession,
     setMantra: setUnderwayMantra,
+    addPinnedResource: addUnderwayPinnedResource,
+    deletePinnedResource: deleteUnderwayPinnedResource,
   } = useUnderway();
 
   const {
@@ -500,9 +503,12 @@ function AppMain({
           weekCount={underwayWeekCount}
           recentTaskLabels={underwayRecentLabels}
           mantra={underwayMantra}
+          pinnedResources={underwayPinnedResources}
           onAddSession={addUnderwaySession}
           onDeleteSession={deleteUnderwaySession}
           onSetMantra={setUnderwayMantra}
+          onAddPinnedResource={addUnderwayPinnedResource}
+          onDeletePinnedResource={deleteUnderwayPinnedResource}
         />
       ) : activeView === 'compass' ? (
         <CompassView
