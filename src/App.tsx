@@ -186,8 +186,10 @@ function AppMain({
     todaysSessions: underwayTodaysSessions,
     weekCount: underwayWeekCount,
     recentTaskLabels: underwayRecentLabels,
+    mantra: underwayMantra,
     addSession: addUnderwaySession,
     deleteSession: deleteUnderwaySession,
+    setMantra: setUnderwayMantra,
   } = useUnderway();
 
   const {
@@ -497,8 +499,10 @@ function AppMain({
           allSessions={underwayAllSessions}
           weekCount={underwayWeekCount}
           recentTaskLabels={underwayRecentLabels}
+          mantra={underwayMantra}
           onAddSession={addUnderwaySession}
           onDeleteSession={deleteUnderwaySession}
+          onSetMantra={setUnderwayMantra}
         />
       ) : activeView === 'compass' ? (
         <CompassView
