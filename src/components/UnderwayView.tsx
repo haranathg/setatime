@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { BrainDumpTask, UnderwaySession, UnderwayOutcome, UnderwayJournalEntry } from '../types';
+import type { BrainDumpTask, UnderwaySession, UnderwayOutcome, UnderwayJournalEntry, UnderwayPinnedResource } from '../types';
 
 // Underway — synthetic body-doubling.
 //
@@ -162,9 +162,12 @@ interface UnderwayViewProps {
   weekCount: number;
   recentTaskLabels: string[];
   mantra: string;                       // user's editable BA reminder
+  pinnedResources: UnderwayPinnedResource[];  // curated Stuck-screen resources
   onAddSession: (input: Omit<UnderwaySession, 'id'>) => UnderwaySession;
   onDeleteSession: (id: string) => void;
   onSetMantra: (m: string) => void;
+  onAddPinnedResource: (input: { label: string; url: string; emoji?: string }) => UnderwayPinnedResource | null;
+  onDeletePinnedResource: (id: string) => void;
 }
 
 export default function UnderwayView({
@@ -177,9 +180,12 @@ export default function UnderwayView({
   weekCount,
   recentTaskLabels,
   mantra,
+  pinnedResources,
   onAddSession,
   onDeleteSession,
   onSetMantra,
+  onAddPinnedResource,
+  onDeletePinnedResource,
 }: UnderwayViewProps) {
   const [phase, setPhase] = useState<Phase>('home');
   const [picked, setPicked] = useState<PickedTask | null>(null);
@@ -493,6 +499,9 @@ export default function UnderwayView({
       <StuckPhase
         mantra={mantra}
         onSetMantra={onSetMantra}
+        pinnedResources={pinnedResources}
+        onAddPinnedResource={onAddPinnedResource}
+        onDeletePinnedResource={onDeletePinnedResource}
         onBack={() => setPhase('home')}
         onGo={(label, sizeMin) => startQuickstart(label, sizeMin)}
       />
@@ -1027,11 +1036,17 @@ const STUCK_PRESETS: { emoji: string; label: string; task: string }[] = [
 function StuckPhase({
   mantra,
   onSetMantra,
+  pinnedResources,
+  onAddPinnedResource,
+  onDeletePinnedResource,
   onBack,
   onGo,
 }: {
   mantra: string;
   onSetMantra: (m: string) => void;
+  pinnedResources: UnderwayPinnedResource[];
+  onAddPinnedResource: (input: { label: string; url: string; emoji?: string }) => UnderwayPinnedResource | null;
+  onDeletePinnedResource: (id: string) => void;
   onBack: () => void;
   onGo: (label: string, sizeMin: 2 | 15 | 60) => void;
 }) {
@@ -1039,6 +1054,24 @@ function StuckPhase({
   const [sizeMin, setSizeMin] = useState<2 | 15 | 60>(2);
   const [editing, setEditing] = useState(false);
   const [mantraDraft, setMantraDraft] = useState(mantra);
+  // Pinned-resources UI state — inline add form, edit mode toggles the
+  // per-chip × so accidental removals stay unlikely.
+  const [addingResource, setAddingResource] = useState(false);
+  const [pinsEditMode, setPinsEditMode] = useState(false);
+  const [pinLabel, setPinLabel] = useState('');
+  const [pinUrl, setPinUrl] = useState('');
+  const savePin = () => {
+    if (!pinLabel.trim() || !pinUrl.trim()) return;
+    onAddPinnedResource({ label: pinLabel.trim(), url: pinUrl.trim() });
+    setPinLabel('');
+    setPinUrl('');
+    setAddingResource(false);
+  };
+  const cancelPin = () => {
+    setPinLabel('');
+    setPinUrl('');
+    setAddingResource(false);
+  };
 
   const canGo = label.trim().length > 0;
   const go = () => {
@@ -1116,6 +1149,111 @@ function StuckPhase({
               placeholder="Write yourself a line you want to hear when you're overwhelmed."
               className="w-full px-3 py-2 text-sm border border-emerald-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 text-emerald-900"
             />
+          )}
+        </section>
+
+        {/* Pinned resources — a curated kit of go-to links the user set up
+            for their overwhelmed self. Pep-talk YouTube, favorite article
+            PDF, a document of North Stars, whatever helps them re-enter.
+            Auto-detected icons keep the Add form to two fields. */}
+        <section>
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+              Pinned resources
+            </div>
+            {pinnedResources.length > 0 && (
+              <button
+                onClick={() => setPinsEditMode((v) => !v)}
+                className="text-[10px] font-semibold text-gray-500 hover:text-gray-800"
+              >
+                {pinsEditMode ? 'done' : 'edit'}
+              </button>
+            )}
+          </div>
+
+          {pinnedResources.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {pinnedResources.map((r) => (
+                <span key={r.id} className="relative inline-flex">
+                  <a
+                    href={r.url}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold text-gray-800 bg-white border border-gray-200 rounded-xl hover:border-emerald-300 hover:bg-emerald-50/40 max-w-full"
+                    title={r.url}
+                  >
+                    <span className="text-sm leading-none">{r.emoji || '🔗'}</span>
+                    <span className="truncate max-w-[10rem]">{r.label}</span>
+                  </a>
+                  {pinsEditMode && (
+                    <button
+                      onClick={() => onDeletePinnedResource(r.id)}
+                      className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] leading-none flex items-center justify-center hover:bg-red-600"
+                      title="Remove"
+                      aria-label={`Remove ${r.label}`}
+                    >
+                      ×
+                    </button>
+                  )}
+                </span>
+              ))}
+              {!addingResource && !pinsEditMode && (
+                <button
+                  onClick={() => setAddingResource(true)}
+                  className="px-3 py-2 text-[12px] font-semibold text-gray-500 bg-white border border-dashed border-gray-300 rounded-xl hover:border-emerald-400 hover:text-emerald-700"
+                >
+                  + add
+                </button>
+              )}
+            </div>
+          )}
+
+          {pinnedResources.length === 0 && !addingResource && (
+            <button
+              onClick={() => setAddingResource(true)}
+              className="w-full py-3 text-[12px] text-gray-500 bg-white border border-dashed border-gray-300 rounded-xl hover:border-emerald-400 hover:text-emerald-700"
+            >
+              + Pin a resource — pep talk, PDF, doc, anything you'll want when overwhelmed
+            </button>
+          )}
+
+          {addingResource && (
+            <div className="space-y-2 bg-white border border-gray-200 rounded-xl p-3">
+              <input
+                autoFocus
+                type="text"
+                value={pinLabel}
+                onChange={(e) => setPinLabel(e.target.value)}
+                placeholder='Label (e.g. "5-min pep talk")'
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              />
+              <input
+                type="url"
+                value={pinUrl}
+                onChange={(e) => setPinUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); savePin(); } }}
+                placeholder="https://…"
+                className="w-full px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
+              />
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={cancelPin}
+                  className="px-2 py-1 text-[11px] text-gray-500 hover:text-gray-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={savePin}
+                  disabled={!pinLabel.trim() || !pinUrl.trim()}
+                  className="px-3 py-1.5 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-40"
+                >
+                  Save
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-400">
+                Icon is chosen automatically: 🎥 YouTube · 📄 PDF · 🎵 music · 📝 Google Doc · 📓 Notion · 🔗 other.
+              </p>
+            </div>
           )}
         </section>
 
