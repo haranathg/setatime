@@ -81,9 +81,14 @@ interface TodayViewProps {
   underwayMantra: string;
   onGoStuck: () => void;         // → Underway, jump to stuck phase
   onGoStart: () => void;         // → Underway, jump to quickstart phase
+  onGoKnockOne: () => void;      // → Underway, auto-picks a small dump task
+  onGoTriage: () => void;        // → Triage session (batch cards)
   onGoPredict: () => void;       // → Predictions
   onGoSort: () => void;          // → Compass
   onGoBreathe: () => void;       // → Grounding
+  // Count of active (non-someday) dump tasks — surfaced as a badge on
+  // the Triage button so the size of the pile is visible.
+  activeDumpCount: number;
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -146,9 +151,12 @@ export default function TodayView({
   underwayMantra,
   onGoStuck,
   onGoStart,
+  onGoKnockOne,
+  onGoTriage,
   onGoPredict,
   onGoSort,
   onGoBreathe,
+  activeDumpCount,
 }: TodayViewProps) {
   // Gmail-style "Logged · Undo" toast at the bottom; auto-dismisses after 5s.
   const [undoToast, setUndoToast] = useState<{ id: string; spiralId: string; label: string } | null>(null);
@@ -233,9 +241,12 @@ export default function TodayView({
             mantra={underwayMantra}
             onStuck={onGoStuck}
             onStart={onGoStart}
+            onKnockOne={onGoKnockOne}
+            onTriage={onGoTriage}
             onPredict={onGoPredict}
             onSort={onGoSort}
             onBreathe={onGoBreathe}
+            activeDumpCount={activeDumpCount}
           />
           <NorthStarsStrip
             stars={northStars}
@@ -308,9 +319,12 @@ export default function TodayView({
           mantra={underwayMantra}
           onStuck={onGoStuck}
           onStart={onGoStart}
+          onKnockOne={onGoKnockOne}
+          onTriage={onGoTriage}
           onPredict={onGoPredict}
           onSort={onGoSort}
           onBreathe={onGoBreathe}
+          activeDumpCount={activeDumpCount}
         />
 
         <NorthStarsStrip
@@ -1657,8 +1671,10 @@ function IndicatorSettingsModal({
 // the Stuck screen — pulled through so it's visible every time they
 // open the app, not just when they specifically go looking.
 
+type ActivateKey = 'stuck' | 'start' | 'knockOne' | 'triage' | 'predict' | 'sort' | 'breathe';
+
 const ACTIVATE_OPTIONS: {
-  key: 'stuck' | 'start' | 'predict' | 'sort' | 'breathe';
+  key: ActivateKey;
   emoji: string;
   label: string;
   sub: string;
@@ -1673,6 +1689,16 @@ const ACTIVATE_OPTIONS: {
     key: 'start', emoji: '🚀', label: 'Start a session',
     sub: 'Underway · 15 min · one thing',
     tone: 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-900',
+  },
+  {
+    key: 'knockOne', emoji: '🎯', label: 'Knock one out',
+    sub: '2 min · picks a small one from your hold',
+    tone: 'bg-teal-50 hover:bg-teal-100 border-teal-200 text-teal-900',
+  },
+  {
+    key: 'triage', emoji: '🎴', label: 'Triage the dump',
+    sub: 'one card at a time · Do now / Pin / Someday / Drop',
+    tone: 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-900',
   },
   {
     key: 'predict', emoji: '🔮', label: 'Make a prediction',
@@ -1695,18 +1721,27 @@ function ActivateNowStrip({
   mantra,
   onStuck,
   onStart,
+  onKnockOne,
+  onTriage,
   onPredict,
   onSort,
   onBreathe,
+  activeDumpCount,
 }: {
   mantra: string;
   onStuck: () => void;
   onStart: () => void;
+  onKnockOne: () => void;
+  onTriage: () => void;
   onPredict: () => void;
   onSort: () => void;
   onBreathe: () => void;
+  activeDumpCount: number;
 }) {
-  const handlers = { stuck: onStuck, start: onStart, predict: onPredict, sort: onSort, breathe: onBreathe };
+  const handlers: Record<ActivateKey, () => void> = {
+    stuck: onStuck, start: onStart, knockOne: onKnockOne, triage: onTriage,
+    predict: onPredict, sort: onSort, breathe: onBreathe,
+  };
 
   // "Surprise me" — random pick from the five when the user can't decide.
   // Direct anti-decision-paralysis affordance; the exact choice matters
@@ -1748,21 +1783,36 @@ function ActivateNowStrip({
       {/* Stacked action buttons — one strategy per row, large touch targets,
           scan-in-one-glance labels. */}
       <ul className="p-3 space-y-2">
-        {ACTIVATE_OPTIONS.map((opt) => (
-          <li key={opt.key}>
-            <button
-              onClick={handlers[opt.key]}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${opt.tone}`}
-            >
-              <span className="text-2xl leading-none">{opt.emoji}</span>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold tracking-tight">{opt.label}</div>
-                <div className="text-[11px] opacity-80 mt-0.5">{opt.sub}</div>
-              </div>
-              <span className="text-gray-400 text-lg">→</span>
-            </button>
-          </li>
-        ))}
+        {ACTIVATE_OPTIONS.map((opt) => {
+          // Show a count badge on the Triage tile so the size of the pile
+          // is visible. Same for Knock one out — if the dump is empty,
+          // the button still works (falls back to freeform) but the
+          // badge tells you there's nothing aged to auto-pick.
+          const showDumpBadge = opt.key === 'triage' || opt.key === 'knockOne';
+          return (
+            <li key={opt.key}>
+              <button
+                onClick={handlers[opt.key]}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${opt.tone}`}
+              >
+                <span className="text-2xl leading-none">{opt.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold tracking-tight">{opt.label}</div>
+                  <div className="text-[11px] opacity-80 mt-0.5">{opt.sub}</div>
+                </div>
+                {showDumpBadge && activeDumpCount > 0 && (
+                  <span
+                    className="text-[10px] font-semibold text-gray-700 bg-white/70 border border-gray-200 rounded-full px-1.5 py-0.5 tabular-nums"
+                    title={`${activeDumpCount} in your hold`}
+                  >
+                    {activeDumpCount}
+                  </span>
+                )}
+                <span className="text-gray-400 text-lg">→</span>
+              </button>
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

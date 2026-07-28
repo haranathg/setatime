@@ -168,6 +168,11 @@ interface UnderwayViewProps {
   // Consumed via onConsumedInitialPhase to prevent re-firing.
   initialPhase?: 'quickstart' | 'stuck' | null;
   onConsumedInitialPhase?: () => void;
+  // When set, the view opens directly into a live Underway focus session
+  // with this task + size. Used by Knock one out (Today) and the Triage
+  // session's "Do now" action. Consumed on mount like initialPhase.
+  initialSession?: { label: string; sizeMin: 2 | 15 | 60; dumpId?: string } | null;
+  onConsumedInitialSession?: () => void;
   onAddSession: (input: Omit<UnderwaySession, 'id'>) => UnderwaySession;
   onDeleteSession: (id: string) => void;
   onSetMantra: (m: string) => void;
@@ -188,6 +193,8 @@ export default function UnderwayView({
   pinnedResources,
   initialPhase,
   onConsumedInitialPhase,
+  initialSession,
+  onConsumedInitialSession,
   onAddSession,
   onDeleteSession,
   onSetMantra,
@@ -442,8 +449,11 @@ export default function UnderwayView({
 
   // Quickstart path — from Home, one task input + pace + go, then straight
   // to Underway. No Pre-flight, no Size picker screen, no ceremony.
-  const startQuickstart = (label: string, sizeMin: 2 | 15 | 60) => {
-    setPicked({ label, source: 'freeform' });
+  const startQuickstart = (label: string, sizeMin: 2 | 15 | 60, dumpId?: string) => {
+    setPicked(dumpId
+      ? { label, source: 'dump', dumpId }
+      : { label, source: 'freeform' }
+    );
     setSize(sizeMin);
     setSessionStartMs(Date.now());
     setElapsedMs(0);
@@ -453,6 +463,18 @@ export default function UnderwayView({
     setExtending(false);
     setPhase('underway');
   };
+
+  // Consume initialSession from Knock one out / Triage → Do now. Only
+  // triggers from 'home' — never disrupts a live session. Calls the same
+  // startQuickstart path so the source (dump vs freeform) is preserved
+  // and Wrap-Done can still auto-drop the dump entry.
+  useEffect(() => {
+    if (!initialSession) return;
+    if (phase !== 'home') return;
+    startQuickstart(initialSession.label, initialSession.sizeMin, initialSession.dumpId);
+    onConsumedInitialSession?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSession]);
 
   const endFromPrompt = () => {
     setEndPromptOpen(false);
