@@ -11,6 +11,7 @@ import BooksView from './components/BooksView';
 import GroundingView from './components/GroundingView';
 import UnderwayView from './components/UnderwayView';
 import CompassView from './components/CompassView';
+import TriageView from './components/TriageView';
 import HorizonView from './components/HorizonView';
 import LogView from './components/LogView';
 import NorthStarsView from './components/NorthStarsView';
@@ -85,7 +86,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass'>('today');
+  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage'>('today');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -102,8 +103,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass';
-  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass') => void;
+  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage';
+  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -132,6 +133,7 @@ function AppMain({
     removeScheduledTask,
     startScheduling,
     cancelScheduling,
+    setTaskTriage,
     deleteTask,
   } = useBrainDump();
 
@@ -220,11 +222,16 @@ function AppMain({
     setActiveView('calendar');
   }, [setActiveView]);
 
+  // "Active" dump tasks — anything not shelved as 'someday' via batch
+  // triage. The main dump surfaces and the aged filter both operate on
+  // this set; 'someday' items stay stored but out of sight.
+  const activeDumpTasks = unscheduledTasks.filter((t) => t.triage !== 'someday');
+
   // A dump task counts as "aged" once it's been sitting for AGED_DAYS or more.
   // Surfaces on TodayView with schedule/drop shortcuts so long-lived intent
   // doesn't quietly rot in the dump.
   const AGED_DAYS = 5;
-  const agedDumpTasks = unscheduledTasks.filter((t) => {
+  const agedDumpTasks = activeDumpTasks.filter((t) => {
     const ageMs = Date.now() - new Date(t.extractedAt).getTime();
     return ageMs >= AGED_DAYS * 24 * 60 * 60 * 1000;
   });
@@ -252,6 +259,14 @@ function AppMain({
   // Set to 'stuck' or 'quickstart' just before switching to the underway
   // view; UnderwayView consumes it on mount and clears via callback.
   const [underwayInitialPhase, setUnderwayInitialPhase] = useState<'quickstart' | 'stuck' | null>(null);
+
+  // Fast-path to launch Underway with a specific task pre-picked. Used
+  // by "Knock one out" (auto-picks smallest aged dump task) and the
+  // Triage session's "Do now" action. Bypasses Pick/Preflight/Size —
+  // straight into the focus screen.
+  const [underwayInitialSession, setUnderwayInitialSession] = useState<
+    { label: string; sizeMin: 2 | 15 | 60; dumpId?: string } | null
+  >(null);
   const {
     habits,
     createHabit,
@@ -286,7 +301,7 @@ function AppMain({
     (t) => t.status === 'inbox' || (t.status === 'future' && !!t.futureSurfaceDate && t.futureSurfaceDate <= todayKey)
   ).length;
 
-  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass') => {
+  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -464,9 +479,27 @@ function AppMain({
           underwayMantra={underwayMantra}
           onGoStuck={() => { setUnderwayInitialPhase('stuck'); setActiveView('underway'); }}
           onGoStart={() => { setUnderwayInitialPhase('quickstart'); setActiveView('underway'); }}
+          onGoKnockOne={() => {
+            // Pick the shortest aged task; fall back to any aged task,
+            // then to any active task. If the dump is empty entirely,
+            // drop into Quickstart so the user can freeform a task.
+            const byLen = (a: { label: string }, b: { label: string }) => a.label.length - b.label.length;
+            const candidates = agedDumpTasks.length > 0
+              ? [...agedDumpTasks].sort(byLen)
+              : [...activeDumpTasks].sort(byLen);
+            const pick = candidates[0];
+            if (pick) {
+              setUnderwayInitialSession({ label: pick.label, sizeMin: 2, dumpId: pick.id });
+            } else {
+              setUnderwayInitialPhase('quickstart');
+            }
+            setActiveView('underway');
+          }}
+          onGoTriage={() => setActiveView('triage')}
           onGoPredict={() => setActiveView('predictions')}
           onGoSort={() => setActiveView('compass')}
           onGoBreathe={() => setActiveView('grounding')}
+          activeDumpCount={activeDumpTasks.length}
         />
       ) : activeView === 'predictions' ? (
         <PredictionLabView
@@ -506,7 +539,7 @@ function AppMain({
       ) : activeView === 'underway' ? (
         <UnderwayView
           agedDumpTasks={agedDumpTasks}
-          unscheduledTasks={unscheduledTasks}
+          unscheduledTasks={activeDumpTasks}
           onDeleteDumpTask={deleteTask}
           onNavigateToGrounding={() => setActiveView('grounding')}
           todaysSessions={underwayTodaysSessions}
@@ -517,6 +550,8 @@ function AppMain({
           pinnedResources={underwayPinnedResources}
           initialPhase={underwayInitialPhase}
           onConsumedInitialPhase={() => setUnderwayInitialPhase(null)}
+          initialSession={underwayInitialSession}
+          onConsumedInitialSession={() => setUnderwayInitialSession(null)}
           onAddSession={addUnderwaySession}
           onDeleteSession={deleteUnderwaySession}
           onSetMantra={setUnderwayMantra}
@@ -529,6 +564,25 @@ function AppMain({
           weekCount={compassWeekCount}
           onSaveEntry={addCompassEntry}
           onSendToHold={addManualTask}
+        />
+      ) : activeView === 'triage' ? (
+        <TriageView
+          tasks={activeDumpTasks}
+          onDoNow={(task) => {
+            // "Do now" from Triage — send straight into Underway focus
+            // screen. Session-done will remove the dump task via the
+            // existing dumpId path in UnderwayView.finishAndReset.
+            setUnderwayInitialSession({ label: task.label, sizeMin: 2, dumpId: task.id });
+            setActiveView('underway');
+          }}
+          onPinToday={(task) => {
+            addPin(task.label);
+            // Pinning promotes to Today's pins strip; we leave the dump
+            // task in place — pin is a surface signal, not a move.
+          }}
+          onSetSomeday={(id) => setTaskTriage(id, 'someday')}
+          onDelete={deleteTask}
+          onDone={() => setActiveView('today')}
         />
       ) : activeView === 'horizon' ? (
         <HorizonView

@@ -116,6 +116,15 @@ export function useBrainDump() {
     );
   }, []);
 
+  // Set (or clear) the triage state of a dump task. Passing null clears
+  // it and returns the task to the active list — a "keep" from a
+  // triage session, essentially.
+  const setTaskTriage = useCallback((taskId: string, triage: 'someday' | null) => {
+    setUnscheduledTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, triage: triage ?? undefined } : t))
+    );
+  }, []);
+
   const deleteTask = useCallback((taskId: string) => {
     setUnscheduledTasks((prev) => prev.filter((t) => t.id !== taskId));
     setSchedulingTask((prev) => (prev?.id === taskId ? null : prev));
@@ -131,6 +140,7 @@ export function useBrainDump() {
     startScheduling,
     cancelScheduling,
     updateTask,
+    setTaskTriage,
     deleteTask,
   };
 }

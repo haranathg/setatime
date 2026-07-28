@@ -15,14 +15,15 @@ export type ActiveView =
   | 'horizon'
   | 'grounding'
   | 'underway'
-  | 'compass';
+  | 'compass'
+  | 'triage';
 
 export type Hub = 'today' | 'log' | 'charts' | 'sail';
 
 // Which hub does an existing view belong to? Drives the outer tab highlight
 // and the sub-tab strip visibility.
 export function hubForView(view: ActiveView): Hub {
-  if (view === 'today') return 'today';
+  if (view === 'today' || view === 'triage') return 'today'; // Triage is an activation move launched from Today
   if (view === 'inbox' || view === 'braindump') return 'log'; // Hold merged into Log
   if (view === 'chart' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats' || view === 'horizon') {
     return 'charts';

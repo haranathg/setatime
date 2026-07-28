@@ -42,6 +42,10 @@ export interface BrainDumpTask {
   extractedAt: string; // ISO timestamp
   priority?: EisenhowerPriority;
   tags?: string[]; // freeform value tags (family, work, health, etc.)
+  // Set by the batch Triage session — 'someday' items are hidden from
+  // the default dump surfaces so the active list stays short. undefined
+  // means active (default behavior; no data migration needed).
+  triage?: 'someday';
 }
 
 export interface BrainDumpState {
