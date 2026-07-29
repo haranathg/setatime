@@ -24,8 +24,9 @@ type Phase = 'home' | 'quickstart' | 'stuck' | 'pick' | 'preflight' | 'size' | '
 
 type PickedTask = {
   label: string;
-  source: 'dump' | 'freeform';
+  source: 'dump' | 'freeform' | 'plan';
   dumpId?: string; // only present when source === 'dump'
+  planId?: string; // only present when source === 'plan' (Today's 1/3/5)
 };
 
 type SizeMinutes = 2 | 15 | 60;
@@ -171,8 +172,11 @@ interface UnderwayViewProps {
   // When set, the view opens directly into a live Underway focus session
   // with this task + size. Used by Knock one out (Today) and the Triage
   // session's "Do now" action. Consumed on mount like initialPhase.
-  initialSession?: { label: string; sizeMin: 2 | 15 | 60; dumpId?: string } | null;
+  initialSession?: { label: string; sizeMin: 2 | 15 | 60; dumpId?: string; planId?: string } | null;
   onConsumedInitialSession?: () => void;
+  // Called on Wrap-Done when the session was launched from a Today's-plan
+  // task — auto-checks the plan slot so the user doesn't have to.
+  onSessionCompletedFromPlan?: (planId: string) => void;
   onAddSession: (input: Omit<UnderwaySession, 'id'>) => UnderwaySession;
   onDeleteSession: (id: string) => void;
   onSetMantra: (m: string) => void;
@@ -195,6 +199,7 @@ export default function UnderwayView({
   onConsumedInitialPhase,
   initialSession,
   onConsumedInitialSession,
+  onSessionCompletedFromPlan,
   onAddSession,
   onDeleteSession,
   onSetMantra,
@@ -444,16 +449,24 @@ export default function UnderwayView({
     if (outcome === 'done' && picked?.source === 'dump' && picked.dumpId) {
       onDeleteDumpTask(picked.dumpId);
     }
+    // If the picked task came from Today's plan and was fully done,
+    // auto-check the plan slot so the user doesn't have to.
+    if (outcome === 'done' && picked?.source === 'plan' && picked.planId) {
+      onSessionCompletedFromPlan?.(picked.planId);
+    }
     resetAll();
   };
 
   // Quickstart path — from Home, one task input + pace + go, then straight
   // to Underway. No Pre-flight, no Size picker screen, no ceremony.
-  const startQuickstart = (label: string, sizeMin: 2 | 15 | 60, dumpId?: string) => {
-    setPicked(dumpId
-      ? { label, source: 'dump', dumpId }
-      : { label, source: 'freeform' }
-    );
+  const startQuickstart = (label: string, sizeMin: 2 | 15 | 60, opts?: { dumpId?: string; planId?: string }) => {
+    if (opts?.planId) {
+      setPicked({ label, source: 'plan', planId: opts.planId });
+    } else if (opts?.dumpId) {
+      setPicked({ label, source: 'dump', dumpId: opts.dumpId });
+    } else {
+      setPicked({ label, source: 'freeform' });
+    }
     setSize(sizeMin);
     setSessionStartMs(Date.now());
     setElapsedMs(0);
@@ -471,7 +484,10 @@ export default function UnderwayView({
   useEffect(() => {
     if (!initialSession) return;
     if (phase !== 'home') return;
-    startQuickstart(initialSession.label, initialSession.sizeMin, initialSession.dumpId);
+    startQuickstart(initialSession.label, initialSession.sizeMin, {
+      dumpId: initialSession.dumpId,
+      planId: initialSession.planId,
+    });
     onConsumedInitialSession?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSession]);
