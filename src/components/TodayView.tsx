@@ -14,8 +14,10 @@ import type {
   StateLogEntry,
   EnergyLevel,
   EnergyDirection,
+  DailyPlanTask,
+  DailyPlanSize,
 } from '../types';
-import { effectiveEnergy } from '../types';
+import { effectiveEnergy, DAILY_PLAN_CAPS } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
 import { isCheckedToday } from '../hooks/usePins';
 import type { IndicatorView } from '../hooks/useDashboard';
@@ -89,6 +91,15 @@ interface TodayViewProps {
   // Count of active (non-someday) dump tasks — surfaced as a badge on
   // the Triage button so the size of the pile is visible.
   activeDumpCount: number;
+  // Today's plan — 1/3/5 daily commitment surface. Renders as its own
+  // card between Activate now and North Stars.
+  todaysPlan: DailyPlanTask[];
+  planCounts: { total: Record<DailyPlanSize, number>; done: Record<DailyPlanSize, number> };
+  activeDumpTasks: BrainDumpTask[];  // for the plan's Add picker
+  onAddToPlan: (size: DailyPlanSize, label: string, sourceDumpId?: string) => DailyPlanTask | null;
+  onCompletePlanTask: (id: string) => void;
+  onRemovePlanTask: (id: string) => void;
+  onStartPlanTask: (task: DailyPlanTask) => void;  // launches Underway with this task
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -157,6 +168,13 @@ export default function TodayView({
   onGoSort,
   onGoBreathe,
   activeDumpCount,
+  todaysPlan,
+  planCounts,
+  activeDumpTasks,
+  onAddToPlan,
+  onCompletePlanTask,
+  onRemovePlanTask,
+  onStartPlanTask,
 }: TodayViewProps) {
   // Gmail-style "Logged · Undo" toast at the bottom; auto-dismisses after 5s.
   const [undoToast, setUndoToast] = useState<{ id: string; spiralId: string; label: string } | null>(null);
@@ -248,6 +266,15 @@ export default function TodayView({
             onBreathe={onGoBreathe}
             activeDumpCount={activeDumpCount}
           />
+          <TodaysPlanStrip
+            plan={todaysPlan}
+            counts={planCounts}
+            dumpTasks={activeDumpTasks}
+            onAddToPlan={onAddToPlan}
+            onComplete={onCompletePlanTask}
+            onRemove={onRemovePlanTask}
+            onStart={onStartPlanTask}
+          />
           <NorthStarsStrip
             stars={northStars}
             onOpenStar={onOpenStar}
@@ -325,6 +352,16 @@ export default function TodayView({
           onSort={onGoSort}
           onBreathe={onGoBreathe}
           activeDumpCount={activeDumpCount}
+        />
+
+        <TodaysPlanStrip
+          plan={todaysPlan}
+          counts={planCounts}
+          dumpTasks={activeDumpTasks}
+          onAddToPlan={onAddToPlan}
+          onComplete={onCompletePlanTask}
+          onRemove={onRemovePlanTask}
+          onStart={onStartPlanTask}
         />
 
         <NorthStarsStrip
@@ -1815,6 +1852,372 @@ function ActivateNowStrip({
         })}
       </ul>
     </section>
+  );
+}
+
+// ---------- Today's plan (1/3/5) strip ----------
+//
+// Daily state-based commitment surface. Cap: 1 big + 3 medium + 5 small
+// tasks (see DAILY_PLAN_CAPS). The card sits between Activate now and North
+// Stars so it's visible on every open.
+//
+// Interaction model:
+//   * Empty slot → "+ add" opens an inline picker (dump items + freeform)
+//   * Filled slot → checkbox on left completes/uncompletes; task label
+//     is a tap target that launches an Underway session
+//   * Wrap-Done from Underway auto-checks the plan slot (App handles this)
+//   * Section header shows N/CAP so caps are visible without shaming
+//
+// Deliberately no size-change action — you commit to a size when you
+// add. If you got it wrong, remove + re-add.
+
+const PLAN_SIZE_META: Record<DailyPlanSize, {
+  label: string;
+  glyph: string;
+  tone: string;
+  headerTone: string;
+}> = {
+  big: {
+    label: 'Big',
+    glyph: '★',
+    tone: 'bg-amber-50/40 border-amber-100',
+    headerTone: 'text-amber-800',
+  },
+  medium: {
+    label: 'Medium',
+    glyph: '●',
+    tone: 'bg-indigo-50/40 border-indigo-100',
+    headerTone: 'text-indigo-800',
+  },
+  small: {
+    label: 'Small',
+    glyph: '●',
+    tone: 'bg-teal-50/40 border-teal-100',
+    headerTone: 'text-teal-800',
+  },
+};
+
+function TodaysPlanStrip({
+  plan,
+  counts,
+  dumpTasks,
+  onAddToPlan,
+  onComplete,
+  onRemove,
+  onStart,
+}: {
+  plan: DailyPlanTask[];
+  counts: { total: Record<DailyPlanSize, number>; done: Record<DailyPlanSize, number> };
+  dumpTasks: BrainDumpTask[];
+  onAddToPlan: (size: DailyPlanSize, label: string, sourceDumpId?: string) => DailyPlanTask | null;
+  onComplete: (id: string) => void;
+  onRemove: (id: string) => void;
+  onStart: (task: DailyPlanTask) => void;
+}) {
+  // Which slot is currently in "add" mode. Only one add form open at
+  // a time so the card doesn't sprawl.
+  const [adding, setAdding] = useState<DailyPlanSize | null>(null);
+
+  const bigTasks    = plan.filter((t) => t.size === 'big');
+  const mediumTasks = plan.filter((t) => t.size === 'medium');
+  const smallTasks  = plan.filter((t) => t.size === 'small');
+
+  const totalCap  = DAILY_PLAN_CAPS.big + DAILY_PLAN_CAPS.medium + DAILY_PLAN_CAPS.small; // 9
+  const totalDone = counts.done.big + counts.done.medium + counts.done.small;
+  const totalHave = counts.total.big + counts.total.medium + counts.total.small;
+
+  const cap = (size: DailyPlanSize) => DAILY_PLAN_CAPS[size];
+  const atCap = (size: DailyPlanSize) => counts.total[size] >= cap(size);
+
+  const isEmpty = totalHave === 0;
+
+  return (
+    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 border-b border-gray-100 flex items-baseline justify-between">
+        <h3 className="text-[13px] font-semibold text-gray-800">Today's plan</h3>
+        <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 tabular-nums">
+          {isEmpty
+            ? `1 · 3 · 5`
+            : `${totalDone} / ${totalHave} done · ${totalHave}/${totalCap}`}
+        </span>
+      </header>
+
+      {isEmpty ? (
+        <div className="px-4 py-4 text-center text-[12px] text-gray-500 space-y-2">
+          <p>
+            Pick <strong>1 big</strong>, <strong>3 medium</strong>, and <strong>5 small</strong> things
+            you'll actually do today.
+          </p>
+          <p className="text-[11px] text-gray-400">
+            No scheduling. State-based. Completing anything counts.
+          </p>
+        </div>
+      ) : null}
+
+      <div className="p-3 space-y-3">
+        <PlanSection
+          size="big"
+          tasks={bigTasks}
+          cap={cap('big')}
+          count={counts.total.big}
+          isAdding={adding === 'big'}
+          onOpenAdd={() => setAdding('big')}
+          onCloseAdd={() => setAdding(null)}
+          onComplete={onComplete}
+          onRemove={onRemove}
+          onStart={onStart}
+          onAdd={(label, dumpId) => {
+            const r = onAddToPlan('big', label, dumpId);
+            if (r) setAdding(null);
+          }}
+          dumpTasks={dumpTasks}
+          atCap={atCap('big')}
+        />
+        <PlanSection
+          size="medium"
+          tasks={mediumTasks}
+          cap={cap('medium')}
+          count={counts.total.medium}
+          isAdding={adding === 'medium'}
+          onOpenAdd={() => setAdding('medium')}
+          onCloseAdd={() => setAdding(null)}
+          onComplete={onComplete}
+          onRemove={onRemove}
+          onStart={onStart}
+          onAdd={(label, dumpId) => {
+            const r = onAddToPlan('medium', label, dumpId);
+            if (r) setAdding(null);
+          }}
+          dumpTasks={dumpTasks}
+          atCap={atCap('medium')}
+        />
+        <PlanSection
+          size="small"
+          tasks={smallTasks}
+          cap={cap('small')}
+          count={counts.total.small}
+          isAdding={adding === 'small'}
+          onOpenAdd={() => setAdding('small')}
+          onCloseAdd={() => setAdding(null)}
+          onComplete={onComplete}
+          onRemove={onRemove}
+          onStart={onStart}
+          onAdd={(label, dumpId) => {
+            const r = onAddToPlan('small', label, dumpId);
+            if (r) setAdding(null);
+          }}
+          dumpTasks={dumpTasks}
+          atCap={atCap('small')}
+        />
+      </div>
+    </section>
+  );
+}
+
+function PlanSection({
+  size, tasks, cap, count, isAdding,
+  onOpenAdd, onCloseAdd, onAdd,
+  onComplete, onRemove, onStart,
+  dumpTasks, atCap,
+}: {
+  size: DailyPlanSize;
+  tasks: DailyPlanTask[];
+  cap: number;
+  count: number;
+  isAdding: boolean;
+  onOpenAdd: () => void;
+  onCloseAdd: () => void;
+  onAdd: (label: string, dumpId?: string) => void;
+  onComplete: (id: string) => void;
+  onRemove: (id: string) => void;
+  onStart: (task: DailyPlanTask) => void;
+  dumpTasks: BrainDumpTask[];
+  atCap: boolean;
+}) {
+  const meta = PLAN_SIZE_META[size];
+  return (
+    <div className={`rounded-xl border ${meta.tone} px-3 py-2`}>
+      <div className="flex items-center justify-between mb-1.5">
+        <div className={`text-[11px] uppercase tracking-wider font-bold ${meta.headerTone} flex items-center gap-1`}>
+          <span>{meta.glyph}</span>
+          <span>{meta.label}</span>
+          <span className="opacity-60 tabular-nums font-mono">
+            {count}/{cap}
+          </span>
+        </div>
+      </div>
+      <ul className="space-y-1">
+        {tasks.map((t) => (
+          <PlanRow
+            key={t.id}
+            task={t}
+            onComplete={onComplete}
+            onRemove={onRemove}
+            onStart={onStart}
+          />
+        ))}
+      </ul>
+      {isAdding ? (
+        <PlanAddForm
+          dumpTasks={dumpTasks}
+          onCancel={onCloseAdd}
+          onSubmit={onAdd}
+        />
+      ) : (
+        !atCap && (
+          <button
+            onClick={onOpenAdd}
+            className="mt-1 w-full py-1.5 text-[11px] font-semibold text-gray-500 border border-dashed border-gray-300 rounded-lg hover:border-indigo-400 hover:text-indigo-700"
+          >
+            + add {meta.label.toLowerCase()}
+          </button>
+        )
+      )}
+      {atCap && !isAdding && (
+        <p className="text-[10px] text-gray-400 mt-1 text-center">
+          {cap}/{cap} · full · remove one to add
+        </p>
+      )}
+    </div>
+  );
+}
+
+function PlanRow({
+  task,
+  onComplete,
+  onRemove,
+  onStart,
+}: {
+  task: DailyPlanTask;
+  onComplete: (id: string) => void;
+  onRemove: (id: string) => void;
+  onStart: (task: DailyPlanTask) => void;
+}) {
+  const done = !!task.completedAt;
+  return (
+    <li className="group flex items-center gap-2 bg-white/80 rounded-lg px-2 py-1.5 border border-gray-100">
+      <button
+        onClick={() => onComplete(task.id)}
+        className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+          done
+            ? 'bg-emerald-500 border-emerald-500 text-white'
+            : 'border-gray-300 hover:border-emerald-400'
+        }`}
+        aria-label={done ? 'Uncomplete' : 'Complete'}
+      >
+        {done && (
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        )}
+      </button>
+      <span
+        className={`flex-1 min-w-0 truncate text-[13px] ${
+          done ? 'text-gray-400 line-through' : 'text-gray-900'
+        }`}
+        title={task.label}
+      >
+        {task.label}
+      </span>
+      {!done && (
+        <button
+          onClick={() => onStart(task)}
+          className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Start a session for this"
+        >
+          → Do
+        </button>
+      )}
+      <button
+        onClick={() => onRemove(task.id)}
+        className="text-gray-300 hover:text-red-500 text-sm leading-none opacity-0 group-hover:opacity-100 transition-opacity"
+        title="Remove"
+      >
+        ×
+      </button>
+    </li>
+  );
+}
+
+function PlanAddForm({
+  dumpTasks,
+  onCancel,
+  onSubmit,
+}: {
+  dumpTasks: BrainDumpTask[];
+  onCancel: () => void;
+  onSubmit: (label: string, dumpId?: string) => void;
+}) {
+  const [label, setLabel] = useState('');
+  // Show dump items only when the user is typing/browsing (small list
+  // to avoid recreating the overwhelm the plan is meant to escape).
+  const suggestions = useMemo(() => {
+    const l = label.trim().toLowerCase();
+    const source = [...dumpTasks].sort((a, b) => a.label.length - b.label.length);
+    if (!l) return source.slice(0, 5);
+    return source.filter((t) => t.label.toLowerCase().includes(l)).slice(0, 5);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [label, dumpTasks]);
+
+  const commit = () => {
+    if (!label.trim()) return;
+    onSubmit(label.trim());
+  };
+
+  return (
+    <div className="mt-2 space-y-1.5 bg-white/80 border border-gray-200 rounded-lg p-2">
+      <div className="flex gap-1.5">
+        <input
+          autoFocus
+          type="text"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && label.trim()) {
+              e.preventDefault();
+              commit();
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              onCancel();
+            }
+          }}
+          placeholder="What is it?"
+          className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
+        />
+        <button
+          onClick={commit}
+          disabled={!label.trim()}
+          className="px-2 py-1 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md disabled:opacity-40"
+        >
+          Add
+        </button>
+        <button
+          onClick={onCancel}
+          className="px-1.5 py-1 text-[11px] text-gray-500 hover:text-gray-800"
+        >
+          ×
+        </button>
+      </div>
+      {suggestions.length > 0 && (
+        <div>
+          <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-0.5">
+            {label.trim() ? 'From your hold' : 'Recent in hold'}
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {suggestions.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => onSubmit(t.label, t.id)}
+                className="px-2 py-0.5 text-[11px] rounded-full bg-white border border-gray-200 text-gray-700 hover:border-indigo-400 hover:bg-indigo-50/40 max-w-[15rem] truncate"
+                title={t.label}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

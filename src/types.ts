@@ -393,6 +393,7 @@ export interface AppState {
   horizon?: HorizonState;
   underway?: UnderwayState;
   compass?: CompassState;
+  plan?: DailyPlanState;
 }
 
 // ---------- Horizon (life-scale perspective) ----------
@@ -481,7 +482,7 @@ export interface UnderwaySession {
   durationSec: number;                // actual time spent underway
   note?: string;                      // one-line reflection from Wrap
   nextMicrostep?: string;             // hand-off to future you
-  source: 'dump' | 'freeform';
+  source: 'dump' | 'freeform' | 'plan';
   entries?: UnderwayJournalEntry[];   // interstitial journal stream
 }
 
@@ -539,6 +540,42 @@ export interface CompassEntry {
 export interface CompassState {
   entries: CompassEntry[];
 }
+
+// ---------- Today's plan (1/3/5 rule) ----------
+//
+// A daily state-based commitment surface: cap the day at 1 big + 3
+// medium + 5 small tasks so the list stays scannable, decisions get
+// made once at the start (not throughout the day), and small wins
+// scaffold momentum into the bigger ones. Same shape as GTD's "MITs"
+// but with an explicit cap instead of guidance.
+//
+// Storage is date-keyed so "today's plan" derives naturally without a
+// reset flow — every date gets its own list. Older keys serve as
+// history if we ever want to surface it.
+
+export type DailyPlanSize = 'big' | 'medium' | 'small';
+
+export interface DailyPlanTask {
+  id: string;
+  label: string;
+  size: DailyPlanSize;
+  addedAt: string;               // ISO
+  completedAt?: string;          // ISO if done
+  sourceDumpId?: string;         // present when added from the dump picker
+}
+
+export interface DailyPlanState {
+  // Key: local YYYY-MM-DD. Value: the tasks committed to that day.
+  days: Record<string, DailyPlanTask[]>;
+}
+
+// Fixed caps per size. Named so the UI can display them without
+// hardcoding numbers in multiple places.
+export const DAILY_PLAN_CAPS: Record<DailyPlanSize, number> = {
+  big: 1,
+  medium: 3,
+  small: 5,
+};
 
 // Prefer new energy field; map legacy feeling to a coarse point on the scale.
 // Off → 2 (Fog), Neutral → 3 (Cruising), Good → 4 (Tailwind).

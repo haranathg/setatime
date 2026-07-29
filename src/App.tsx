@@ -33,6 +33,7 @@ import { useHorizon } from './hooks/useHorizon';
 import { useStateLog } from './hooks/useStateLog';
 import { useUnderway } from './hooks/useUnderway';
 import { useCompass } from './hooks/useCompass';
+import { usePlan } from './hooks/usePlan';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -204,6 +205,15 @@ function AppMain({
   } = useCompass();
 
   const {
+    todaysPlan,
+    counts: planCounts,
+    addToPlan,
+    completeTask: completePlanTask,
+    removeTask: removePlanTask,
+    markPlanTaskDone,
+  } = usePlan();
+
+  const {
     state: horizonState,
     setBirthDate: setHorizonBirthDate,
     setLifespan: setHorizonLifespan,
@@ -265,7 +275,7 @@ function AppMain({
   // Triage session's "Do now" action. Bypasses Pick/Preflight/Size —
   // straight into the focus screen.
   const [underwayInitialSession, setUnderwayInitialSession] = useState<
-    { label: string; sizeMin: 2 | 15 | 60; dumpId?: string } | null
+    { label: string; sizeMin: 2 | 15 | 60; dumpId?: string; planId?: string } | null
   >(null);
   const {
     habits,
@@ -500,6 +510,19 @@ function AppMain({
           onGoSort={() => setActiveView('compass')}
           onGoBreathe={() => setActiveView('grounding')}
           activeDumpCount={activeDumpTasks.length}
+          todaysPlan={todaysPlan}
+          planCounts={planCounts}
+          activeDumpTasks={activeDumpTasks}
+          onAddToPlan={addToPlan}
+          onCompletePlanTask={completePlanTask}
+          onRemovePlanTask={removePlanTask}
+          onStartPlanTask={(task) => {
+            // 15-min default for planned work — bigger than the 2-min
+            // Knock-one-out default because plan items are usually
+            // meatier commitments. User can Bail or extend as needed.
+            setUnderwayInitialSession({ label: task.label, sizeMin: 15, planId: task.id });
+            setActiveView('underway');
+          }}
         />
       ) : activeView === 'predictions' ? (
         <PredictionLabView
@@ -552,6 +575,7 @@ function AppMain({
           onConsumedInitialPhase={() => setUnderwayInitialPhase(null)}
           initialSession={underwayInitialSession}
           onConsumedInitialSession={() => setUnderwayInitialSession(null)}
+          onSessionCompletedFromPlan={markPlanTaskDone}
           onAddSession={addUnderwaySession}
           onDeleteSession={deleteUnderwaySession}
           onSetMantra={setUnderwayMantra}
