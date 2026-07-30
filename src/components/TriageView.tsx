@@ -22,17 +22,19 @@ interface TriageViewProps {
   tasks: BrainDumpTask[];               // active dump tasks (already filtered by parent)
   onDoNow: (task: BrainDumpTask) => void;
   onPinToday: (task: BrainDumpTask) => void;
+  onSendToJournal: (task: BrainDumpTask) => void;
   onSetSomeday: (id: string) => void;
   onDelete: (id: string) => void;
   onDone: () => void;
 }
 
-type Action = 'do-now' | 'pin' | 'someday' | 'drop' | 'skip';
+type Action = 'do-now' | 'pin' | 'journal' | 'someday' | 'drop' | 'skip';
 
 export default function TriageView({
   tasks,
   onDoNow,
   onPinToday,
+  onSendToJournal,
   onSetSomeday,
   onDelete,
   onDone,
@@ -59,7 +61,7 @@ export default function TriageView({
 
   const [index, setIndex] = useState(0);
   const [counts, setCounts] = useState({
-    doNow: 0, pin: 0, someday: 0, dropped: 0, skipped: 0,
+    doNow: 0, pin: 0, journaled: 0, someday: 0, dropped: 0, skipped: 0,
   });
 
   const current = deck[index];
@@ -70,6 +72,7 @@ export default function TriageView({
     setCounts((c) => ({
       doNow: c.doNow + (action === 'do-now' ? 1 : 0),
       pin: c.pin + (action === 'pin' ? 1 : 0),
+      journaled: c.journaled + (action === 'journal' ? 1 : 0),
       someday: c.someday + (action === 'someday' ? 1 : 0),
       dropped: c.dropped + (action === 'drop' ? 1 : 0),
       skipped: c.skipped + (action === 'skip' ? 1 : 0),
@@ -87,6 +90,15 @@ export default function TriageView({
     if (!current) return;
     onPinToday(current);
     advance('pin');
+  };
+  const journal = () => {
+    if (!current) return;
+    // File as a Journal reflection AND remove from the dump — the item
+    // wasn't a task, it was a thought that belongs elsewhere. Not
+    // counted as a "drop" because it's a filing, not a rejection.
+    onSendToJournal(current);
+    onDelete(current.id);
+    advance('journal');
   };
   const someday = () => {
     if (!current) return;
@@ -118,8 +130,9 @@ export default function TriageView({
       switch (e.key) {
         case '1':      e.preventDefault(); doNow();     break;
         case '2':      e.preventDefault(); pinToday();  break;
-        case '3':      e.preventDefault(); someday();   break;
-        case '4':      e.preventDefault(); drop();      break;
+        case '3':      e.preventDefault(); journal();   break;
+        case '4':      e.preventDefault(); someday();   break;
+        case '5':      e.preventDefault(); drop();      break;
         case ' ':      e.preventDefault(); skip();      break;
         case 'Escape': e.preventDefault(); onDone();    break;
       }
@@ -154,7 +167,7 @@ export default function TriageView({
 
   // Wrap state — reached the end of the deck
   if (index >= total) {
-    const moved = counts.doNow + counts.pin + counts.someday + counts.dropped;
+    const moved = counts.doNow + counts.pin + counts.journaled + counts.someday + counts.dropped;
     return (
       <div className="flex-1 overflow-y-auto bg-gray-50">
         <div className="max-w-md mx-auto px-4 py-10 text-center space-y-5">
@@ -165,6 +178,9 @@ export default function TriageView({
           <div className="grid grid-cols-2 gap-2 text-left">
             {counts.pin > 0 && (
               <StatTile label="Pinned today" value={counts.pin} color="indigo" />
+            )}
+            {counts.journaled > 0 && (
+              <StatTile label="To Journal" value={counts.journaled} color="amber" />
             )}
             {counts.someday > 0 && (
               <StatTile label="Someday" value={counts.someday} color="slate" />
@@ -240,13 +256,21 @@ export default function TriageView({
           ⚡ Do now — 2 min
         </button>
 
-        {/* Secondary actions — two rows of 2 */}
+        {/* Secondary actions — 2x2 grid of "file it" then Skip full-width.
+            Pin and Journal are paired (both file the item elsewhere);
+            Someday and Drop are paired (both are "not doing"). */}
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={pinToday}
             className="px-3 py-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 text-sm font-semibold flex items-center justify-center gap-1.5"
           >
             <span>📌</span> Pin today
+          </button>
+          <button
+            onClick={journal}
+            className="px-3 py-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-sm font-semibold flex items-center justify-center gap-1.5"
+          >
+            <span>📝</span> To Journal
           </button>
           <button
             onClick={someday}
@@ -260,13 +284,13 @@ export default function TriageView({
           >
             <span>✕</span> Drop
           </button>
-          <button
-            onClick={skip}
-            className="px-3 py-3 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 text-sm font-semibold flex items-center justify-center gap-1.5"
-          >
-            <span>→</span> Skip
-          </button>
         </div>
+        <button
+          onClick={skip}
+          className="w-full px-3 py-2 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-600 text-sm font-semibold flex items-center justify-center gap-1.5"
+        >
+          <span>→</span> Skip
+        </button>
 
         <p className="text-[11px] text-gray-400 text-center">
           One card at a time. Every decision counts — Skip is fine.
@@ -274,8 +298,9 @@ export default function TriageView({
         <p className="text-[10px] text-gray-400 text-center font-mono tabular-nums">
           keys: <kbd className="px-1 border border-gray-200 rounded bg-white">1</kbd> do ·
           <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">2</kbd> pin ·
-          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">3</kbd> someday ·
-          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">4</kbd> drop ·
+          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">3</kbd> journal ·
+          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">4</kbd> someday ·
+          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">5</kbd> drop ·
           <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">space</kbd> skip ·
           <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">esc</kbd> exit
         </p>
@@ -291,7 +316,7 @@ function StatTile({
 }: {
   label: string;
   value: number;
-  color: 'indigo' | 'slate' | 'rose' | 'gray' | 'emerald';
+  color: 'indigo' | 'slate' | 'rose' | 'gray' | 'emerald' | 'amber';
 }) {
   const tone: Record<typeof color, string> = {
     indigo:  'bg-indigo-50 text-indigo-900 border-indigo-200',
@@ -299,6 +324,7 @@ function StatTile({
     rose:    'bg-rose-50 text-rose-800 border-rose-200',
     gray:    'bg-white text-gray-700 border-gray-200',
     emerald: 'bg-emerald-50 text-emerald-900 border-emerald-200',
+    amber:   'bg-amber-50 text-amber-900 border-amber-200',
   };
   return (
     <div className={`rounded-xl border px-3 py-2 ${tone[color]}`}>

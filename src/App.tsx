@@ -637,6 +637,7 @@ function AppMain({
             // Pinning promotes to Today's pins strip; we leave the dump
             // task in place — pin is a surface signal, not a move.
           }}
+          onSendToJournal={(task) => addNote(task.label)}
           onSetSomeday={(id) => setTaskTriage(id, 'someday')}
           onDelete={deleteTask}
           onDone={() => setActiveView('today')}
