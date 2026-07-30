@@ -12,6 +12,7 @@ import GroundingView from './components/GroundingView';
 import UnderwayView from './components/UnderwayView';
 import CompassView from './components/CompassView';
 import TriageView from './components/TriageView';
+import NotesView from './components/NotesView';
 import HorizonView from './components/HorizonView';
 import LogView from './components/LogView';
 import NorthStarsView from './components/NorthStarsView';
@@ -35,6 +36,7 @@ import { useUnderway } from './hooks/useUnderway';
 import { useCompass } from './hooks/useCompass';
 import { usePlan } from './hooks/usePlan';
 import { useWeekBoard } from './hooks/useWeekBoard';
+import { useNotes } from './hooks/useNotes';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -88,7 +90,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage'>('today');
+  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes'>('today');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -105,8 +107,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage';
-  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage') => void;
+  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes';
+  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -223,6 +225,13 @@ function AppMain({
   } = useWeekBoard();
 
   const {
+    entries: notes,
+    addNote,
+    deleteNote,
+    updateNote,
+  } = useNotes();
+
+  const {
     state: horizonState,
     setBirthDate: setHorizonBirthDate,
     setLifespan: setHorizonLifespan,
@@ -320,7 +329,7 @@ function AppMain({
     (t) => t.status === 'inbox' || (t.status === 'future' && !!t.futureSurfaceDate && t.futureSurfaceDate <= todayKey)
   ).length;
 
-  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage') => {
+  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -630,6 +639,13 @@ function AppMain({
           onDelete={deleteTask}
           onDone={() => setActiveView('today')}
         />
+      ) : activeView === 'notes' ? (
+        <NotesView
+          entries={notes}
+          onAddNote={addNote}
+          onDeleteNote={deleteNote}
+          onUpdateNote={updateNote}
+        />
       ) : activeView === 'horizon' ? (
         <HorizonView
           state={horizonState}
@@ -653,6 +669,7 @@ function AppMain({
       <QuickCaptureBar
         onLog={(text) => captureThought(text)}
         onSchedule={(text) => scheduleThis({ taskName: text })}
+        onNote={(text) => addNote(text)}
       />
     </div>
   );
