@@ -394,6 +394,7 @@ export interface AppState {
   underway?: UnderwayState;
   compass?: CompassState;
   plan?: DailyPlanState;
+  weekBoard?: WeekBoardState;
 }
 
 // ---------- Horizon (life-scale perspective) ----------
@@ -576,6 +577,32 @@ export const DAILY_PLAN_CAPS: Record<DailyPlanSize, number> = {
   medium: 3,
   small: 5,
 };
+
+// ---------- Week board (loose weekly capture → prioritize into 1/3/5) ----------
+//
+// A small, permissive pool of things you're considering for the coming
+// week. Items sit here without a day or a size until you promote one
+// into today's plan (with a size) or drop it. The Week board is the
+// wellspring the daily 1/3/5 gets drawn from.
+//
+// Two first-class actions: promote and drop. Drop is celebrated (a
+// rolling "dropped this week" counter) because the "not doing" muscle
+// is the harder half of prioritization — the app should reward it
+// rather than treat deletion as failure.
+
+export interface WeekBoardItem {
+  id: string;
+  label: string;
+  addedAt: string;   // ISO
+}
+
+export interface WeekBoardState {
+  items: WeekBoardItem[];
+  // Timestamps of intentional drops. The trailing 7 days is what the
+  // header counter displays; older entries are pruned on write so this
+  // list stays small.
+  drops?: string[];
+}
 
 // Prefer new energy field; map legacy feeling to a coarse point on the scale.
 // Off → 2 (Fog), Neutral → 3 (Cruising), Good → 4 (Tailwind).
