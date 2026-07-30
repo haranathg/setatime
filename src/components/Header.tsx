@@ -16,7 +16,8 @@ export type ActiveView =
   | 'grounding'
   | 'underway'
   | 'compass'
-  | 'triage';
+  | 'triage'
+  | 'notes';
 
 export type Hub = 'today' | 'log' | 'charts' | 'sail';
 
@@ -25,7 +26,7 @@ export type Hub = 'today' | 'log' | 'charts' | 'sail';
 export function hubForView(view: ActiveView): Hub {
   if (view === 'today' || view === 'triage') return 'today'; // Triage is an activation move launched from Today
   if (view === 'inbox' || view === 'braindump') return 'log'; // Hold merged into Log
-  if (view === 'chart' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats' || view === 'horizon') {
+  if (view === 'chart' || view === 'notes' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats' || view === 'horizon') {
     return 'charts';
   }
   return 'sail'; // calendar + grounding + predictions (Lab)
@@ -225,6 +226,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           {(
             [
               { view: 'chart' as const, label: 'Notes', title: 'Chart notes: SOAP-style self check-ins' },
+              { view: 'notes' as const, label: 'Journal', title: 'Free-form reflections, observations, ideas' },
               { view: 'stars' as const, label: 'Stars', title: 'North Stars: 1–3 long-term anchors' },
               { view: 'horizon' as const, label: 'Horizon', title: 'Zoom out: the whole arc of your life' },
               { view: 'books' as const, label: 'Books', title: 'Reading tracker' },

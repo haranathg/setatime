@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { BrainDumpTask } from '../types';
 
 // Batch Triage session — one card at a time.
@@ -102,6 +102,34 @@ export default function TriageView({
     if (!current) return;
     advance('skip');
   };
+
+  // Keyboard shortcuts — batch triage is fastest without leaving the
+  // keyboard. Numbers mirror the visual order of the buttons; space
+  // is "advance" (skip), escape exits. Ignore keys while an input has
+  // focus so we don't hijack typing (Triage doesn't have any inputs
+  // right now, but this keeps us future-proof).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tgt = e.target as HTMLElement | null;
+      if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) {
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return; // don't steal browser chords
+      switch (e.key) {
+        case '1':      e.preventDefault(); doNow();     break;
+        case '2':      e.preventDefault(); pinToday();  break;
+        case '3':      e.preventDefault(); someday();   break;
+        case '4':      e.preventDefault(); drop();      break;
+        case ' ':      e.preventDefault(); skip();      break;
+        case 'Escape': e.preventDefault(); onDone();    break;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // Handlers close over `current`; re-bind when it changes so we act
+    // on the visible card.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current, onDone]);
 
   // Empty state — no tasks in the dump to triage
   if (total === 0) {
@@ -242,6 +270,14 @@ export default function TriageView({
 
         <p className="text-[11px] text-gray-400 text-center">
           One card at a time. Every decision counts — Skip is fine.
+        </p>
+        <p className="text-[10px] text-gray-400 text-center font-mono tabular-nums">
+          keys: <kbd className="px-1 border border-gray-200 rounded bg-white">1</kbd> do ·
+          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">2</kbd> pin ·
+          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">3</kbd> someday ·
+          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">4</kbd> drop ·
+          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">space</kbd> skip ·
+          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">esc</kbd> exit
         </p>
       </div>
     </div>

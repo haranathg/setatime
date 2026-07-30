@@ -395,6 +395,7 @@ export interface AppState {
   compass?: CompassState;
   plan?: DailyPlanState;
   weekBoard?: WeekBoardState;
+  notes?: NotesState;
 }
 
 // ---------- Horizon (life-scale perspective) ----------
@@ -602,6 +603,25 @@ export interface WeekBoardState {
   // header counter displays; older entries are pruned on write so this
   // list stays small.
   drops?: string[];
+}
+
+// ---------- Notes (free-form reflections) ----------
+//
+// A first-class surface for thoughts that aren't tasks — observations,
+// insights, one-line reflections, quotes, ideas. Distinct from Hold
+// (which treats items as tasks-to-triage) and from Chart notes (which
+// are SOAP-structured self check-ins). Deliberately unstructured:
+// timestamp + text, that's the whole schema. Tags emerge organically
+// from #hashtags in the text.
+
+export interface NoteEntry {
+  id: string;
+  text: string;
+  createdAt: string; // ISO
+}
+
+export interface NotesState {
+  entries: NoteEntry[];
 }
 
 // Prefer new energy field; map legacy feeling to a coarse point on the scale.
