@@ -75,16 +75,23 @@ export function useWeekBoard() {
     }
   }, [items, drops, loaded]);
 
-  const addItem = useCallback((label: string): WeekBoardItem | null => {
+  const addItem = useCallback((label: string, day?: string): WeekBoardItem | null => {
     const clean = label.trim();
     if (!clean) return null;
     const item: WeekBoardItem = {
       id: uuidv4(),
       label: clean,
       addedAt: new Date().toISOString(),
+      day,
     };
     setItems((prev) => [...prev, item]);
     return item;
+  }, []);
+
+  // Reassign an item's day (or clear it → unsorted). Used by the
+  // per-item day chip in the Week board UI.
+  const setItemDay = useCallback((id: string, day: string | undefined) => {
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, day } : i)));
   }, []);
 
   // Remove without counting as a drop (used when promoting to plan).
@@ -113,5 +120,6 @@ export function useWeekBoard() {
     addItem,
     removeItem,
     dropItem,
+    setItemDay,
   };
 }

@@ -222,6 +222,7 @@ function AppMain({
     addItem: addWeekBoardItem,
     removeItem: removeWeekBoardItem,
     dropItem: dropWeekBoardItem,
+    setItemDay: setWeekBoardItemDay,
   } = useWeekBoard();
 
   const {
@@ -554,6 +555,7 @@ function AppMain({
             const added = addToPlan(size, item.label);
             if (added) removeWeekBoardItem(id);
           }}
+          onSetWeekBoardItemDay={setWeekBoardItemDay}
         />
       ) : activeView === 'predictions' ? (
         <PredictionLabView
