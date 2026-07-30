@@ -16,6 +16,7 @@ import type {
   EnergyDirection,
   DailyPlanTask,
   DailyPlanSize,
+  WeekBoardItem,
 } from '../types';
 import { effectiveEnergy, DAILY_PLAN_CAPS } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
@@ -100,6 +101,13 @@ interface TodayViewProps {
   onCompletePlanTask: (id: string) => void;
   onRemovePlanTask: (id: string) => void;
   onStartPlanTask: (task: DailyPlanTask) => void;  // launches Underway with this task
+  // Week board — loose weekly dump. Items get promoted into today's
+  // 1/3/5 (with a size) or dropped intentionally.
+  weekBoardItems: WeekBoardItem[];
+  weekBoardDropsThisWeek: number;
+  onAddWeekBoardItem: (label: string) => WeekBoardItem | null;
+  onDropWeekBoardItem: (id: string) => void;
+  onPromoteWeekBoardItem: (id: string, size: DailyPlanSize) => void;
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -175,6 +183,11 @@ export default function TodayView({
   onCompletePlanTask,
   onRemovePlanTask,
   onStartPlanTask,
+  weekBoardItems,
+  weekBoardDropsThisWeek,
+  onAddWeekBoardItem,
+  onDropWeekBoardItem,
+  onPromoteWeekBoardItem,
 }: TodayViewProps) {
   // Gmail-style "Logged · Undo" toast at the bottom; auto-dismisses after 5s.
   const [undoToast, setUndoToast] = useState<{ id: string; spiralId: string; label: string } | null>(null);
@@ -275,6 +288,15 @@ export default function TodayView({
             onRemove={onRemovePlanTask}
             onStart={onStartPlanTask}
           />
+          <WeekBoardStrip
+            items={weekBoardItems}
+            dropsThisWeek={weekBoardDropsThisWeek}
+            planCounts={planCounts}
+            dumpTasks={activeDumpTasks}
+            onAdd={onAddWeekBoardItem}
+            onDrop={onDropWeekBoardItem}
+            onPromote={onPromoteWeekBoardItem}
+          />
           <NorthStarsStrip
             stars={northStars}
             onOpenStar={onOpenStar}
@@ -362,6 +384,16 @@ export default function TodayView({
           onComplete={onCompletePlanTask}
           onRemove={onRemovePlanTask}
           onStart={onStartPlanTask}
+        />
+
+        <WeekBoardStrip
+          items={weekBoardItems}
+          dropsThisWeek={weekBoardDropsThisWeek}
+          planCounts={planCounts}
+          dumpTasks={activeDumpTasks}
+          onAdd={onAddWeekBoardItem}
+          onDrop={onDropWeekBoardItem}
+          onPromote={onPromoteWeekBoardItem}
         />
 
         <NorthStarsStrip
@@ -2218,6 +2250,279 @@ function PlanAddForm({
         </div>
       )}
     </div>
+  );
+}
+
+// ---------- Week board strip ----------
+//
+// A loose weekly pool sitting just below Today's plan. Populated by
+// dumping what's on your mind for the coming week — no dates, no sizes.
+// Each item's two first-class actions are:
+//
+//   ★ / ● / ●  — promote into today's 1/3/5 with a size
+//   ✕          — drop (intentional, celebrated)
+//
+// The "dropped this week" counter in the header quietly rewards the
+// "not doing" muscle — the user named that as the harder half of
+// prioritization, so the app makes the drop feel like a win rather
+// than a deletion.
+
+function WeekBoardStrip({
+  items,
+  dropsThisWeek,
+  planCounts,
+  dumpTasks,
+  onAdd,
+  onDrop,
+  onPromote,
+}: {
+  items: WeekBoardItem[];
+  dropsThisWeek: number;
+  planCounts: { total: Record<DailyPlanSize, number>; done: Record<DailyPlanSize, number> };
+  dumpTasks: BrainDumpTask[];
+  onAdd: (label: string) => WeekBoardItem | null;
+  onDrop: (id: string) => void;
+  onPromote: (id: string, size: DailyPlanSize) => void;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState('');
+  // Track which item last got dropped so we can flash a brief "✓ dropped"
+  // affirmation. Cleared after ~1.2s.
+  const [flashDrop, setFlashDrop] = useState<number>(0);
+
+  const capBig = planCounts.total.big     >= DAILY_PLAN_CAPS.big;
+  const capMed = planCounts.total.medium  >= DAILY_PLAN_CAPS.medium;
+  const capSm  = planCounts.total.small   >= DAILY_PLAN_CAPS.small;
+
+  const commit = () => {
+    if (!draft.trim()) return;
+    onAdd(draft);
+    setDraft('');
+  };
+
+  const doDrop = (id: string) => {
+    onDrop(id);
+    setFlashDrop(Date.now());
+    setTimeout(() => setFlashDrop((prev) => (Date.now() - prev >= 1200 ? 0 : prev)), 1300);
+  };
+
+  // Small chip row of the 5 shortest active Hold items for zero-typing
+  // pull-into-week. Simple heuristic — short labels tend to be
+  // concrete/atomic and easier to reason about.
+  const holdChips = useMemo(() => {
+    return [...dumpTasks].sort((a, b) => a.label.length - b.label.length).slice(0, 5);
+  }, [dumpTasks]);
+
+  return (
+    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 border-b border-gray-100 flex items-baseline justify-between">
+        <h3 className="text-[13px] font-semibold text-gray-800">This week</h3>
+        <div className="flex items-center gap-2">
+          {flashDrop > 0 && (
+            <span className="text-[10px] font-semibold text-emerald-700 animate-pulse">
+              ✓ dropped
+            </span>
+          )}
+          {dropsThisWeek > 0 && (
+            <span
+              className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 tabular-nums"
+              title="Intentional drops in the last 7 days — protecting your capacity"
+            >
+              {dropsThisWeek} dropped
+            </span>
+          )}
+          <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 tabular-nums">
+            {items.length} in pool
+          </span>
+        </div>
+      </header>
+
+      {items.length === 0 && !adding && (
+        <div className="px-4 py-4 text-center text-[12px] text-gray-500 space-y-2">
+          <p>
+            Dump whatever's on your mind for the coming days. No dates, no sizes.
+            You'll pull from this into today's plan.
+          </p>
+          <button
+            onClick={() => setAdding(true)}
+            className="text-[12px] font-semibold text-indigo-600 hover:text-indigo-800"
+          >
+            + add first item
+          </button>
+        </div>
+      )}
+
+      {items.length > 0 && (
+        <ul className="p-2 space-y-1">
+          {items.map((item) => (
+            <WeekBoardRow
+              key={item.id}
+              item={item}
+              capBig={capBig}
+              capMed={capMed}
+              capSm={capSm}
+              onPromote={onPromote}
+              onDrop={doDrop}
+            />
+          ))}
+        </ul>
+      )}
+
+      {/* Add form / trigger */}
+      {items.length > 0 && !adding && (
+        <div className="p-2 border-t border-gray-100">
+          <button
+            onClick={() => setAdding(true)}
+            className="w-full py-1.5 text-[11px] font-semibold text-gray-500 border border-dashed border-gray-300 rounded-lg hover:border-indigo-400 hover:text-indigo-700"
+          >
+            + add
+          </button>
+        </div>
+      )}
+
+      {adding && (
+        <div className="p-3 border-t border-gray-100 space-y-2">
+          <div className="flex gap-1.5">
+            <input
+              autoFocus
+              type="text"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && draft.trim()) {
+                  e.preventDefault();
+                  commit();
+                } else if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setAdding(false);
+                  setDraft('');
+                }
+              }}
+              placeholder='e.g. "finalize loan", "pick up bag"'
+              className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            />
+            <button
+              onClick={commit}
+              disabled={!draft.trim()}
+              className="px-2 py-1 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md disabled:opacity-40"
+            >
+              Add
+            </button>
+            <button
+              onClick={() => { setAdding(false); setDraft(''); }}
+              className="px-1.5 py-1 text-[11px] text-gray-500 hover:text-gray-800"
+            >
+              ×
+            </button>
+          </div>
+          {holdChips.length > 0 && (
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-0.5">
+                Or pull from your hold
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {holdChips.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => { onAdd(t.label); }}
+                    className="px-2 py-0.5 text-[11px] rounded-full bg-white border border-gray-200 text-gray-700 hover:border-indigo-400 hover:bg-indigo-50/40 max-w-[15rem] truncate"
+                    title={t.label}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function WeekBoardRow({
+  item,
+  capBig,
+  capMed,
+  capSm,
+  onPromote,
+  onDrop,
+}: {
+  item: WeekBoardItem;
+  capBig: boolean;
+  capMed: boolean;
+  capSm: boolean;
+  onPromote: (id: string, size: DailyPlanSize) => void;
+  onDrop: (id: string) => void;
+}) {
+  return (
+    <li className="group flex items-center gap-1 bg-gray-50/60 hover:bg-white rounded-lg px-2 py-1.5 border border-gray-100">
+      <span className="flex-1 min-w-0 truncate text-[13px] text-gray-900" title={item.label}>
+        {item.label}
+      </span>
+      <SizePromoteButton
+        glyph="★"
+        label="Big"
+        tone="text-amber-700 hover:bg-amber-50"
+        disabled={capBig}
+        title={capBig ? 'Big slot full for today' : 'Promote to today · Big'}
+        onClick={() => onPromote(item.id, 'big')}
+      />
+      <SizePromoteButton
+        glyph="●"
+        label="Medium"
+        tone="text-indigo-700 hover:bg-indigo-50"
+        disabled={capMed}
+        title={capMed ? 'Medium slots full for today' : 'Promote to today · Medium'}
+        onClick={() => onPromote(item.id, 'medium')}
+      />
+      <SizePromoteButton
+        glyph="●"
+        label="Small"
+        tone="text-teal-700 hover:bg-teal-50"
+        disabled={capSm}
+        title={capSm ? 'Small slots full for today' : 'Promote to today · Small'}
+        onClick={() => onPromote(item.id, 'small')}
+      />
+      <button
+        onClick={() => onDrop(item.id)}
+        className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+        title="Drop — protect capacity"
+        aria-label="Drop"
+      >
+        ✕
+      </button>
+    </li>
+  );
+}
+
+function SizePromoteButton({
+  glyph,
+  label,
+  tone,
+  disabled,
+  title,
+  onClick,
+}: {
+  glyph: string;
+  label: string;
+  tone: string;
+  disabled: boolean;
+  title: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      aria-label={`Promote to ${label}`}
+      className={`w-6 h-6 flex items-center justify-center rounded text-[11px] font-bold transition-colors ${
+        disabled ? 'text-gray-300 cursor-not-allowed' : tone
+      }`}
+    >
+      {glyph}
+    </button>
   );
 }
 

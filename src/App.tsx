@@ -34,6 +34,7 @@ import { useStateLog } from './hooks/useStateLog';
 import { useUnderway } from './hooks/useUnderway';
 import { useCompass } from './hooks/useCompass';
 import { usePlan } from './hooks/usePlan';
+import { useWeekBoard } from './hooks/useWeekBoard';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -212,6 +213,14 @@ function AppMain({
     removeTask: removePlanTask,
     markPlanTaskDone,
   } = usePlan();
+
+  const {
+    items: weekBoardItems,
+    dropsThisWeek: weekBoardDropsThisWeek,
+    addItem: addWeekBoardItem,
+    removeItem: removeWeekBoardItem,
+    dropItem: dropWeekBoardItem,
+  } = useWeekBoard();
 
   const {
     state: horizonState,
@@ -522,6 +531,19 @@ function AppMain({
             // meatier commitments. User can Bail or extend as needed.
             setUnderwayInitialSession({ label: task.label, sizeMin: 15, planId: task.id });
             setActiveView('underway');
+          }}
+          weekBoardItems={weekBoardItems}
+          weekBoardDropsThisWeek={weekBoardDropsThisWeek}
+          onAddWeekBoardItem={addWeekBoardItem}
+          onDropWeekBoardItem={dropWeekBoardItem}
+          onPromoteWeekBoardItem={(id, size) => {
+            // Find the week-board item, add it to today's plan at the
+            // chosen size, then remove it from the pool (non-drop —
+            // promotion isn't a "no", it's a "yes for today").
+            const item = weekBoardItems.find((i) => i.id === id);
+            if (!item) return;
+            const added = addToPlan(size, item.label);
+            if (added) removeWeekBoardItem(id);
           }}
         />
       ) : activeView === 'predictions' ? (
