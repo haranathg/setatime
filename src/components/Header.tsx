@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getSecretKey, setSecretKey, clearSecretKey } from '../services/syncService';
 
 export type ActiveView =
@@ -220,69 +220,157 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
         })}
       </nav>
 
-      {/* Sub-tab pill selector — appears when the active hub has sub-views. */}
+      {/* Charts sub-pills — primary + "More ▾" dropdown for less-used
+          check-in surfaces. */}
       {activeHub === 'charts' && (
-        <nav className="flex gap-1 mx-4 mb-2 overflow-x-auto no-scrollbar">
-          {(
-            [
-              { view: 'chart' as const, label: 'Notes', title: 'Chart notes: SOAP-style self check-ins' },
-              { view: 'notes' as const, label: 'Journal', title: 'Free-form reflections, observations, ideas' },
-              { view: 'stars' as const, label: 'Stars', title: 'North Stars: 1–3 long-term anchors' },
-              { view: 'horizon' as const, label: 'Horizon', title: 'Zoom out: the whole arc of your life' },
-              { view: 'books' as const, label: 'Books', title: 'Reading tracker' },
-              { view: 'habits' as const, label: 'Habits', title: 'Behavioral-activation votes' },
-              { view: 'stats' as const, label: 'Stats', title: 'Numbers over time' },
-            ] as const
-          ).map(({ view, label, title }) => {
-            const active = activeView === view;
-            return (
-              <button
-                key={view}
-                onClick={() => onViewChange(view)}
-                className={`flex-shrink-0 whitespace-nowrap px-2.5 py-1 text-[12px] font-medium rounded-full transition-colors ${
-                  active
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-gray-500 hover:text-gray-800 border border-gray-200'
-                }`}
-                title={title}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </nav>
+        <SubPillRow
+          activeView={activeView}
+          onViewChange={onViewChange}
+          primary={[
+            { view: 'notes',  label: 'Journal', title: 'Free-form reflections, observations, ideas' },
+            { view: 'chart',  label: 'Notes',   title: 'Chart notes: SOAP-style self check-ins' },
+            { view: 'stars',  label: 'Stars',   title: 'North Stars: 1–3 long-term anchors' },
+          ]}
+          secondary={[
+            { view: 'horizon', label: 'Horizon', title: 'Zoom out: the whole arc of your life' },
+            { view: 'books',   label: 'Books',   title: 'Reading tracker' },
+            { view: 'habits',  label: 'Habits',  title: 'Behavioral-activation votes' },
+            { view: 'stats',   label: 'Stats',   title: 'Numbers over time' },
+          ]}
+        />
       )}
 
-      {/* Sail hub sub-pills — Calendar (schedule) + Lab (predict + leap → schedule) */}
+      {/* Sail sub-pills — Underway + Lab + Calendar as primary; Grounding
+          and Compass tucked (still one tap from the Today Activate menu). */}
       {activeHub === 'sail' && (
-        <nav className="flex gap-1 mx-4 mb-2 overflow-x-auto no-scrollbar">
-          {(
-            [
-              { view: 'calendar' as const, label: 'Calendar', title: 'Weekly calendar with blocks' },
-              { view: 'grounding' as const, label: 'Grounding', title: 'Steady the helm — box breathing timer' },
-              { view: 'compass' as const, label: 'Compass', title: 'Circle of Control — sort what you can steer from what you can\'t' },
-              { view: 'underway' as const, label: 'Underway', title: 'One task, one session — synthetic body-doubling' },
-              { view: 'predictions' as const, label: 'Lab', title: 'Prediction Lab: predict, leap, initiate' },
-            ] as const
-          ).map(({ view, label, title }) => {
+        <SubPillRow
+          activeView={activeView}
+          onViewChange={onViewChange}
+          primary={[
+            { view: 'underway',    label: 'Underway', title: 'One task, one session — synthetic body-doubling' },
+            { view: 'predictions', label: 'Lab',      title: 'Prediction Lab: predict, leap, initiate' },
+            { view: 'calendar',    label: 'Calendar', title: 'Weekly calendar with blocks' },
+          ]}
+          secondary={[
+            { view: 'grounding', label: 'Grounding', title: 'Steady the helm — box breathing timer' },
+            { view: 'compass',   label: 'Compass',   title: 'Circle of Control — sort what you can steer from what you can\'t' },
+          ]}
+        />
+      )}
+    </header>
+  );
+}
+
+// ---------- Sub-pill row with More dropdown ----------
+//
+// Renders `primary` pills inline and tucks `secondary` behind a
+// "More ▾" popover. If the active view is one of the secondary items,
+// its pill also renders inline (styled active) so the user isn't
+// confused about where they are — the "More" label switches to "N more"
+// while it's picked.
+
+type PillItem = { view: ActiveView; label: string; title: string };
+
+function SubPillRow({
+  activeView,
+  onViewChange,
+  primary,
+  secondary,
+}: {
+  activeView: ActiveView;
+  onViewChange: (view: ActiveView) => void;
+  primary: PillItem[];
+  secondary: PillItem[];
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click / escape so the popover feels lightweight.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const activeInSecondary = secondary.find((p) => p.view === activeView);
+  // If the active view is one of the tucked pills, show it inline too
+  // so the user isn't lost. Primary + optionally the active-secondary.
+  const inlinePills = activeInSecondary
+    ? [...primary, activeInSecondary]
+    : primary;
+
+  const pillClass = (active: boolean) =>
+    `flex-shrink-0 whitespace-nowrap px-2.5 py-1 text-[12px] font-medium rounded-full transition-colors ${
+      active
+        ? 'bg-indigo-600 text-white'
+        : 'bg-white text-gray-500 hover:text-gray-800 border border-gray-200'
+    }`;
+
+  return (
+    <div className="relative mx-4 mb-2" ref={ref}>
+      <nav className="flex gap-1 overflow-x-auto no-scrollbar">
+        {inlinePills.map(({ view, label, title }) => (
+          <button
+            key={view}
+            onClick={() => onViewChange(view)}
+            className={pillClass(activeView === view)}
+            title={title}
+          >
+            {label}
+          </button>
+        ))}
+        {secondary.length > 0 && (
+          <button
+            onClick={() => setOpen((v) => !v)}
+            className={`flex-shrink-0 whitespace-nowrap px-2.5 py-1 text-[12px] font-medium rounded-full transition-colors bg-white text-gray-500 hover:text-gray-800 border border-gray-200 ${
+              open ? 'ring-2 ring-indigo-300' : ''
+            }`}
+            title="More surfaces"
+            aria-expanded={open}
+          >
+            More ▾
+          </button>
+        )}
+      </nav>
+
+      {open && secondary.length > 0 && (
+        <div
+          className="absolute right-0 top-full mt-1 z-40 min-w-[10rem] bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden"
+          role="menu"
+        >
+          {secondary.map(({ view, label, title }) => {
             const active = activeView === view;
             return (
               <button
                 key={view}
-                onClick={() => onViewChange(view)}
-                className={`flex-shrink-0 whitespace-nowrap px-2.5 py-1 text-[12px] font-medium rounded-full transition-colors ${
+                onClick={() => {
+                  onViewChange(view);
+                  setOpen(false);
+                }}
+                className={`w-full text-left px-3 py-2 text-[13px] transition-colors ${
                   active
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-white text-gray-500 hover:text-gray-800 border border-gray-200'
+                    ? 'bg-indigo-50 text-indigo-800 font-semibold'
+                    : 'text-gray-700 hover:bg-gray-50'
                 }`}
                 title={title}
+                role="menuitem"
               >
                 {label}
               </button>
             );
           })}
-        </nav>
+        </div>
       )}
-    </header>
+    </div>
   );
 }
