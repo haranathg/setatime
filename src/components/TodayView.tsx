@@ -191,6 +191,26 @@ export default function TodayView({
   onPromoteWeekBoardItem,
   onSetWeekBoardItemDay,
 }: TodayViewProps) {
+  // "Show more on today" — collapses the secondary widgets (State log,
+  // Basics, Overdue predictions, Aged dump, Pins, North Stars) below a
+  // toggle so the default surface is only the essential workflow
+  // (Activate → Plan → Week). Preference persists per-user via
+  // localStorage.
+  const [showMoreToday, setShowMoreToday] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('setatime.today.showMore') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('setatime.today.showMore', String(showMoreToday));
+    } catch {
+      // storage unavailable — non-fatal
+    }
+  }, [showMoreToday]);
+
   // Gmail-style "Logged · Undo" toast at the bottom; auto-dismisses after 5s.
   const [undoToast, setUndoToast] = useState<{ id: string; spiralId: string; label: string } | null>(null);
   useEffect(() => {
@@ -300,52 +320,62 @@ export default function TodayView({
             onPromote={onPromoteWeekBoardItem}
             onSetDay={onSetWeekBoardItemDay}
           />
-          <NorthStarsStrip
-            stars={northStars}
-            onOpenStar={onOpenStar}
-            onOpenAll={onOpenAllStars}
-          />
-          <StateLogStrip
-            todaysEntries={stateLogTodaysEntries}
-            recentReasons={stateLogRecentReasons}
-            onAdd={onAddStateLogEntry}
-            onDelete={onDeleteStateLogEntry}
-          />
-          <BasicsDashboard
-            indicators={dashboardIndicators}
-            views={dashboardViews}
-            onLog={(id) => {
-              onLogIndicator(id);
-              const ind = dashboardIndicators.find((i) => i.id === id);
-              if (ind) setUndoToast({ id: `t-${Date.now()}`, spiralId: id, label: ind.name });
-            }}
-            onUndoLast={onUndoLastIndicatorLog}
-            onToggle={onToggleIndicatorEnabled}
-            onAddCustom={onAddCustomIndicator}
-            onRemove={onRemoveIndicator}
-            onPushToDump={onPushIndicatorToDump}
-            onSetCadence={onSetCadence}
-            onSetSchedule={onSetSchedule}
-            onSetPause={onSetPause}
-            northStars={northStars}
-            onToggleIndicatorStar={onToggleIndicatorStar}
-          />
-          <OverduePredictionsStrip
-            overdue={overduePredictions}
-            onReflect={onReflectPrediction}
-          />
-          <AgedDumpStrip
-            tasks={agedDumpTasks}
-            onSchedule={onScheduleDumpTask}
-            onDrop={onDropDumpTask}
-          />
-          <PinsStrip
-            pins={pins}
-            onAddPin={onAddPin}
-            onTogglePin={onTogglePin}
-            onEditPin={onEditPin}
-            onRemovePin={onRemovePin}
-          />
+          <button
+            onClick={() => setShowMoreToday((v) => !v)}
+            className="w-full text-[11px] font-semibold text-gray-500 hover:text-indigo-700 py-1.5 border-t border-dashed border-gray-200"
+          >
+            {showMoreToday ? '− hide more on today' : '▶ show more on today (6)'}
+          </button>
+          {showMoreToday && (
+            <>
+              <NorthStarsStrip
+                stars={northStars}
+                onOpenStar={onOpenStar}
+                onOpenAll={onOpenAllStars}
+              />
+              <StateLogStrip
+                todaysEntries={stateLogTodaysEntries}
+                recentReasons={stateLogRecentReasons}
+                onAdd={onAddStateLogEntry}
+                onDelete={onDeleteStateLogEntry}
+              />
+              <BasicsDashboard
+                indicators={dashboardIndicators}
+                views={dashboardViews}
+                onLog={(id) => {
+                  onLogIndicator(id);
+                  const ind = dashboardIndicators.find((i) => i.id === id);
+                  if (ind) setUndoToast({ id: `t-${Date.now()}`, spiralId: id, label: ind.name });
+                }}
+                onUndoLast={onUndoLastIndicatorLog}
+                onToggle={onToggleIndicatorEnabled}
+                onAddCustom={onAddCustomIndicator}
+                onRemove={onRemoveIndicator}
+                onPushToDump={onPushIndicatorToDump}
+                onSetCadence={onSetCadence}
+                onSetSchedule={onSetSchedule}
+                onSetPause={onSetPause}
+                northStars={northStars}
+                onToggleIndicatorStar={onToggleIndicatorStar}
+              />
+              <OverduePredictionsStrip
+                overdue={overduePredictions}
+                onReflect={onReflectPrediction}
+              />
+              <AgedDumpStrip
+                tasks={agedDumpTasks}
+                onSchedule={onScheduleDumpTask}
+                onDrop={onDropDumpTask}
+              />
+              <PinsStrip
+                pins={pins}
+                onAddPin={onAddPin}
+                onTogglePin={onTogglePin}
+                onEditPin={onEditPin}
+                onRemovePin={onRemovePin}
+              />
+            </>
+          )}
           <div className="mt-8 text-center py-16 px-4 border-2 border-dashed border-gray-200 rounded-2xl bg-white">
             <p className="text-base font-semibold text-gray-700">Nothing scheduled for today</p>
             <p className="text-sm text-gray-500 mt-2 mb-4">Add a block in the calendar to start tracking your progress here.</p>
@@ -400,57 +430,70 @@ export default function TodayView({
           onSetDay={onSetWeekBoardItemDay}
         />
 
-        <NorthStarsStrip
-          stars={northStars}
-          onOpenStar={onOpenStar}
-          onOpenAll={onOpenAllStars}
-        />
+        {/* Show more on today — the 6 secondary widgets. Hidden by
+            default; user preference persists per device. */}
+        <button
+          onClick={() => setShowMoreToday((v) => !v)}
+          className="w-full text-[11px] font-semibold text-gray-500 hover:text-indigo-700 py-1.5 border-t border-dashed border-gray-200"
+        >
+          {showMoreToday ? '− hide more on today' : '▶ show more on today (6)'}
+        </button>
 
-        <StateLogStrip
-          todaysEntries={stateLogTodaysEntries}
-          recentReasons={stateLogRecentReasons}
-          onAdd={onAddStateLogEntry}
-          onDelete={onDeleteStateLogEntry}
-        />
+        {showMoreToday && (
+          <>
+            <NorthStarsStrip
+              stars={northStars}
+              onOpenStar={onOpenStar}
+              onOpenAll={onOpenAllStars}
+            />
 
-        <BasicsDashboard
-          indicators={dashboardIndicators}
-          views={dashboardViews}
-          onLog={(id) => {
-            onLogIndicator(id);
-            const ind = dashboardIndicators.find((i) => i.id === id);
-            if (ind) setUndoToast({ id: `t-${Date.now()}`, spiralId: id, label: ind.name });
-          }}
-          onUndoLast={onUndoLastIndicatorLog}
-          onToggle={onToggleIndicatorEnabled}
-          onAddCustom={onAddCustomIndicator}
-          onRemove={onRemoveIndicator}
-          onPushToDump={onPushIndicatorToDump}
-          onSetCadence={onSetCadence}
-          onSetSchedule={onSetSchedule}
-          onSetPause={onSetPause}
-          northStars={northStars}
-          onToggleIndicatorStar={onToggleIndicatorStar}
-        />
+            <StateLogStrip
+              todaysEntries={stateLogTodaysEntries}
+              recentReasons={stateLogRecentReasons}
+              onAdd={onAddStateLogEntry}
+              onDelete={onDeleteStateLogEntry}
+            />
 
-        <OverduePredictionsStrip
-          overdue={overduePredictions}
-          onReflect={onReflectPrediction}
-        />
+            <BasicsDashboard
+              indicators={dashboardIndicators}
+              views={dashboardViews}
+              onLog={(id) => {
+                onLogIndicator(id);
+                const ind = dashboardIndicators.find((i) => i.id === id);
+                if (ind) setUndoToast({ id: `t-${Date.now()}`, spiralId: id, label: ind.name });
+              }}
+              onUndoLast={onUndoLastIndicatorLog}
+              onToggle={onToggleIndicatorEnabled}
+              onAddCustom={onAddCustomIndicator}
+              onRemove={onRemoveIndicator}
+              onPushToDump={onPushIndicatorToDump}
+              onSetCadence={onSetCadence}
+              onSetSchedule={onSetSchedule}
+              onSetPause={onSetPause}
+              northStars={northStars}
+              onToggleIndicatorStar={onToggleIndicatorStar}
+            />
 
-        <AgedDumpStrip
-          tasks={agedDumpTasks}
-          onSchedule={onScheduleDumpTask}
-          onDrop={onDropDumpTask}
-        />
+            <OverduePredictionsStrip
+              overdue={overduePredictions}
+              onReflect={onReflectPrediction}
+            />
 
-        <PinsStrip
-          pins={pins}
-          onAddPin={onAddPin}
-          onTogglePin={onTogglePin}
-          onEditPin={onEditPin}
-          onRemovePin={onRemovePin}
-        />
+            <AgedDumpStrip
+              tasks={agedDumpTasks}
+              onSchedule={onScheduleDumpTask}
+              onDrop={onDropDumpTask}
+            />
+
+            <PinsStrip
+              pins={pins}
+              onAddPin={onAddPin}
+              onTogglePin={onTogglePin}
+              onEditPin={onEditPin}
+              onRemovePin={onRemovePin}
+            />
+          </>
+        )}
 
         {/* All-day banner — reserved-day events surface here as compact chips */}
         {allDayToday.length > 0 && (
@@ -1816,9 +1859,20 @@ function ActivateNowStrip({
     predict: onPredict, sort: onSort, breathe: onBreathe,
   };
 
+  // Split the menu into primary (default-visible) and secondary
+  // (behind "+ more strategies"). Keeps the daily surface calm without
+  // hiding anything — one tap reveals the rest. Ordered by
+  // frequency-of-use from the conversation with the user.
+  const PRIMARY_KEYS: ActivateKey[] = ['stuck', 'start', 'predict', 'triage'];
+  const [showMoreStrategies, setShowMoreStrategies] = useState(false);
+  const visibleOptions = showMoreStrategies
+    ? ACTIVATE_OPTIONS
+    : ACTIVATE_OPTIONS.filter((o) => PRIMARY_KEYS.includes(o.key));
+
   // "Surprise me" — random pick from the five when the user can't decide.
   // Direct anti-decision-paralysis affordance; the exact choice matters
-  // less than moving at all.
+  // less than moving at all. Draws from ALL options (including tucked)
+  // so hidden strategies still get a fair shot.
   const surpriseMe = () => {
     const pick = ACTIVATE_OPTIONS[Math.floor(Math.random() * ACTIVATE_OPTIONS.length)];
     handlers[pick.key]();
@@ -1856,7 +1910,7 @@ function ActivateNowStrip({
       {/* Stacked action buttons — one strategy per row, large touch targets,
           scan-in-one-glance labels. */}
       <ul className="p-3 space-y-2">
-        {ACTIVATE_OPTIONS.map((opt) => {
+        {visibleOptions.map((opt) => {
           // Show a count badge on the Triage tile so the size of the pile
           // is visible. Same for Knock one out — if the dump is empty,
           // the button still works (falls back to freeform) but the
@@ -1887,6 +1941,19 @@ function ActivateNowStrip({
           );
         })}
       </ul>
+
+      {/* More strategies toggle — reveals Knock one out / Sort / Breathe.
+          Small, quiet; the whole point is the default surface stays calm. */}
+      <div className="px-3 pb-3">
+        <button
+          onClick={() => setShowMoreStrategies((v) => !v)}
+          className="w-full text-[11px] font-semibold text-gray-500 hover:text-indigo-700 py-1"
+        >
+          {showMoreStrategies
+            ? '− fewer strategies'
+            : `+ more strategies (${ACTIVATE_OPTIONS.length - PRIMARY_KEYS.length})`}
+        </button>
+      </div>
     </section>
   );
 }
