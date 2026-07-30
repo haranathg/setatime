@@ -1,31 +1,30 @@
 import { useMemo, useState } from 'react';
 import type { Thought, ThoughtStatus, BrainDumpTask } from '../types';
 
-// Unified Log surface: absorbs the Inbox (thoughts needing triage) and the
-// Hold (tasks waiting to be scheduled) into one screen. Two sections:
+// Log surface — Hold is the pile, Triage is the mode for clearing it.
 //
-//   Triage — freshly captured thoughts and any resurfaced future ones.
-//            Actions: Now (mark as active) · Later (move to Held) ·
-//            Future (surface again on a date) · Discard.
+// Prior versions had two triage stages (Inbox thoughts → Hold tasks); as of
+// the consolidation PR Inbox is retired and everything ✎ Log-captured lands
+// in Hold directly. LogView now shows Hold plus a one-tap "🎴 Triage"
+// launcher that opens the batch card-based clearing surface.
 //
-//   Held   — tasks waiting to be scheduled onto the calendar. Actions:
-//            Schedule (jump to calendar prefilled) · Delete.
-//
-// This is a UI-only merge — the Inbox and BrainDump slices are still
-// separate under the hood. A future PR could unify the data models into a
-// single LogItem type; for now the reduced surface area covers the ~90%
-// case (triage + schedule) without churn.
+// The legacy Triage (thoughts) section is kept in code for safety in case
+// a very old install has un-migrated items — it only renders if there
+// happen to be inbox-status thoughts present.
 
 interface LogViewProps {
-  // Inbox side
+  // Legacy inbox side — usually empty post-migration; kept as a safety net
+  // for un-migrated data during the first few opens after upgrading.
   thoughts: Thought[];
   onTriage: (id: string, status: ThoughtStatus, futureSurfaceDate?: string) => void;
   onDeleteThought: (id: string) => void;
   onSendThoughtToHold: (label: string) => void;
-  // Hold side
+  // Hold side — the pile
   heldTasks: BrainDumpTask[];
   onScheduleHeldTask: (task: BrainDumpTask) => void;
   onDeleteHeldTask: (id: string) => void;
+  // Launches the batch Triage view (card-based clearing)
+  onOpenBatchTriage: () => void;
 }
 
 const FUTURE_PRESETS: { label: string; days: number }[] = [
@@ -60,8 +59,11 @@ export default function LogView({
   heldTasks,
   onScheduleHeldTask,
   onDeleteHeldTask,
+  onOpenBatchTriage,
 }: LogViewProps) {
-  // Triage bucket: inbox status OR future-surfacing today.
+  // Legacy triage bucket: inbox status OR future-surfacing today. Should
+  // be empty after the one-time migration on the App shell; kept as a
+  // safety net for un-migrated data.
   const triageThoughts = useMemo(() => {
     const today = todayKey();
     return thoughts
@@ -81,19 +83,38 @@ export default function LogView({
   return (
     <div className="flex-1 overflow-y-auto bg-[#fbfaf7]">
       <div className="max-w-3xl mx-auto px-5 py-6 space-y-5">
-        <header>
-          <h1 className="text-xl font-semibold tracking-tight text-gray-900">Log</h1>
-          <p className="text-sm text-gray-500 mt-1 leading-snug">
-            Capture, triage, schedule. Everything flows through here.
-          </p>
+        <header className="flex items-baseline justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight text-gray-900">Log</h1>
+            <p className="text-sm text-gray-500 mt-1 leading-snug">
+              Your Hold — everything you've captured. Batch-clear with Triage.
+            </p>
+          </div>
+          <button
+            onClick={onOpenBatchTriage}
+            disabled={heldSorted.length === 0}
+            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 disabled:opacity-40 disabled:cursor-not-allowed"
+            title={heldSorted.length === 0 ? 'Hold is empty — nothing to triage' : 'Clear the Hold one card at a time'}
+          >
+            🎴 Triage
+            {heldSorted.length > 0 && (
+              <span className="text-[10px] font-bold bg-white/70 border border-amber-200 rounded-full px-1.5 py-0.5 tabular-nums">
+                {heldSorted.length}
+              </span>
+            )}
+          </button>
         </header>
 
-        <TriageSection
-          thoughts={triageThoughts}
-          onTriage={onTriage}
-          onDelete={onDeleteThought}
-          onSendToHold={onSendThoughtToHold}
-        />
+        {/* Legacy Triage section — only renders if there are un-migrated
+            inbox thoughts sitting around. Post-migration this stays hidden. */}
+        {triageThoughts.length > 0 && (
+          <TriageSection
+            thoughts={triageThoughts}
+            onTriage={onTriage}
+            onDelete={onDeleteThought}
+            onSendToHold={onSendThoughtToHold}
+          />
+        )}
 
         <HeldSection
           tasks={heldSorted}

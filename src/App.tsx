@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Header from './components/Header';
 import NowNextBar from './components/NowNextBar';
 import QuickCaptureBar from './components/QuickCaptureBar';
@@ -308,7 +308,7 @@ function AppMain({
 
   const {
     thoughts: inboxThoughts,
-    captureThought,
+    loaded: inboxLoaded,
     triageThought,
     deleteThought: deleteInboxThought,
   } = useInbox();
@@ -325,10 +325,41 @@ function AppMain({
 
   // Triage tab count: anything still in 'inbox', plus 'future' thoughts whose
   // resurface date has arrived. Drives the badge on the Inbox header tab.
+  // NOTE: post-consolidation this should always be 0 after the migration
+  // runs; the badge stays wired in case a legacy install has un-migrated
+  // items on first load.
   const todayKey = new Date().toISOString().slice(0, 10);
   const inboxTriageCount = inboxThoughts.filter(
     (t) => t.status === 'inbox' || (t.status === 'future' && !!t.futureSurfaceDate && t.futureSurfaceDate <= todayKey)
   ).length;
+
+  // One-time migration: retire the separate Inbox stage. Any non-discarded
+  // legacy thoughts get pushed into Hold as tasks so nothing is lost, then
+  // marked discarded so this only runs once. Guarded by localStorage so
+  // repeat opens are cheap.
+  const inboxMigratedRef = useRef(false);
+  useEffect(() => {
+    if (inboxMigratedRef.current || !inboxLoaded) return;
+    try {
+      if (localStorage.getItem('setatime.inbox.migrated') === 'true') {
+        inboxMigratedRef.current = true;
+        return;
+      }
+    } catch {
+      // storage unavailable — will just retry next mount, harmless
+    }
+    const pending = inboxThoughts.filter((t) => t.status !== 'discarded');
+    for (const t of pending) {
+      addManualTask(t.text);
+      triageThought(t.id, 'discarded');
+    }
+    try {
+      localStorage.setItem('setatime.inbox.migrated', 'true');
+    } catch {
+      // non-fatal
+    }
+    inboxMigratedRef.current = true;
+  }, [inboxLoaded, inboxThoughts, addManualTask, triageThought]);
 
   const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes') => {
     setActiveView(view);
@@ -411,6 +442,7 @@ function AppMain({
             scheduleThis({ taskName: task.label });
           }}
           onDeleteHeldTask={deleteTask}
+          onOpenBatchTriage={() => setActiveView('triage')}
         />
       ) : activeView === 'chart' ? (
         <ChartView
@@ -457,6 +489,7 @@ function AppMain({
             scheduleThis({ taskName: task.label });
           }}
           onDeleteHeldTask={deleteTask}
+          onOpenBatchTriage={() => setActiveView('triage')}
         />
       ) : activeView === 'today' ? (
         <TodayView
@@ -670,7 +703,7 @@ function AppMain({
           the flex column so it lands under the thumb on iPhone with
           safe-area padding for the home indicator. */}
       <QuickCaptureBar
-        onLog={(text) => captureThought(text)}
+        onLog={(text) => addManualTask(text)}
         onSchedule={(text) => scheduleThis({ taskName: text })}
         onNote={(text) => addNote(text)}
       />
