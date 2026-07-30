@@ -595,6 +595,10 @@ export interface WeekBoardItem {
   id: string;
   label: string;
   addedAt: string;   // ISO
+  // Optional day assignment as YYYY-MM-DD. Undefined = unsorted
+  // (waiting for a day). Past days fold into today automatically
+  // in the UI so nothing silently disappears.
+  day?: string;
 }
 
 export interface WeekBoardState {

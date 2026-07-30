@@ -105,9 +105,10 @@ interface TodayViewProps {
   // 1/3/5 (with a size) or dropped intentionally.
   weekBoardItems: WeekBoardItem[];
   weekBoardDropsThisWeek: number;
-  onAddWeekBoardItem: (label: string) => WeekBoardItem | null;
+  onAddWeekBoardItem: (label: string, day?: string) => WeekBoardItem | null;
   onDropWeekBoardItem: (id: string) => void;
   onPromoteWeekBoardItem: (id: string, size: DailyPlanSize) => void;
+  onSetWeekBoardItemDay: (id: string, day: string | undefined) => void;
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -188,6 +189,7 @@ export default function TodayView({
   onAddWeekBoardItem,
   onDropWeekBoardItem,
   onPromoteWeekBoardItem,
+  onSetWeekBoardItemDay,
 }: TodayViewProps) {
   // Gmail-style "Logged · Undo" toast at the bottom; auto-dismisses after 5s.
   const [undoToast, setUndoToast] = useState<{ id: string; spiralId: string; label: string } | null>(null);
@@ -296,6 +298,7 @@ export default function TodayView({
             onAdd={onAddWeekBoardItem}
             onDrop={onDropWeekBoardItem}
             onPromote={onPromoteWeekBoardItem}
+            onSetDay={onSetWeekBoardItemDay}
           />
           <NorthStarsStrip
             stars={northStars}
@@ -394,6 +397,7 @@ export default function TodayView({
           onAdd={onAddWeekBoardItem}
           onDrop={onDropWeekBoardItem}
           onPromote={onPromoteWeekBoardItem}
+          onSetDay={onSetWeekBoardItemDay}
         />
 
         <NorthStarsStrip
@@ -2267,6 +2271,14 @@ function PlanAddForm({
 // prioritization, so the app makes the drop feel like a win rather
 // than a deletion.
 
+// Local YYYY-MM-DD from a Date, honoring the browser's local zone.
+function ymd(d: Date): string {
+  const y = d.getFullYear();
+  const m = (d.getMonth() + 1).toString().padStart(2, '0');
+  const day = d.getDate().toString().padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 function WeekBoardStrip({
   items,
   dropsThisWeek,
@@ -2275,30 +2287,26 @@ function WeekBoardStrip({
   onAdd,
   onDrop,
   onPromote,
+  onSetDay,
 }: {
   items: WeekBoardItem[];
   dropsThisWeek: number;
   planCounts: { total: Record<DailyPlanSize, number>; done: Record<DailyPlanSize, number> };
   dumpTasks: BrainDumpTask[];
-  onAdd: (label: string) => WeekBoardItem | null;
+  onAdd: (label: string, day?: string) => WeekBoardItem | null;
   onDrop: (id: string) => void;
   onPromote: (id: string, size: DailyPlanSize) => void;
+  onSetDay: (id: string, day: string | undefined) => void;
 }) {
-  const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState('');
-  // Track which item last got dropped so we can flash a brief "✓ dropped"
-  // affirmation. Cleared after ~1.2s.
+  // Which section is currently in add-mode. Only one open at a time so
+  // the card doesn't sprawl. `null` = closed; `''` = adding to Unsorted;
+  // a YYYY-MM-DD string = adding to that day.
+  const [addingSection, setAddingSection] = useState<string | null>(null);
   const [flashDrop, setFlashDrop] = useState<number>(0);
 
   const capBig = planCounts.total.big     >= DAILY_PLAN_CAPS.big;
   const capMed = planCounts.total.medium  >= DAILY_PLAN_CAPS.medium;
   const capSm  = planCounts.total.small   >= DAILY_PLAN_CAPS.small;
-
-  const commit = () => {
-    if (!draft.trim()) return;
-    onAdd(draft);
-    setDraft('');
-  };
 
   const doDrop = (id: string) => {
     onDrop(id);
@@ -2306,12 +2314,67 @@ function WeekBoardStrip({
     setTimeout(() => setFlashDrop((prev) => (Date.now() - prev >= 1200 ? 0 : prev)), 1300);
   };
 
-  // Small chip row of the 5 shortest active Hold items for zero-typing
-  // pull-into-week. Simple heuristic — short labels tend to be
-  // concrete/atomic and easier to reason about.
-  const holdChips = useMemo(() => {
-    return [...dumpTasks].sort((a, b) => a.label.length - b.label.length).slice(0, 5);
-  }, [dumpTasks]);
+  // Build the 7-day day-key window (today + next 6). This is also the
+  // set of valid values for the per-item day picker.
+  const daySections = useMemo(() => {
+    const out: { key: string; label: string; sub?: string; date: Date }[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      const key = ymd(d);
+      let label: string;
+      let sub: string | undefined;
+      if (i === 0) {
+        label = 'Today';
+        sub = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+      } else if (i === 1) {
+        label = 'Tomorrow';
+        sub = d.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+      } else {
+        label = d.toLocaleDateString([], { weekday: 'short' });
+        sub = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      }
+      out.push({ key, label, sub, date: d });
+    }
+    return out;
+  }, []);
+
+  // Bucket items by section:
+  //   - undefined day → Unsorted
+  //   - day matching a window key → that section
+  //   - day BEFORE today (missed) → folded into Today so nothing
+  //     silently disappears
+  //   - day AFTER window (day+7 or later) → folded into last section
+  //     (rare — user usually won't file that far out)
+  const buckets = useMemo(() => {
+    const map = new Map<string, WeekBoardItem[]>();
+    map.set('', []); // Unsorted
+    for (const s of daySections) map.set(s.key, []);
+
+    const todayKey = daySections[0].key;
+    const lastKey  = daySections[daySections.length - 1].key;
+
+    for (const item of items) {
+      if (!item.day) {
+        map.get('')!.push(item);
+      } else if (map.has(item.day)) {
+        map.get(item.day)!.push(item);
+      } else if (item.day < todayKey) {
+        // past → fold into today
+        map.get(todayKey)!.push(item);
+      } else {
+        // future beyond window → fold into last visible day
+        map.get(lastKey)!.push(item);
+      }
+    }
+    // Sort each bucket by addedAt (oldest first — feels chronological).
+    for (const list of map.values()) {
+      list.sort((a, b) => a.addedAt.localeCompare(b.addedAt));
+    }
+    return map;
+  }, [items, daySections]);
 
   return (
     <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
@@ -2337,129 +2400,260 @@ function WeekBoardStrip({
         </div>
       </header>
 
-      {items.length === 0 && !adding && (
-        <div className="px-4 py-4 text-center text-[12px] text-gray-500 space-y-2">
-          <p>
-            Dump whatever's on your mind for the coming days. No dates, no sizes.
-            You'll pull from this into today's plan.
-          </p>
-          <button
-            onClick={() => setAdding(true)}
-            className="text-[12px] font-semibold text-indigo-600 hover:text-indigo-800"
-          >
-            + add first item
-          </button>
-        </div>
-      )}
+      <div className="p-2 space-y-2">
+        {/* Unsorted — always visible at the top, becomes the "landing
+            pad" for items that need to be filed. */}
+        <WeekBoardSection
+          sectionKey=""
+          label="Unsorted"
+          sub="no day set"
+          items={buckets.get('') || []}
+          daySections={daySections}
+          isAdding={addingSection === ''}
+          onOpenAdd={() => setAddingSection('')}
+          onCloseAdd={() => setAddingSection(null)}
+          onAdd={(label) => {
+            const r = onAdd(label);
+            if (r) setAddingSection(null);
+          }}
+          onPromote={onPromote}
+          onDrop={doDrop}
+          onSetDay={onSetDay}
+          dumpTasks={dumpTasks}
+          capBig={capBig}
+          capMed={capMed}
+          capSm={capSm}
+        />
 
-      {items.length > 0 && (
-        <ul className="p-2 space-y-1">
-          {items.map((item) => (
-            <WeekBoardRow
-              key={item.id}
-              item={item}
-              capBig={capBig}
-              capMed={capMed}
-              capSm={capSm}
-              onPromote={onPromote}
-              onDrop={doDrop}
-            />
-          ))}
-        </ul>
-      )}
+        {daySections.map((s) => (
+          <WeekBoardSection
+            key={s.key}
+            sectionKey={s.key}
+            label={s.label}
+            sub={s.sub}
+            items={buckets.get(s.key) || []}
+            daySections={daySections}
+            isAdding={addingSection === s.key}
+            onOpenAdd={() => setAddingSection(s.key)}
+            onCloseAdd={() => setAddingSection(null)}
+            onAdd={(label) => {
+              const r = onAdd(label, s.key);
+              if (r) setAddingSection(null);
+            }}
+            onPromote={onPromote}
+            onDrop={doDrop}
+            onSetDay={onSetDay}
+            dumpTasks={dumpTasks}
+            capBig={capBig}
+            capMed={capMed}
+            capSm={capSm}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
 
-      {/* Add form / trigger */}
-      {items.length > 0 && !adding && (
-        <div className="p-2 border-t border-gray-100">
-          <button
-            onClick={() => setAdding(true)}
-            className="w-full py-1.5 text-[11px] font-semibold text-gray-500 border border-dashed border-gray-300 rounded-lg hover:border-indigo-400 hover:text-indigo-700"
-          >
-            + add
-          </button>
-        </div>
-      )}
+function WeekBoardSection({
+  sectionKey,
+  label,
+  sub,
+  items,
+  daySections,
+  isAdding,
+  onOpenAdd,
+  onCloseAdd,
+  onAdd,
+  onPromote,
+  onDrop,
+  onSetDay,
+  dumpTasks,
+  capBig,
+  capMed,
+  capSm,
+}: {
+  sectionKey: string;
+  label: string;
+  sub?: string;
+  items: WeekBoardItem[];
+  daySections: { key: string; label: string; sub?: string }[];
+  isAdding: boolean;
+  onOpenAdd: () => void;
+  onCloseAdd: () => void;
+  onAdd: (label: string) => void;
+  onPromote: (id: string, size: DailyPlanSize) => void;
+  onDrop: (id: string) => void;
+  onSetDay: (id: string, day: string | undefined) => void;
+  dumpTasks: BrainDumpTask[];
+  capBig: boolean;
+  capMed: boolean;
+  capSm: boolean;
+}) {
+  const isUnsorted = sectionKey === '';
+  const isToday = !isUnsorted && sectionKey === daySections[0]?.key;
+  const headerTone = isUnsorted
+    ? 'text-gray-600'
+    : isToday
+    ? 'text-indigo-800'
+    : 'text-gray-700';
 
-      {adding && (
-        <div className="p-3 border-t border-gray-100 space-y-2">
-          <div className="flex gap-1.5">
-            <input
-              autoFocus
-              type="text"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && draft.trim()) {
-                  e.preventDefault();
-                  commit();
-                } else if (e.key === 'Escape') {
-                  e.preventDefault();
-                  setAdding(false);
-                  setDraft('');
-                }
-              }}
-              placeholder='e.g. "finalize loan", "pick up bag"'
-              className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
-            />
-            <button
-              onClick={commit}
-              disabled={!draft.trim()}
-              className="px-2 py-1 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md disabled:opacity-40"
-            >
-              Add
-            </button>
-            <button
-              onClick={() => { setAdding(false); setDraft(''); }}
-              className="px-1.5 py-1 text-[11px] text-gray-500 hover:text-gray-800"
-            >
-              ×
-            </button>
-          </div>
-          {holdChips.length > 0 && (
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-0.5">
-                Or pull from your hold
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {holdChips.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => { onAdd(t.label); }}
-                    className="px-2 py-0.5 text-[11px] rounded-full bg-white border border-gray-200 text-gray-700 hover:border-indigo-400 hover:bg-indigo-50/40 max-w-[15rem] truncate"
-                    title={t.label}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+  return (
+    <div className={`rounded-xl border ${isToday ? 'border-indigo-200 bg-indigo-50/30' : 'border-gray-100 bg-gray-50/40'} px-2 py-1.5`}>
+      <div className="flex items-baseline justify-between mb-1">
+        <div className={`text-[11px] uppercase tracking-wider font-bold ${headerTone} flex items-baseline gap-1.5`}>
+          <span>{label}</span>
+          {sub && <span className="text-[10px] font-normal opacity-70 normal-case tracking-normal">{sub}</span>}
+          {items.length > 0 && (
+            <span className="text-[10px] font-normal opacity-60 tabular-nums font-mono">
+              {items.length}
+            </span>
           )}
         </div>
+      </div>
+      <ul className="space-y-1">
+        {items.map((item) => (
+          <WeekBoardRow
+            key={item.id}
+            item={item}
+            daySections={daySections}
+            capBig={capBig}
+            capMed={capMed}
+            capSm={capSm}
+            onPromote={onPromote}
+            onDrop={onDrop}
+            onSetDay={onSetDay}
+          />
+        ))}
+      </ul>
+      {isAdding ? (
+        <WeekBoardAddInput
+          onCancel={onCloseAdd}
+          onSubmit={onAdd}
+          dumpTasks={dumpTasks}
+          placeholder={isUnsorted ? 'e.g. "finalize loan"' : `Add to ${label.toLowerCase()}`}
+        />
+      ) : (
+        <button
+          onClick={onOpenAdd}
+          className="mt-1 w-full py-1 text-[10px] font-semibold text-gray-400 hover:text-indigo-700 border border-dashed border-transparent hover:border-indigo-300 rounded"
+        >
+          + add {isUnsorted ? 'to unsorted' : label.toLowerCase()}
+        </button>
       )}
-    </section>
+    </div>
+  );
+}
+
+function WeekBoardAddInput({
+  onCancel,
+  onSubmit,
+  dumpTasks,
+  placeholder,
+}: {
+  onCancel: () => void;
+  onSubmit: (label: string) => void;
+  dumpTasks: BrainDumpTask[];
+  placeholder: string;
+}) {
+  const [draft, setDraft] = useState('');
+  const holdChips = useMemo(() => {
+    return [...dumpTasks].sort((a, b) => a.label.length - b.label.length).slice(0, 5);
+  }, [dumpTasks]);
+  const commit = () => {
+    if (!draft.trim()) return;
+    onSubmit(draft.trim());
+    setDraft('');
+  };
+  return (
+    <div className="mt-1.5 space-y-1.5">
+      <div className="flex gap-1.5">
+        <input
+          autoFocus
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && draft.trim()) {
+              e.preventDefault();
+              commit();
+            } else if (e.key === 'Escape') {
+              e.preventDefault();
+              onCancel();
+            }
+          }}
+          placeholder={placeholder}
+          className="flex-1 min-w-0 px-2 py-1 text-[12px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+        />
+        <button
+          onClick={commit}
+          disabled={!draft.trim()}
+          className="px-2 py-0.5 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md disabled:opacity-40"
+        >
+          Add
+        </button>
+        <button
+          onClick={onCancel}
+          className="px-1 py-0.5 text-[11px] text-gray-500 hover:text-gray-800"
+        >
+          ×
+        </button>
+      </div>
+      {holdChips.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {holdChips.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => onSubmit(t.label)}
+              className="px-2 py-0.5 text-[10px] rounded-full bg-white border border-gray-200 text-gray-700 hover:border-indigo-400 hover:bg-indigo-50/40 max-w-[15rem] truncate"
+              title={t.label}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
 function WeekBoardRow({
   item,
+  daySections,
   capBig,
   capMed,
   capSm,
   onPromote,
   onDrop,
+  onSetDay,
 }: {
   item: WeekBoardItem;
+  daySections: { key: string; label: string; sub?: string }[];
   capBig: boolean;
   capMed: boolean;
   capSm: boolean;
   onPromote: (id: string, size: DailyPlanSize) => void;
   onDrop: (id: string) => void;
+  onSetDay: (id: string, day: string | undefined) => void;
 }) {
   return (
-    <li className="group flex items-center gap-1 bg-gray-50/60 hover:bg-white rounded-lg px-2 py-1.5 border border-gray-100">
+    <li className="group flex items-center gap-1 bg-white hover:shadow-sm rounded-lg px-2 py-1.5 border border-gray-100">
       <span className="flex-1 min-w-0 truncate text-[13px] text-gray-900" title={item.label}>
         {item.label}
       </span>
+      <select
+        value={item.day || ''}
+        onChange={(e) => onSetDay(item.id, e.target.value || undefined)}
+        title="Change day"
+        aria-label="Change day"
+        className="text-[10px] text-gray-500 bg-transparent border border-transparent rounded px-1 py-0.5 hover:bg-gray-50 hover:border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 max-w-[5.5rem]"
+      >
+        <option value="">Unsorted</option>
+        {daySections.map((s) => (
+          <option key={s.key} value={s.key}>
+            {s.label}
+          </option>
+        ))}
+      </select>
       <SizePromoteButton
         glyph="★"
         label="Big"
