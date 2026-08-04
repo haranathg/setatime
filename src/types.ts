@@ -396,6 +396,7 @@ export interface AppState {
   plan?: DailyPlanState;
   weekBoard?: WeekBoardState;
   notes?: NotesState;
+  principles?: PrinciplesState;
 }
 
 // ---------- Horizon (life-scale perspective) ----------
@@ -626,6 +627,27 @@ export interface NoteEntry {
 
 export interface NotesState {
   entries: NoteEntry[];
+}
+
+// ---------- Principles (regret → value → action) ----------
+//
+// ACT-flavored exercise: convert past regrets into forward-facing action
+// policies. The output is a personal creed — a small set of behavioral
+// commitments derived from your own history rather than generic advice.
+//
+// Only `action` is required. Some entries will start from a regret you're
+// working through; others will just declare a principle from scratch.
+
+export interface PrincipleEntry {
+  id: string;
+  regret?: string;   // what you carry
+  value?: string;    // what the regret / principle is about
+  action: string;    // the forward-facing policy (the durable artifact)
+  createdAt: string; // ISO
+}
+
+export interface PrinciplesState {
+  entries: PrincipleEntry[];
 }
 
 // Prefer new energy field; map legacy feeling to a coarse point on the scale.

@@ -13,6 +13,7 @@ import UnderwayView from './components/UnderwayView';
 import CompassView from './components/CompassView';
 import TriageView from './components/TriageView';
 import NotesView from './components/NotesView';
+import PrinciplesView from './components/PrinciplesView';
 import HorizonView from './components/HorizonView';
 import LogView from './components/LogView';
 import NorthStarsView from './components/NorthStarsView';
@@ -37,6 +38,7 @@ import { useCompass } from './hooks/useCompass';
 import { usePlan } from './hooks/usePlan';
 import { useWeekBoard } from './hooks/useWeekBoard';
 import { useNotes } from './hooks/useNotes';
+import { usePrinciples } from './hooks/usePrinciples';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -90,7 +92,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes'>('today');
+  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes' | 'principles'>('today');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -107,8 +109,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes';
-  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes') => void;
+  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes' | 'principles';
+  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes' | 'principles') => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -231,6 +233,13 @@ function AppMain({
     deleteNote,
     updateNote,
   } = useNotes();
+
+  const {
+    entries: principles,
+    addPrinciple,
+    updatePrinciple,
+    deletePrinciple,
+  } = usePrinciples();
 
   const {
     state: horizonState,
@@ -361,7 +370,7 @@ function AppMain({
     inboxMigratedRef.current = true;
   }, [inboxLoaded, inboxThoughts, addManualTask, triageThought]);
 
-  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes') => {
+  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes' | 'principles') => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -681,6 +690,13 @@ function AppMain({
           onAddNote={addNote}
           onDeleteNote={deleteNote}
           onUpdateNote={updateNote}
+        />
+      ) : activeView === 'principles' ? (
+        <PrinciplesView
+          entries={principles}
+          onAdd={addPrinciple}
+          onUpdate={updatePrinciple}
+          onDelete={deletePrinciple}
         />
       ) : activeView === 'horizon' ? (
         <HorizonView
