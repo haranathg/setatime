@@ -17,7 +17,8 @@ export type ActiveView =
   | 'underway'
   | 'compass'
   | 'triage'
-  | 'notes';
+  | 'notes'
+  | 'principles';
 
 export type Hub = 'today' | 'log' | 'charts' | 'sail';
 
@@ -26,7 +27,7 @@ export type Hub = 'today' | 'log' | 'charts' | 'sail';
 export function hubForView(view: ActiveView): Hub {
   if (view === 'today' || view === 'triage') return 'today'; // Triage is an activation move launched from Today
   if (view === 'inbox' || view === 'braindump') return 'log'; // Hold merged into Log
-  if (view === 'chart' || view === 'notes' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats' || view === 'horizon') {
+  if (view === 'chart' || view === 'notes' || view === 'principles' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats' || view === 'horizon') {
     return 'charts';
   }
   return 'sail'; // calendar + grounding + predictions (Lab)
@@ -227,9 +228,10 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           activeView={activeView}
           onViewChange={onViewChange}
           primary={[
-            { view: 'notes',  label: 'Journal', title: 'Free-form reflections, observations, ideas' },
-            { view: 'chart',  label: 'Notes',   title: 'Chart notes: SOAP-style self check-ins' },
-            { view: 'stars',  label: 'Stars',   title: 'North Stars: 1–3 long-term anchors' },
+            { view: 'notes',      label: 'Journal',    title: 'Free-form reflections, observations, ideas' },
+            { view: 'chart',      label: 'Notes',      title: 'Chart notes: SOAP-style self check-ins' },
+            { view: 'stars',      label: 'Stars',      title: 'North Stars: 1–3 long-term anchors' },
+            { view: 'principles', label: 'Principles', title: 'Regret → value → action: your personal creed' },
           ]}
           secondary={[
             { view: 'horizon', label: 'Horizon', title: 'Zoom out: the whole arc of your life' },
