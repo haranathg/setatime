@@ -74,8 +74,8 @@ export default function DayColumn({ date, blocks, onDayClick, onBlockClick, onTo
       {/* Day header — only shown when not hidden by parent */}
       {!hideHeader && (
         <div
-          className={`text-center py-2 text-sm font-medium border-b border-gray-200 bg-white z-10 ${
-            today ? 'text-indigo-600' : 'text-gray-700'
+          className={`text-center py-2 text-sm font-medium border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 z-10 ${
+            today ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300'
           }`}
         >
           <span className={today ? 'bg-indigo-600 text-white rounded-full px-2 py-0.5' : ''}>
@@ -87,7 +87,7 @@ export default function DayColumn({ date, blocks, onDayClick, onBlockClick, onTo
       {/* All-day band — reserved-day events render here above the hour grid.
           Each renders as a compact colored bar; tapping opens the edit modal. */}
       {allDayBlocks.length > 0 && (
-        <div className="px-1 py-1 bg-white border-b border-gray-100 space-y-0.5">
+        <div className="px-1 py-1 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800 space-y-0.5">
           {allDayBlocks.map((b) => (
             <button
               key={b.id}
@@ -95,11 +95,11 @@ export default function DayColumn({ date, blocks, onDayClick, onBlockClick, onTo
                 e.stopPropagation();
                 onBlockClick(b);
               }}
-              className="w-full text-left px-2 py-1 text-[11px] font-medium rounded-md truncate text-gray-900 hover:brightness-95 transition-all border-l-4"
+              className="w-full text-left px-2 py-1 text-[11px] font-medium rounded-md truncate text-gray-900 dark:text-gray-100 hover:brightness-95 transition-all border-l-4"
               style={{ backgroundColor: b.color, borderLeftColor: shade(b.color, -0.35) }}
               title={`All day: ${b.mainTask}`}
             >
-              <span className="text-[9px] uppercase tracking-wider font-bold mr-1 text-gray-700">All day</span>
+              <span className="text-[9px] uppercase tracking-wider font-bold mr-1 text-gray-700 dark:text-gray-300">All day</span>
               {b.mainTask}
             </button>
           ))}
@@ -116,7 +116,7 @@ export default function DayColumn({ date, blocks, onDayClick, onBlockClick, onTo
         {HOURS.map((hour) => (
           <div
             key={hour}
-            className="absolute w-full border-t border-gray-100"
+            className="absolute w-full border-t border-gray-100 dark:border-gray-800"
             style={{ top: `${(hour - START_HOUR) * HOUR_HEIGHT_PX}px` }}
           />
         ))}

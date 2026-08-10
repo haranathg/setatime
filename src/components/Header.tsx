@@ -88,14 +88,14 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
   };
 
   return (
-    <header className="flex flex-col border-b border-gray-200 bg-white z-30">
+    <header className="flex flex-col border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 z-30">
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
         <div className="flex items-baseline gap-2">
-          <h1 className="text-xl font-semibold tracking-tight text-gray-900">
-            Set<span className="text-indigo-600">A</span>Time
+          <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+            Set<span className="text-indigo-600 dark:text-indigo-400">A</span>Time
           </h1>
           <span
-            className="text-[10px] font-mono text-gray-400 select-all"
+            className="text-[10px] font-mono text-gray-400 dark:text-gray-500 select-all"
             title={versionTitle}
           >
             v{appVersion}
@@ -108,8 +108,8 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
             onClick={() => setShowSync(!showSync)}
             className={`p-2 rounded-lg transition-colors ${
               isConnected
-                ? 'text-green-600 hover:bg-green-50'
-                : 'text-gray-400 hover:bg-gray-100'
+                ? 'text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/40 dark:bg-green-950/40'
+                : 'text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800'
             }`}
             title={isConnected ? 'Sync connected' : 'Set up sync'}
           >
@@ -124,9 +124,9 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           </button>
 
           {showSync && (
-            <div className="absolute right-0 top-full mt-2 w-72 bg-white border border-gray-200 rounded-xl shadow-lg p-4 z-50">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Cloud Sync</h3>
-              <p className="text-xs text-gray-500 mb-3">
+            <div className="absolute right-0 top-full mt-2 w-72 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-lg p-4 z-50">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Cloud Sync</h3>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
                 Enter a secret key to sync your data across devices. Same key = same data.
               </p>
               <input
@@ -134,7 +134,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
                 value={key}
                 onChange={(e) => setKey(e.target.value)}
                 placeholder="Enter secret key (min 4 chars)"
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2"
+                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2"
               />
               <div className="flex gap-2">
                 <button
@@ -147,25 +147,25 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
                 {isConnected && (
                   <button
                     onClick={handleDisconnect}
-                    className="px-3 py-1.5 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                    className="px-3 py-1.5 text-sm font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/40 dark:bg-red-950/40 transition-colors"
                   >
                     Disconnect
                   </button>
                 )}
               </div>
               {syncError && (
-                <p className="text-xs text-red-500 mt-2">{syncError}</p>
+                <p className="text-xs text-red-500 dark:text-red-400 mt-2">{syncError}</p>
               )}
               {isConnected && !syncError && (
-                <p className="text-xs text-green-600 mt-2">Syncing automatically</p>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-2">Syncing automatically</p>
               )}
 
               {/* iCal export */}
               {blockCount > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
                   <button
                     onClick={() => { onExportICal?.(); setShowSync(false); }}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors"
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-800 dark:bg-indigo-900/40 transition-colors"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
@@ -175,7 +175,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
                     </svg>
                     Export to iCal ({blockCount} events)
                   </button>
-                  <p className="text-[10px] text-gray-400 mt-1 text-center">
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 text-center">
                     Downloads a .ics file — opens in Apple Calendar, Google Calendar, etc.
                   </p>
                 </div>
@@ -186,7 +186,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
       </div>
 
       {/* Hub tab strip — Today · Log · Charts · Sail */}
-      <nav className="flex gap-1 bg-gray-100 rounded-lg p-1 mx-4 mb-1.5">
+      <nav className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-1 mx-4 mb-1.5">
         {(
           [
             { hub: 'today' as const, label: 'Today', title: 'Deck: what\'s happening right now' },
@@ -205,8 +205,8 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
               onClick={() => onViewChange(defaultViewForHub(hub))}
               className={`relative flex-1 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                 active
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300'
               }`}
               title={title}
             >
@@ -315,7 +315,7 @@ function SubPillRow({
     `flex-shrink-0 whitespace-nowrap px-2.5 py-1 text-[12px] font-medium rounded-full transition-colors ${
       active
         ? 'bg-indigo-600 text-white'
-        : 'bg-white text-gray-500 hover:text-gray-800 border border-gray-200'
+        : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 border border-gray-200 dark:border-gray-800'
     }`;
 
   return (
@@ -334,7 +334,7 @@ function SubPillRow({
         {secondary.length > 0 && (
           <button
             onClick={() => setOpen((v) => !v)}
-            className={`flex-shrink-0 whitespace-nowrap px-2.5 py-1 text-[12px] font-medium rounded-full transition-colors bg-white text-gray-500 hover:text-gray-800 border border-gray-200 ${
+            className={`flex-shrink-0 whitespace-nowrap px-2.5 py-1 text-[12px] font-medium rounded-full transition-colors bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 border border-gray-200 dark:border-gray-800 ${
               open ? 'ring-2 ring-indigo-300' : ''
             }`}
             title="More surfaces"
@@ -347,7 +347,7 @@ function SubPillRow({
 
       {open && secondary.length > 0 && (
         <div
-          className="absolute right-0 top-full mt-1 z-40 min-w-[10rem] bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden"
+          className="absolute right-0 top-full mt-1 z-40 min-w-[10rem] bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-lg overflow-hidden"
           role="menu"
         >
           {secondary.map(({ view, label, title }) => {
@@ -361,8 +361,8 @@ function SubPillRow({
                 }}
                 className={`w-full text-left px-3 py-2 text-[13px] transition-colors ${
                   active
-                    ? 'bg-indigo-50 text-indigo-800 font-semibold'
-                    : 'text-gray-700 hover:bg-gray-50'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-200 font-semibold'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950'
                 }`}
                 title={title}
                 role="menuitem"

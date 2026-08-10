@@ -294,12 +294,12 @@ export default function PredictionLabView({
 
 function Shell({ children, onExit }: { children: React.ReactNode; onExit: () => void }) {
   return (
-    <div className="flex-1 overflow-y-auto bg-[#fbfaf7]">
+    <div className="flex-1 overflow-y-auto bg-[#fbfaf7] dark:bg-[#171614]">
       <div className="max-w-2xl mx-auto px-5 pt-4 pb-12 min-h-full flex flex-col">
         <div className="flex justify-end mb-2">
           <button
             onClick={onExit}
-            className="text-xs uppercase tracking-wider text-gray-400 hover:text-gray-600 transition-colors"
+            className="text-xs uppercase tracking-wider text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 transition-colors"
           >
             Close
           </button>
@@ -333,12 +333,12 @@ function Dashboard({
   );
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#fbfaf7]">
+    <div className="flex-1 overflow-y-auto bg-[#fbfaf7] dark:bg-[#171614]">
       <div className="max-w-3xl mx-auto px-5 py-6 space-y-5">
         <header className="flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-gray-900">Prediction Lab</h1>
-            <p className="text-sm text-gray-500 mt-1 leading-snug">
+            <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Prediction Lab</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-snug">
               Make subconscious predictions visible. Test them. Recalibrate.
             </p>
           </div>
@@ -352,12 +352,12 @@ function Dashboard({
 
         {/* Overdue reflections — ties into the visibility system */}
         {overdueReflections.length > 0 && (
-          <section className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+          <section className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl px-4 py-3">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-amber-800">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-amber-800 dark:text-amber-200">
                 Awaiting reflection
               </span>
-              <span className="text-[11px] text-amber-700">
+              <span className="text-[11px] text-amber-700 dark:text-amber-300">
                 {overdueReflections.length} prediction
                 {overdueReflections.length === 1 ? '' : 's'} ready to close the loop
               </span>
@@ -367,12 +367,12 @@ function Dashboard({
                 <li key={e.id}>
                   <button
                     onClick={() => onReflect(e.id)}
-                    className="w-full text-left px-3 py-2 bg-white border border-amber-200 hover:border-amber-400 rounded-xl transition-colors flex items-center justify-between gap-3"
+                    className="w-full text-left px-3 py-2 bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-800 hover:border-amber-400 dark:hover:border-amber-600 rounded-xl transition-colors flex items-center justify-between gap-3"
                   >
-                    <span className="flex-1 min-w-0 truncate text-sm text-gray-800">
+                    <span className="flex-1 min-w-0 truncate text-sm text-gray-800 dark:text-gray-200">
                       {(e.mode === 'leap' ? e.leapDecision : e.prediction) || e.situation || '(empty entry)'}
                     </span>
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-700 flex-shrink-0">
+                    <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-700 dark:text-amber-300 flex-shrink-0">
                       Reflect ›
                     </span>
                   </button>
@@ -395,18 +395,18 @@ function Dashboard({
 
         {/* Emotion strip */}
         {stats.topEmotions.length > 0 && (
-          <section className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
-            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-2">
+          <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-2">
               Most common emotions
             </div>
             <div className="flex flex-wrap gap-1.5">
               {stats.topEmotions.map(([name, count]) => (
                 <span
                   key={name}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-medium text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-[12px] font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-full"
                 >
                   {capitalize(name)}
-                  <span className="text-[10px] text-indigo-500">{count}</span>
+                  <span className="text-[10px] text-indigo-500 dark:text-indigo-400">{count}</span>
                 </span>
               ))}
             </div>
@@ -415,7 +415,7 @@ function Dashboard({
 
         {/* Recent entries */}
         <section>
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-2 px-1">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-2 px-1">
             Recent entries
           </div>
           {sortedEntries.length === 0 ? (
@@ -435,19 +435,19 @@ function Dashboard({
 
 function KPICard({ label, value, hint }: { label: string; value: number | string; hint?: string }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
-      <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-gray-900 leading-none">{value}</div>
-      {hint && <div className="mt-1 text-[10px] text-gray-400">{hint}</div>}
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3">
+      <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">{label}</div>
+      <div className="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100 leading-none">{value}</div>
+      {hint && <div className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">{hint}</div>}
     </div>
   );
 }
 
 function EmptyHint({ onNew }: { onNew: () => void }) {
   return (
-    <div className="bg-white border-2 border-dashed border-gray-200 rounded-2xl px-6 py-10 text-center">
-      <p className="text-sm font-semibold text-gray-800">No predictions logged yet</p>
-      <p className="text-xs text-gray-500 mt-1.5 max-w-sm mx-auto leading-relaxed">
+    <div className="bg-white dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl px-6 py-10 text-center">
+      <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">No predictions logged yet</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 max-w-sm mx-auto leading-relaxed">
         When you catch yourself simulating a future ("they probably won't…", "this will be exhausting"),
         capture the prediction with a confidence number. Reflect later. Over time your nervous system
         becomes more calibrated.
@@ -468,15 +468,15 @@ function EntryRow({ entry, onOpen }: { entry: PredictionEntry; onOpen: () => voi
   // Prediction-mode badge: awaiting / off-target / partly / on-target.
   // Leap-mode badge: awaiting / took / did-not-take / partial.
   const badgeClass = (() => {
-    if (!entry.reflectedAt) return 'bg-amber-50 text-amber-700 border-amber-200';
+    if (!entry.reflectedAt) return 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800';
     if (isLeap) {
-      if (entry.leapTookIt === 'took') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      if (entry.leapTookIt === 'partial') return 'bg-sky-50 text-sky-700 border-sky-200';
-      return 'bg-gray-100 text-gray-600 border-gray-200';
+      if (entry.leapTookIt === 'took') return 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+      if (entry.leapTookIt === 'partial') return 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800';
+      return 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800';
     }
-    if (entry.predictionAccurate === 'no') return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-    if (entry.predictionAccurate === 'partly') return 'bg-sky-50 text-sky-700 border-sky-200';
-    return 'bg-gray-100 text-gray-600 border-gray-200';
+    if (entry.predictionAccurate === 'no') return 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+    if (entry.predictionAccurate === 'partly') return 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800';
+    return 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800';
   })();
   const badgeLabel = (() => {
     if (!entry.reflectedAt) return 'Awaiting';
@@ -492,7 +492,7 @@ function EntryRow({ entry, onOpen }: { entry: PredictionEntry; onOpen: () => voi
     return 'Reflected';
   })();
   const modeLabel = isLeap ? 'Leap' : capitalize(entry.mode);
-  const modeAccent = isLeap ? 'text-amber-600' : 'text-gray-400';
+  const modeAccent = isLeap ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500';
   const primaryLine = isLeap
     ? entry.leapDecision || entry.situation
     : entry.prediction;
@@ -502,8 +502,8 @@ function EntryRow({ entry, onOpen }: { entry: PredictionEntry; onOpen: () => voi
     <li>
       <button
         onClick={onOpen}
-        className={`w-full text-left bg-white border border-gray-200 hover:shadow-sm rounded-2xl px-4 py-3 transition-all ${
-          isLeap ? 'hover:border-amber-300' : 'hover:border-indigo-300'
+        className={`w-full text-left bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:shadow-sm rounded-2xl px-4 py-3 transition-all ${
+          isLeap ? 'hover:border-amber-300 dark:hover:border-amber-700 dark:border-amber-700' : 'hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700'
         }`}
       >
         <div className="flex items-baseline justify-between gap-3 mb-1">
@@ -516,17 +516,17 @@ function EntryRow({ entry, onOpen }: { entry: PredictionEntry; onOpen: () => voi
             {badgeLabel}
           </span>
         </div>
-        <div className="text-sm font-medium text-gray-900 line-clamp-2">{primaryLine}</div>
+        <div className="text-sm font-medium text-gray-900 dark:text-gray-100 line-clamp-2">{primaryLine}</div>
         {secondaryLine && secondaryLine !== primaryLine && (
-          <div className="text-[12px] text-gray-500 mt-1 line-clamp-1">{secondaryLine}</div>
+          <div className="text-[12px] text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">{secondaryLine}</div>
         )}
-        <div className="mt-2 flex items-center gap-3 text-[10px] text-gray-500">
+        <div className="mt-2 flex items-center gap-3 text-[10px] text-gray-500 dark:text-gray-400">
           {isLeap ? (
             <>
               {entry.leapReversibility && (
                 <span>
                   Reversibility{' '}
-                  <span className="font-mono text-gray-700 font-semibold">
+                  <span className="font-mono text-gray-700 dark:text-gray-300 font-semibold">
                     {capitalize(entry.leapReversibility)}
                   </span>
                 </span>
@@ -536,7 +536,7 @@ function EntryRow({ entry, onOpen }: { entry: PredictionEntry; onOpen: () => voi
                   <span>·</span>
                   <span>
                     Fear{' '}
-                    <span className="font-mono text-gray-700 font-semibold">
+                    <span className="font-mono text-gray-700 dark:text-gray-300 font-semibold">
                       {entry.leapFearProportion === 'proportional' ? 'proportional' : entry.leapFearProportion + '-estimated'}
                     </span>
                   </span>
@@ -548,7 +548,7 @@ function EntryRow({ entry, onOpen }: { entry: PredictionEntry; onOpen: () => voi
               {entry.confidence !== undefined && (
                 <span>
                   Confidence{' '}
-                  <span className="font-mono text-gray-700 font-semibold">{entry.confidence}</span>
+                  <span className="font-mono text-gray-700 dark:text-gray-300 font-semibold">{entry.confidence}</span>
                 </span>
               )}
               {entry.emotionIntensity !== undefined && (
@@ -556,7 +556,7 @@ function EntryRow({ entry, onOpen }: { entry: PredictionEntry; onOpen: () => voi
                   <span>·</span>
                   <span>
                     Intensity{' '}
-                    <span className="font-mono text-gray-700 font-semibold">{entry.emotionIntensity}</span>
+                    <span className="font-mono text-gray-700 dark:text-gray-300 font-semibold">{entry.emotionIntensity}</span>
                   </span>
                 </>
               )}
@@ -579,42 +579,42 @@ function EntryRow({ entry, onOpen }: { entry: PredictionEntry; onOpen: () => voi
 function ModePicker({ onPick }: { onPick: (m: PredictionMode) => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center py-12">
-      <h2 className="text-2xl font-semibold text-gray-900 text-center mb-2 tracking-tight">
+      <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100 text-center mb-2 tracking-tight">
         What kind of moment is this?
       </h2>
-      <p className="text-sm text-gray-500 text-center mb-8 max-w-md">
+      <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-8 max-w-md">
         Different flows for reactive gut-checks vs decisions under uncertainty.
       </p>
       <div className="w-full max-w-md space-y-3">
         <button
           onClick={() => onPick('quick')}
-          className="w-full text-left bg-white border border-gray-200 hover:border-indigo-400 hover:shadow-md rounded-2xl px-5 py-4 transition-all"
+          className="w-full text-left bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-md rounded-2xl px-5 py-4 transition-all"
         >
-          <div className="text-xs uppercase tracking-wider font-bold text-indigo-600 mb-1">Quick</div>
-          <div className="text-base font-semibold text-gray-900 mb-1">Reactive gut-check · ~60s</div>
-          <div className="text-[12px] text-gray-500 leading-snug">
+          <div className="text-xs uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400 mb-1">Quick</div>
+          <div className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Reactive gut-check · ~60s</div>
+          <div className="text-[12px] text-gray-500 dark:text-gray-400 leading-snug">
             Prediction + confidence, emotion + intensity, smallest physical move. Closes the
             calibration loop with minimum friction.
           </div>
         </button>
         <button
           onClick={() => onPick('deep')}
-          className="w-full text-left bg-white border border-gray-200 hover:border-indigo-400 hover:shadow-md rounded-2xl px-5 py-4 transition-all"
+          className="w-full text-left bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:shadow-md rounded-2xl px-5 py-4 transition-all"
         >
-          <div className="text-xs uppercase tracking-wider font-bold text-indigo-600 mb-1">Deep</div>
-          <div className="text-base font-semibold text-gray-900 mb-1">Full reflection · ~5m</div>
-          <div className="text-[12px] text-gray-500 leading-snug">
+          <div className="text-xs uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400 mb-1">Deep</div>
+          <div className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Full reflection · ~5m</div>
+          <div className="text-[12px] text-gray-500 dark:text-gray-400 leading-snug">
             Adds evidence FOR/AGAINST, what the emotion is pulling you toward, where it leads in a
             year, the values-aligned move, and a small experiment with an implementation intention.
           </div>
         </button>
         <button
           onClick={() => onPick('leap')}
-          className="w-full text-left bg-white border border-gray-200 hover:border-amber-400 hover:shadow-md rounded-2xl px-5 py-4 transition-all"
+          className="w-full text-left bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-amber-400 dark:hover:border-amber-600 hover:shadow-md rounded-2xl px-5 py-4 transition-all"
         >
-          <div className="text-xs uppercase tracking-wider font-bold text-amber-600 mb-1">Leap</div>
-          <div className="text-base font-semibold text-gray-900 mb-1">Decision under uncertainty · ~3m</div>
-          <div className="text-[12px] text-gray-500 leading-snug">
+          <div className="text-xs uppercase tracking-wider font-bold text-amber-600 dark:text-amber-400 mb-1">Leap</div>
+          <div className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Decision under uncertainty · ~3m</div>
+          <div className="text-[12px] text-gray-500 dark:text-gray-400 leading-snug">
             For when the fear feels bigger than the actual downside. Reversibility check, upside
             (loss-aversion re-balance), the bridge (delay compounds), 5-year regret. Anti-safety-bias.
           </div>
@@ -682,14 +682,14 @@ function NewEntryWizard({
     <div className="flex-1 flex flex-col">
       <ProgressDots total={totalSteps} index={safeStep} />
       <div className="flex-1 py-4">{steps[safeStep]()}</div>
-      <div className="pt-4 mt-2 border-t border-gray-100 flex items-center justify-between">
+      <div className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
         <button
           onClick={onBack}
-          className="text-sm text-gray-500 hover:text-gray-800 transition-colors"
+          className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 transition-colors"
         >
           ← Back
         </button>
-        <div className="text-[10px] uppercase tracking-wider text-gray-400">
+        <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
           Step {safeStep + 1} of {totalSteps}
         </div>
       </div>
@@ -708,7 +708,7 @@ function ProgressDots({ total, index }: { total: number; index: number }) {
               ? 'w-6 bg-indigo-500'
               : i < index
               ? 'w-1.5 bg-indigo-300'
-              : 'w-1.5 bg-gray-200'
+              : 'w-1.5 bg-gray-200 dark:bg-gray-800'
           }`}
         />
       ))}
@@ -721,10 +721,10 @@ function ProgressDots({ total, index }: { total: number; index: number }) {
 function PromptHeading({ children, sub }: { children: React.ReactNode; sub?: React.ReactNode }) {
   return (
     <div className="text-center mb-6">
-      <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight leading-tight">
+      <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100 tracking-tight leading-tight">
         {children}
       </h2>
-      {sub && <p className="text-sm text-gray-500 mt-2 leading-snug">{sub}</p>}
+      {sub && <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 leading-snug">{sub}</p>}
     </div>
   );
 }
@@ -742,7 +742,7 @@ function ContinueButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="mt-6 w-full px-4 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed rounded-xl transition-colors"
+      className="mt-6 w-full px-4 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 dark:bg-gray-800 disabled:text-gray-400 dark:text-gray-500 disabled:cursor-not-allowed rounded-xl transition-colors"
     >
       {label}
     </button>
@@ -751,7 +751,7 @@ function ContinueButton({
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+    <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1.5">
       {children}
     </div>
   );
@@ -771,7 +771,7 @@ function TextInput({
   multiline?: boolean;
 }) {
   const cls =
-    'w-full px-4 py-3 text-base text-gray-900 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent placeholder:text-gray-400 transition-colors';
+    'w-full px-4 py-3 text-base text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent placeholder:text-gray-400 dark:text-gray-500 transition-colors';
   if (multiline) {
     return (
       <textarea
@@ -817,9 +817,9 @@ function Slider({
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full accent-indigo-500"
       />
-      <div className="mt-1.5 flex items-center justify-between text-[10px] uppercase tracking-wider text-gray-400">
+      <div className="mt-1.5 flex items-center justify-between text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
         <span>{leftLabel}</span>
-        <span className="text-base font-semibold text-indigo-600 normal-case tracking-normal">{value}</span>
+        <span className="text-base font-semibold text-indigo-600 dark:text-indigo-400 normal-case tracking-normal">{value}</span>
         <span>{rightLabel}</span>
       </div>
     </div>
@@ -940,7 +940,7 @@ function StepEmotion({ draft, onChange, onNext }: WizardChildProps) {
               className={`px-3 py-1.5 text-sm rounded-full border transition-all ${
                 active
                   ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                  : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-300'
+                  : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700'
               }`}
             >
               {em.label}
@@ -1079,7 +1079,7 @@ function StepExperiment({ draft, onChange, onNext }: WizardChildProps) {
             onChange={(v) => onChange({ ...draft, experimentWhenWhere: v })}
             placeholder="e.g. tonight at 7pm, in the kitchen"
           />
-          <p className="text-[10px] text-gray-400 mt-1.5">
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">
             Implementation intentions roughly double follow-through (Gollwitzer).
           </p>
         </div>
@@ -1145,12 +1145,12 @@ function StepLeapReversibility({ draft, onChange, onNext }: WizardChildProps) {
             onClick={() => onChange({ ...draft, leapReversibility: opt.value })}
             className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
               draft.leapReversibility === opt.value
-                ? 'bg-amber-50 border-amber-400'
-                : 'bg-white border-gray-200 hover:border-amber-200'
+                ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400'
+                : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-amber-200 dark:border-amber-800'
             }`}
           >
-            <div className="text-sm font-semibold text-gray-900">{opt.label}</div>
-            <div className="text-[11px] text-gray-500 mt-0.5 leading-snug">{opt.hint}</div>
+            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{opt.label}</div>
+            <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">{opt.hint}</div>
           </button>
         ))}
       </div>
@@ -1227,7 +1227,7 @@ function StepLeapCommit({ draft, onChange, onNext }: WizardChildProps) {
             onChange={(v) => onChange({ ...draft, firstMove: v })}
             placeholder='The smallest concrete action that starts it. e.g. "open the draft"'
           />
-          <p className="text-[10px] text-gray-400 mt-1.5">
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">
             You can Schedule this from the entry detail after saving.
           </p>
         </div>
@@ -1266,11 +1266,11 @@ function ReflectionWizard({
         // ---------- Leap-mode reflection ----------
         () => (
           <div>
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 mb-6 text-[12px]">
-              <div className="text-[10px] uppercase tracking-wider font-bold text-amber-700 mb-1">
+            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-2xl px-4 py-3 mb-6 text-[12px]">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-300 mb-1">
                 Your original decision · {entry.leapReversibility ? capitalize(entry.leapReversibility) : '—'} reversible
               </div>
-              <div className="text-gray-800 leading-snug">{entry.leapDecision || entry.situation}</div>
+              <div className="text-gray-800 dark:text-gray-200 leading-snug">{entry.leapDecision || entry.situation}</div>
             </div>
             <PromptHeading sub="A single honest sentence is enough.">
               What actually happened?
@@ -1303,12 +1303,12 @@ function ReflectionWizard({
                   onClick={() => onChange({ ...draft, leapTookIt: opt.value })}
                   className={`text-left px-4 py-3 rounded-xl border-2 transition-all ${
                     draft.leapTookIt === opt.value
-                      ? 'bg-amber-50 border-amber-400 text-amber-900'
-                      : 'bg-white border-gray-200 text-gray-700 hover:border-amber-200'
+                      ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400 text-amber-900 dark:text-amber-100'
+                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-amber-200 dark:border-amber-800'
                   }`}
                 >
                   <div className="text-sm font-semibold">{opt.label}</div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">{opt.hint}</div>
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{opt.hint}</div>
                 </button>
               ))}
             </div>
@@ -1333,12 +1333,12 @@ function ReflectionWizard({
                   onClick={() => onChange({ ...draft, leapOutcomeVsExpectation: opt.value })}
                   className={`text-left px-4 py-3 rounded-xl border-2 transition-all ${
                     draft.leapOutcomeVsExpectation === opt.value
-                      ? 'bg-amber-50 border-amber-400 text-amber-900'
-                      : 'bg-white border-gray-200 text-gray-700 hover:border-amber-200'
+                      ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400 text-amber-900 dark:text-amber-100'
+                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-amber-200 dark:border-amber-800'
                   }`}
                 >
                   <div className="text-sm font-semibold">{opt.label}</div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">{opt.hint}</div>
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{opt.hint}</div>
                 </button>
               ))}
             </div>
@@ -1357,15 +1357,15 @@ function ReflectionWizard({
                     onClick={() => onChange({ ...draft, leapFearProportion: opt.value })}
                     className={`flex-1 px-3 py-2 text-sm font-medium rounded-xl border-2 transition-all ${
                       draft.leapFearProportion === opt.value
-                        ? 'bg-amber-50 border-amber-400 text-amber-900'
-                        : 'bg-white border-gray-200 text-gray-700 hover:border-amber-200'
+                        ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400 text-amber-900 dark:text-amber-100'
+                        : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-amber-200 dark:border-amber-800'
                     }`}
                   >
                     {opt.label}
                   </button>
                 ))}
               </div>
-              <p className="text-[10px] text-gray-400 mt-1.5">
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">
                 Impact-bias research: people over-predict emotional impact of bad outcomes. Noticing when your fear misfires is how the loop calibrates.
               </p>
             </div>
@@ -1399,8 +1399,8 @@ function ReflectionWizard({
                       onClick={() => onChange({ ...draft, trustFuturePredictionsMore: opt })}
                       className={`flex-1 px-3 py-2 text-sm font-medium rounded-xl border-2 transition-all ${
                         draft.trustFuturePredictionsMore === opt
-                          ? 'bg-amber-50 border-amber-400 text-amber-900'
-                          : 'bg-white border-gray-200 text-gray-700 hover:border-amber-200'
+                          ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-400 text-amber-900 dark:text-amber-100'
+                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-amber-200 dark:border-amber-800'
                       }`}
                     >
                       {capitalize(opt)}
@@ -1417,11 +1417,11 @@ function ReflectionWizard({
         // ---------- Prediction-mode reflection (existing) ----------
         () => (
           <div>
-            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl px-4 py-3 mb-6 text-[12px]">
-              <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-700 mb-1">
+            <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-2xl px-4 py-3 mb-6 text-[12px]">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-700 dark:text-indigo-300 mb-1">
                 Your original prediction · {entry.confidence ?? '—'}% confidence
               </div>
-              <div className="text-gray-800 leading-snug">{entry.prediction}</div>
+              <div className="text-gray-800 dark:text-gray-200 leading-snug">{entry.prediction}</div>
             </div>
             <PromptHeading sub="A single honest sentence is enough.">What actually happened?</PromptHeading>
             <TextInput
@@ -1444,12 +1444,12 @@ function ReflectionWizard({
                   onClick={() => onChange({ ...draft, predictionAccurate: acc })}
                   className={`text-left px-4 py-3 rounded-xl border-2 transition-all ${
                     draft.predictionAccurate === acc
-                      ? 'bg-indigo-50 border-indigo-400 text-indigo-900'
-                      : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-200'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-400 text-indigo-900 dark:text-indigo-100'
+                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-200 dark:border-indigo-800'
                   }`}
                 >
                   <div className="text-sm font-semibold capitalize">{acc}</div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
                     {acc === 'yes' && 'On-target — the prediction matched reality.'}
                     {acc === 'partly' && 'Some aspects matched, some didn\'t.'}
                     {acc === 'no' && 'Off-target — reality came out differently.'}
@@ -1465,8 +1465,8 @@ function ReflectionWizard({
                 leftLabel="Could go either way"
                 rightLabel="Almost certain"
               />
-              <p className="text-[10px] text-gray-400 mt-1.5">
-                Original: <span className="font-mono text-gray-600">{entry.confidence ?? '—'}</span>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">
+                Original: <span className="font-mono text-gray-600 dark:text-gray-400">{entry.confidence ?? '—'}</span>
               </p>
             </div>
             <ContinueButton onClick={onNext} disabled={!draft.predictionAccurate} />
@@ -1510,8 +1510,8 @@ function ReflectionWizard({
                       onClick={() => onChange({ ...draft, trustFuturePredictionsMore: opt })}
                       className={`flex-1 px-3 py-2 text-sm font-medium rounded-xl border-2 transition-all ${
                         draft.trustFuturePredictionsMore === opt
-                          ? 'bg-indigo-50 border-indigo-400 text-indigo-900'
-                          : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-200'
+                          ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-400 text-indigo-900 dark:text-indigo-100'
+                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-200 dark:border-indigo-800'
                       }`}
                     >
                       {capitalize(opt)}
@@ -1532,14 +1532,14 @@ function ReflectionWizard({
     <div className="flex-1 flex flex-col">
       <ProgressDots total={totalSteps} index={safeStep} />
       <div className="flex-1 py-4">{steps[safeStep]()}</div>
-      <div className="pt-4 mt-2 border-t border-gray-100 flex items-center justify-between">
+      <div className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between">
         <button
           onClick={onBack}
-          className="text-sm text-gray-500 hover:text-gray-800 transition-colors"
+          className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 transition-colors"
         >
           ← Back
         </button>
-        <div className="text-[10px] uppercase tracking-wider text-gray-400">
+        <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
           Step {safeStep + 1} of {totalSteps}
         </div>
       </div>
@@ -1564,19 +1564,19 @@ function EntryDetail({
   return (
     <div className="space-y-5 py-2">
       <div>
-        <div className={`text-[10px] uppercase tracking-wider font-mono mb-1 ${isLeap ? 'text-amber-600' : 'text-gray-400'}`}>
+        <div className={`text-[10px] uppercase tracking-wider font-mono mb-1 ${isLeap ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500'}`}>
           {formatDate(entry.createdAt)} · {isLeap ? 'Leap' : capitalize(entry.mode)} entry
         </div>
-        <h2 className="text-lg font-semibold text-gray-900 leading-snug">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-snug">
           {isLeap ? (entry.leapDecision || entry.situation) : entry.prediction}
         </h2>
         {isLeap ? (
           entry.situation && entry.situation !== entry.leapDecision && (
-            <p className="text-sm text-gray-600 mt-1.5 leading-snug">The choice: {entry.situation}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-snug">The choice: {entry.situation}</p>
           )
         ) : (
           entry.situation && (
-            <p className="text-sm text-gray-600 mt-1.5 leading-snug">{entry.situation}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-snug">{entry.situation}</p>
           )
         )}
       </div>
@@ -1614,7 +1614,7 @@ function EntryDetail({
                 {(entry.emotions ?? []).map((em) => (
                   <span
                     key={em}
-                    className="px-2 py-0.5 text-[12px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full"
+                    className="px-2 py-0.5 text-[12px] text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-full"
                   >
                     {capitalize(em)}
                   </span>
@@ -1678,13 +1678,13 @@ function EntryDetail({
         <section
           className={`rounded-2xl px-4 py-3 space-y-3 border ${
             isLeap
-              ? 'bg-amber-50 border-amber-200'
-              : 'bg-indigo-50 border-indigo-100'
+              ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
+              : 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-100 dark:border-indigo-900'
           }`}
         >
           <div
             className={`text-[10px] uppercase tracking-wider font-bold ${
-              isLeap ? 'text-amber-700' : 'text-indigo-700'
+              isLeap ? 'text-amber-700 dark:text-amber-300' : 'text-indigo-700 dark:text-indigo-300'
             }`}
           >
             Reflection · {formatDate(entry.reflectedAt)}
@@ -1776,10 +1776,10 @@ function EntryDetail({
         </button>
       )}
 
-      <div className="flex justify-end pt-3 border-t border-gray-100">
+      <div className="flex justify-end pt-3 border-t border-gray-100 dark:border-gray-800">
         <button
           onClick={onDelete}
-          className="text-xs uppercase tracking-wider text-gray-400 hover:text-red-500 transition-colors"
+          className="text-xs uppercase tracking-wider text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400 transition-colors"
         >
           Delete entry
         </button>
@@ -1791,10 +1791,10 @@ function EntryDetail({
 function DetailSection({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+      <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
         {label}
       </div>
-      <div className="text-sm text-gray-800 leading-snug whitespace-pre-wrap">{children}</div>
+      <div className="text-sm text-gray-800 dark:text-gray-200 leading-snug whitespace-pre-wrap">{children}</div>
     </div>
   );
 }
@@ -1810,10 +1810,10 @@ function DetailBox({
 }) {
   return (
     <div
-      className={`bg-white border border-gray-200 rounded-xl px-3 ${compact ? 'py-1.5' : 'py-2'}`}
+      className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 ${compact ? 'py-1.5' : 'py-2'}`}
     >
-      <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">{label}</div>
-      <div className={`mt-0.5 ${compact ? 'text-base' : 'text-xl'} font-semibold text-gray-900`}>
+      <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">{label}</div>
+      <div className={`mt-0.5 ${compact ? 'text-base' : 'text-xl'} font-semibold text-gray-900 dark:text-gray-100`}>
         {value}
       </div>
     </div>

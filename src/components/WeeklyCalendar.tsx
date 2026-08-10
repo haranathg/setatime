@@ -132,46 +132,46 @@ export default function WeeklyCalendar({
   return (
     <div className="flex flex-col h-full">
       {/* Navigation bar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 bg-white z-20 shrink-0">
+      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 z-20 shrink-0">
         <button
           onClick={() => onNavigateWeek(-1)}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-lg transition-colors"
         >
-          <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-700">{getWeekRangeLabel(currentWeekStart)}</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{getWeekRangeLabel(currentWeekStart)}</span>
           <button
             onClick={onGoToToday}
-            className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition-colors"
+            className="text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2.5 py-1 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-800 dark:bg-indigo-900/40 transition-colors"
           >
             Today
           </button>
         </div>
         <button
           onClick={() => onNavigateWeek(1)}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 rounded-lg transition-colors"
         >
-          <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
       </div>
 
       {/* Mobile day selector */}
-      <div className="sm:hidden flex border-b border-gray-200 bg-white overflow-x-auto shrink-0">
+      <div className="sm:hidden flex border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-x-auto shrink-0">
         {weekDays.map((day, i) => (
           <button
             key={i}
             onClick={() => setMobileSelectedDay(i)}
             className={`flex-1 min-w-[48px] py-2 text-center text-xs font-medium transition-colors ${
               mobileSelectedDay === i
-                ? 'text-indigo-600 border-b-2 border-indigo-600'
+                ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600'
                 : isToday(day)
-                ? 'text-indigo-500'
-                : 'text-gray-500'
+                ? 'text-indigo-500 dark:text-indigo-400'
+                : 'text-gray-500 dark:text-gray-400'
             }`}
           >
             {formatDayHeader(day)}
@@ -180,13 +180,13 @@ export default function WeeklyCalendar({
       </div>
 
       {/* Desktop day headers — fixed above scroll area */}
-      <div className="hidden sm:grid border-b border-gray-200 bg-white shrink-0" style={{ gridTemplateColumns: '50px repeat(7, 1fr)' }}>
+      <div className="hidden sm:grid border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shrink-0" style={{ gridTemplateColumns: '50px repeat(7, 1fr)' }}>
         <div />
         {weekDays.map((day, i) => (
           <div
             key={i}
-            className={`text-center py-2 text-sm font-medium border-l border-gray-100 ${
-              isToday(day) ? 'text-indigo-600' : 'text-gray-700'
+            className={`text-center py-2 text-sm font-medium border-l border-gray-100 dark:border-gray-800 ${
+              isToday(day) ? 'text-indigo-600 dark:text-indigo-400' : 'text-gray-700 dark:text-gray-300'
             }`}
           >
             <span className={isToday(day) ? 'bg-indigo-600 text-white rounded-full px-2 py-0.5' : ''}>
@@ -198,9 +198,9 @@ export default function WeeklyCalendar({
 
       {/* Scheduling mode banner */}
       {schedulingTask && (
-        <div className="px-4 py-2 bg-indigo-50 border-b border-indigo-100 flex items-center gap-2 shrink-0">
+        <div className="px-4 py-2 bg-indigo-50 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900 flex items-center gap-2 shrink-0">
           <span className="w-2 h-2 bg-indigo-500 rounded-full animate-pulse" />
-          <span className="text-sm text-indigo-700">
+          <span className="text-sm text-indigo-700 dark:text-indigo-300">
             Click a time slot to schedule: <strong>{schedulingTask.label}</strong>
           </span>
         </div>
@@ -215,7 +215,7 @@ export default function WeeklyCalendar({
             {HOURS.map((hour) => (
               <div
                 key={hour}
-                className="absolute w-full text-right pr-2 text-[10px] text-gray-400 -mt-2"
+                className="absolute w-full text-right pr-2 text-[10px] text-gray-400 dark:text-gray-500 -mt-2"
                 style={{ top: `${(hour - HOURS[0]) * HOUR_HEIGHT_PX}px` }}
               >
                 {formatHour(hour)}
@@ -224,7 +224,7 @@ export default function WeeklyCalendar({
           </div>
           {/* Day columns */}
           {weekDays.map((day, i) => (
-            <div key={i} className="border-l border-gray-100" style={{ height: `${HOURS.length * HOUR_HEIGHT_PX}px` }}>
+            <div key={i} className="border-l border-gray-100 dark:border-gray-800" style={{ height: `${HOURS.length * HOUR_HEIGHT_PX}px` }}>
               <DayColumn
                 date={day}
                 blocks={getBlocksForDate(day)}
@@ -243,14 +243,14 @@ export default function WeeklyCalendar({
             {HOURS.map((hour) => (
               <div
                 key={hour}
-                className="absolute w-full text-right pr-1 text-[10px] text-gray-400 -mt-2"
+                className="absolute w-full text-right pr-1 text-[10px] text-gray-400 dark:text-gray-500 -mt-2"
                 style={{ top: `${(hour - HOURS[0]) * HOUR_HEIGHT_PX}px` }}
               >
                 {formatHour(hour)}
               </div>
             ))}
           </div>
-          <div className="border-l border-gray-100" style={{ height: `${HOURS.length * HOUR_HEIGHT_PX}px` }}>
+          <div className="border-l border-gray-100 dark:border-gray-800" style={{ height: `${HOURS.length * HOUR_HEIGHT_PX}px` }}>
             <DayColumn
               date={weekDays[mobileSelectedDay]}
               blocks={getBlocksForDate(weekDays[mobileSelectedDay])}
@@ -265,7 +265,7 @@ export default function WeeklyCalendar({
         {/* Empty state */}
         {weekDays.every((day) => getBlocksForDate(day).length === 0) && (
           <div className="flex items-center justify-center py-8 pointer-events-none" style={{ position: 'absolute', top: '40%', left: 0, right: 0 }}>
-            <p className="text-sm text-gray-400">Tap any time slot to plan your first task</p>
+            <p className="text-sm text-gray-400 dark:text-gray-500">Tap any time slot to plan your first task</p>
           </div>
         )}
       </div>
@@ -336,39 +336,39 @@ function SpiralPopover({
     >
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
       <div
-        className="relative bg-white w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl shadow-xl flex flex-col animate-slide-up"
+        className="relative bg-white dark:bg-gray-900 w-full sm:max-w-sm sm:rounded-2xl rounded-t-2xl shadow-xl flex flex-col animate-slide-up"
         style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
           <div>
-            <div className="text-[10px] uppercase tracking-wider text-indigo-600 font-bold">
+            <div className="text-[10px] uppercase tracking-wider text-indigo-600 dark:text-indigo-400 font-bold">
               ↻ Recurring spiral
             </div>
-            <h3 className="text-base font-semibold text-gray-900 mt-0.5">{block.mainTask}</h3>
-            <div className="text-[11px] text-gray-500 mt-0.5 font-mono">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mt-0.5">{block.mainTask}</h3>
+            <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 font-mono">
               {block.mainTime} · {block.date}
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">
+          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 text-xl leading-none">
             &times;
           </button>
         </div>
         <div className="px-5 py-3 space-y-2">
           <button
             onClick={onSkip}
-            className="w-full text-left px-4 py-3 bg-white border border-gray-200 hover:border-amber-300 hover:bg-amber-50 rounded-xl transition-colors"
+            className="w-full text-left px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-amber-300 dark:hover:border-amber-700 dark:border-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/40 dark:bg-amber-950/40 rounded-xl transition-colors"
           >
-            <div className="text-sm font-semibold text-gray-900">Skip just this day</div>
-            <div className="text-[11px] text-gray-500 mt-0.5">
+            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Skip just this day</div>
+            <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
               The block disappears from this date only. Future occurrences are unaffected.
             </div>
           </button>
           <button
             onClick={onOpenSettings}
-            className="w-full text-left px-4 py-3 bg-white border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 rounded-xl transition-colors"
+            className="w-full text-left px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 dark:bg-indigo-950/40 rounded-xl transition-colors"
           >
-            <div className="text-sm font-semibold text-gray-900">Open spiral settings</div>
-            <div className="text-[11px] text-gray-500 mt-0.5">
+            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">Open spiral settings</div>
+            <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
               Change cadence, time, duration, or pause this spiral.
             </div>
           </button>

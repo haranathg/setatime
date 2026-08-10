@@ -53,7 +53,7 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode {
               href={urlChunk}
               target="_blank"
               rel="noreferrer noopener"
-              className="text-indigo-700 underline underline-offset-2 hover:text-indigo-900 break-all"
+              className="text-indigo-700 dark:text-indigo-300 underline underline-offset-2 hover:text-indigo-900 dark:hover:text-indigo-100 dark:text-indigo-100 break-all"
             >
               {urlChunk}
             </a>
@@ -68,7 +68,7 @@ function renderInline(text: string, keyPrefix: string): React.ReactNode {
                 return (
                   <span
                     key={`${keyPrefix}-h-${urlIdx}-${hIdx}`}
-                    className="inline-block px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full mx-0.5 align-baseline"
+                    className="inline-block px-1.5 py-0.5 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-full mx-0.5 align-baseline"
                   >
                     {hashChunk}
                   </span>
@@ -143,7 +143,7 @@ function renderMarkdown(text: string, keyPrefix: string): React.ReactNode {
     if (line.startsWith('# ')) {
       flushList();
       nodes.push(
-        <div key={key} className="text-base font-bold text-gray-900 mt-1">
+        <div key={key} className="text-base font-bold text-gray-900 dark:text-gray-100 mt-1">
           {renderInline(line.slice(2), key)}
         </div>
       );
@@ -152,7 +152,7 @@ function renderMarkdown(text: string, keyPrefix: string): React.ReactNode {
     if (line.startsWith('## ')) {
       flushList();
       nodes.push(
-        <div key={key} className="text-sm font-semibold text-gray-900 mt-1">
+        <div key={key} className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-1">
           {renderInline(line.slice(3), key)}
         </div>
       );
@@ -292,17 +292,17 @@ export default function NotesView({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
         <header className="text-center">
-          <h2 className="text-lg font-semibold text-gray-900">Journal</h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Journal</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Enter to save · Shift+Enter for a new line · **bold** · *italic* · # header · - list · #hashtag
           </p>
         </header>
 
         {/* Compose — always visible at the top */}
-        <section className="bg-white border border-gray-200 rounded-2xl p-3">
+        <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-3">
           <textarea
             ref={textareaRef}
             value={draft}
@@ -319,12 +319,12 @@ export default function NotesView({
             className="w-full px-2 py-1 text-sm border-0 focus:outline-none resize-none bg-transparent leading-relaxed"
             style={{ overflowY: 'hidden' }}
           />
-          <div className="flex items-center justify-between text-[10px] text-gray-400 mt-1">
+          <div className="flex items-center justify-between text-[10px] text-gray-400 dark:text-gray-500 mt-1">
             <span>Enter to save · Shift+Enter for line break</span>
             <button
               onClick={commit}
               disabled={!draft.trim()}
-              className="px-2 py-0.5 text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-30"
+              className="px-2 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 dark:text-indigo-200 disabled:opacity-30"
             >
               save
             </button>
@@ -337,18 +337,18 @@ export default function NotesView({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={`Search ${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`}
-            className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+            className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900"
           />
         )}
 
         {/* Empty / no-match states */}
         {entries.length === 0 && (
-          <div className="text-center text-[12px] text-gray-500 border-2 border-dashed border-gray-200 rounded-2xl bg-white py-8 px-4">
+          <div className="text-center text-[12px] text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900 py-8 px-4">
             Nothing here yet. Type above — every Enter is a new timestamped entry.
           </div>
         )}
         {entries.length > 0 && filteredAsc.length === 0 && (
-          <div className="text-center text-[12px] text-gray-500 py-4">
+          <div className="text-center text-[12px] text-gray-500 dark:text-gray-400 py-4">
             No entries match "{query}".
           </div>
         )}
@@ -358,12 +358,12 @@ export default function NotesView({
         {clustersDesc.map((cluster) => (
           <section
             key={cluster.headerTime + '-' + cluster.entries[0].id}
-            className="bg-white border border-gray-200 rounded-2xl overflow-hidden"
+            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden"
           >
-            <div className="px-4 py-1.5 border-b border-gray-100 text-[10px] uppercase tracking-wider font-bold text-gray-500 flex items-center justify-between">
+            <div className="px-4 py-1.5 border-b border-gray-100 dark:border-gray-800 text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 flex items-center justify-between">
               <span>{formatClusterHeader(cluster.headerTime)}</span>
               {cluster.entries.length > 1 && (
-                <span className="text-[10px] font-normal text-gray-400 normal-case tracking-normal tabular-nums">
+                <span className="text-[10px] font-normal text-gray-400 dark:text-gray-500 normal-case tracking-normal tabular-nums">
                   {cluster.entries.length} entries
                 </span>
               )}
@@ -378,12 +378,12 @@ export default function NotesView({
                         onChange={(e) => setEditDraft(e.target.value)}
                         rows={3}
                         autoFocus
-                        className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                        className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
                       />
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={cancelEdit}
-                          className="text-[11px] text-gray-500 hover:text-gray-800"
+                          className="text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200"
                         >
                           cancel
                         </button>
@@ -398,16 +398,16 @@ export default function NotesView({
                     </div>
                   ) : (
                     <>
-                      <div className="text-sm text-gray-800 leading-relaxed">
+                      <div className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">
                         {renderMarkdown(n.text, n.id)}
                       </div>
                       <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-end gap-3 mt-1">
-                        <span className="text-[10px] text-gray-400 tabular-nums mr-auto">
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums mr-auto">
                           {new Date(n.createdAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                         </span>
                         <button
                           onClick={() => startEdit(n)}
-                          className="text-[10px] font-semibold text-gray-500 hover:text-gray-900"
+                          className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 dark:text-gray-100"
                         >
                           edit
                         </button>
@@ -415,7 +415,7 @@ export default function NotesView({
                           onClick={() => {
                             if (confirm('Delete this entry?')) onDeleteNote(n.id);
                           }}
-                          className="text-[10px] font-semibold text-gray-400 hover:text-red-500"
+                          className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400"
                         >
                           delete
                         </button>

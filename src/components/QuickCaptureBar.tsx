@@ -71,28 +71,28 @@ export default function QuickCaptureBar({
               ? 'bg-sky-50/95 ring-sky-200'
               : flash === 'note'
               ? 'bg-amber-50/95 ring-amber-200'
-              : 'bg-white/90 ring-black/5 focus-within:bg-white focus-within:ring-indigo-300'
+              : 'bg-white/90 ring-black/5 focus-within:bg-white dark:bg-gray-900 focus-within:ring-indigo-300'
           }`}
         >
-          <span className="text-gray-400 text-sm">✎</span>
+          <span className="text-gray-400 dark:text-gray-500 text-sm">✎</span>
           <input
             type="text"
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && doLog()}
             placeholder="Cast a thought · Enter to log · ↗ schedule · 📝 note"
-            className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none placeholder:text-gray-400"
+            className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none placeholder:text-gray-400 dark:text-gray-500"
           />
           {flash === 'log' ? (
-            <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-700">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 dark:text-emerald-300">
               Logged
             </span>
           ) : flash === 'schedule' ? (
-            <span className="text-[10px] uppercase tracking-wider font-bold text-sky-700">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-sky-700 dark:text-sky-300">
               → Calendar
             </span>
           ) : flash === 'note' ? (
-            <span className="text-[10px] uppercase tracking-wider font-bold text-amber-700">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-300">
               → Journal
             </span>
           ) : (
@@ -100,7 +100,7 @@ export default function QuickCaptureBar({
               <button
                 onClick={doNote}
                 disabled={!text.trim()}
-                className="px-2 py-1 text-xs font-semibold text-amber-700 bg-white/70 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-colors"
+                className="px-2 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300 bg-white/70 hover:bg-amber-50 dark:hover:bg-amber-900/40 dark:bg-amber-950/40 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-colors"
                 title="Save as a reflection in Journal (not a task)"
               >
                 📝
@@ -108,7 +108,7 @@ export default function QuickCaptureBar({
               <button
                 onClick={doSchedule}
                 disabled={!text.trim()}
-                className="px-2 py-1 text-xs font-semibold text-sky-700 bg-white/70 hover:bg-sky-50 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-colors"
+                className="px-2 py-1 text-xs font-semibold text-sky-700 dark:text-sky-300 bg-white/70 hover:bg-sky-50 dark:hover:bg-sky-900/40 dark:bg-sky-950/40 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg transition-colors"
                 title="Send to Calendar (opens the scheduling modal)"
               >
                 ↗
@@ -116,7 +116,7 @@ export default function QuickCaptureBar({
               <button
                 onClick={doLog}
                 disabled={!text.trim()}
-                className="px-3 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:cursor-not-allowed rounded-lg transition-colors"
+                className="px-3 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 dark:bg-gray-800 disabled:cursor-not-allowed rounded-lg transition-colors"
                 title="Log to Inbox (Enter)"
               >
                 Log

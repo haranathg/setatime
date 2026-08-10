@@ -37,10 +37,10 @@ export default function HabitsView({
     editing && editing !== 'new' ? habits.find((h) => h.id === editing) ?? null : null;
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-lg font-semibold tracking-tight text-gray-900">Habits</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Habits</h2>
           <button
             onClick={() => setEditing('new')}
             className="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
@@ -48,7 +48,7 @@ export default function HabitsView({
             + New
           </button>
         </div>
-        <p className="text-xs text-gray-500 mb-5">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-5">
           One small action. The number is proof, not pressure.
         </p>
 
@@ -66,7 +66,7 @@ export default function HabitsView({
           <div className="mt-8">
             <button
               onClick={() => setShowArchived((v) => !v)}
-              className="text-xs text-gray-400 hover:text-gray-600"
+              className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400"
             >
               {showArchived ? 'Hide' : 'Show'} retired ({archived.length})
             </button>
@@ -75,15 +75,15 @@ export default function HabitsView({
                 {archived.map((h) => (
                   <li
                     key={h.id}
-                    className="flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl opacity-70"
+                    className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl opacity-70"
                   >
                     <div>
-                      <div className="text-sm font-medium text-gray-600 line-through">{h.name}</div>
-                      <div className="text-[11px] text-gray-400">{h.votes} votes kept</div>
+                      <div className="text-sm font-medium text-gray-600 dark:text-gray-400 line-through">{h.name}</div>
+                      <div className="text-[11px] text-gray-400 dark:text-gray-500">{h.votes} votes kept</div>
                     </div>
                     <button
                       onClick={() => onUnarchive(h.id)}
-                      className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+                      className="text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300"
                     >
                       Bring back
                     </button>
@@ -138,9 +138,9 @@ export default function HabitsView({
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="text-center bg-white border border-gray-200 rounded-2xl p-8 mt-2">
-      <h3 className="text-base font-semibold text-gray-900 mb-1">Start with one</h3>
-      <p className="text-sm text-gray-500 mb-5 leading-relaxed">
+    <div className="text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-8 mt-2">
+      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Start with one</h3>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-5 leading-relaxed">
         Not a goal. Not a streak to defend. One habit, broken down to the smallest
         physical action you can&rsquo;t say no to.
       </p>
@@ -168,44 +168,44 @@ function HabitRow({
   const isReturn = !status.doneToday && status.currentStreak === 0 && habit.log.length > 0;
 
   return (
-    <li className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <li className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
       <div className="flex items-stretch">
-        <button onClick={onOpen} className="flex-1 text-left px-4 py-3 hover:bg-gray-50 transition-colors">
+        <button onClick={onOpen} className="flex-1 text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-sm font-medium text-gray-900 truncate">{habit.name}</div>
-              <div className="text-[11px] text-gray-500 mt-0.5">
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{habit.name}</div>
+              <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
                 {status.doneToday ? (
-                  <span className="text-green-600 font-medium">Done today</span>
+                  <span className="text-green-600 dark:text-green-400 font-medium">Done today</span>
                 ) : isReturn ? (
-                  <span className="text-amber-600 font-medium">Come back &mdash; smaller this time</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-medium">Come back &mdash; smaller this time</span>
                 ) : (
                   <span>Tap to start</span>
                 )}
                 {status.currentStreak > 1 && (
-                  <span className="text-gray-400"> &middot; {status.currentStreak}-day run</span>
+                  <span className="text-gray-400 dark:text-gray-500"> &middot; {status.currentStreak}-day run</span>
                 )}
                 {status.returns > 0 && (
-                  <span className="text-gray-400"> &middot; {status.returns} returns</span>
+                  <span className="text-gray-400 dark:text-gray-500"> &middot; {status.returns} returns</span>
                 )}
               </div>
             </div>
             <div className="text-right flex-shrink-0">
               <div
                 className={`text-2xl font-semibold tabular-nums ${
-                  status.doneToday ? 'text-green-600' : 'text-gray-900'
+                  status.doneToday ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-gray-100'
                 }`}
               >
                 {habit.votes}
               </div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">votes</div>
+              <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500">votes</div>
             </div>
           </div>
         </button>
         <button
           onClick={onEdit}
           title="Edit"
-          className="px-3 flex items-center text-gray-300 hover:text-gray-600 border-l border-gray-100"
+          className="px-3 flex items-center text-gray-300 dark:text-gray-600 hover:text-gray-600 dark:text-gray-400 border-l border-gray-100 dark:border-gray-800"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M12 20h9" />
@@ -274,7 +274,7 @@ function FocusCard({
           <p className="text-xl text-white leading-relaxed">{line}</p>
           <button
             onClick={onClose}
-            className="mt-8 px-6 py-2.5 text-sm font-medium text-gray-900 bg-white rounded-full hover:bg-gray-100 transition-colors"
+            className="mt-8 px-6 py-2.5 text-sm font-medium text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 transition-colors"
           >
             Close
           </button>
@@ -304,7 +304,7 @@ function FocusCard({
 
         <button
           onClick={handleDone}
-          className="mt-12 w-full max-w-xs mx-auto block px-8 py-4 text-lg font-semibold text-gray-900 bg-white rounded-full hover:bg-gray-100 active:scale-[0.98] transition-all"
+          className="mt-12 w-full max-w-xs mx-auto block px-8 py-4 text-lg font-semibold text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 active:scale-[0.98] transition-all"
         >
           Done
         </button>
@@ -400,11 +400,11 @@ function HabitModal({
       onClick={onCancel}
     >
       <div
-        className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto"
+        className="w-full sm:max-w-md bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h3 className="text-base font-semibold text-gray-900">
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
             {habit ? 'Edit habit' : 'New habit'}
           </h3>
         </div>
@@ -415,7 +415,7 @@ function HabitModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Move my body"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               autoFocus
             />
           </Field>
@@ -428,7 +428,7 @@ function HabitModal({
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder="e.g. so I don't feel sluggish and stuck"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </Field>
 
@@ -436,11 +436,11 @@ function HabitModal({
             <button
               onClick={handleBreakdown}
               disabled={aiBusy}
-              className="w-full px-3 py-2 text-sm font-medium text-indigo-700 bg-indigo-50 rounded-lg hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+              className="w-full px-3 py-2 text-sm font-medium text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-800 dark:bg-indigo-900/40 disabled:opacity-50 transition-colors"
             >
               {aiBusy ? 'Breaking it down…' : '✦ Break it into the smallest step'}
             </button>
-            {aiError && <p className="text-xs text-red-500 mt-1">{aiError}</p>}
+            {aiError && <p className="text-xs text-red-500 dark:text-red-400 mt-1">{aiError}</p>}
           </div>
 
           <Field
@@ -451,7 +451,7 @@ function HabitModal({
               value={activationStep}
               onChange={(e) => setActivationStep(e.target.value)}
               placeholder="e.g. put on your running shoes"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </Field>
 
@@ -464,12 +464,12 @@ function HabitModal({
               onChange={(e) => setMicroStepsText(e.target.value)}
               rows={3}
               placeholder={'sit up in bed\nput one foot on the floor'}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
             />
           </Field>
         </div>
 
-        <div className="px-5 py-4 border-t border-gray-100 flex items-center gap-2">
+        <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center gap-2">
           <button
             onClick={handleSave}
             disabled={!canSave}
@@ -479,7 +479,7 @@ function HabitModal({
           </button>
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 dark:text-gray-100 transition-colors"
           >
             Cancel
           </button>
@@ -490,7 +490,7 @@ function HabitModal({
             {onArchive && (
               <button
                 onClick={onArchive}
-                className="text-xs text-gray-500 hover:text-gray-800"
+                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200"
                 title="Retire this habit — no penalty, your votes stay"
               >
                 Retire (keep votes)
@@ -499,7 +499,7 @@ function HabitModal({
             {onDelete && (
               <button
                 onClick={onDelete}
-                className="text-xs text-red-500 hover:text-red-700"
+                className="text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 dark:text-red-300"
               >
                 Delete
               </button>
@@ -522,9 +522,9 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-700 mb-1">{label}</label>
+      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">{label}</label>
       {children}
-      {hint && <p className="text-[11px] text-gray-400 mt-1 leading-snug">{hint}</p>}
+      {hint && <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-snug">{hint}</p>}
     </div>
   );
 }

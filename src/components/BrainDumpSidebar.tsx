@@ -63,8 +63,8 @@ export default function BrainDumpSidebar({
         onClick={onToggle}
         className={`fixed z-30 shadow-lg transition-all ${
           isOpen
-            ? 'right-80 top-1/2 -translate-y-1/2 bg-gray-200 text-gray-600 px-1.5 py-4 rounded-l-lg'
-            : 'sm:right-0 sm:top-1/2 sm:-translate-y-1/2 sm:px-1.5 sm:py-4 sm:rounded-l-lg bottom-6 right-5 sm:bottom-auto w-14 h-14 sm:w-auto sm:h-auto rounded-full bg-white sm:bg-indigo-600 sm:text-white text-gray-700 border border-gray-200 sm:border-0'
+            ? 'right-80 top-1/2 -translate-y-1/2 bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-gray-400 px-1.5 py-4 rounded-l-lg'
+            : 'sm:right-0 sm:top-1/2 sm:-translate-y-1/2 sm:px-1.5 sm:py-4 sm:rounded-l-lg bottom-6 right-5 sm:bottom-auto w-14 h-14 sm:w-auto sm:h-auto rounded-full bg-white dark:bg-gray-900 sm:bg-indigo-600 sm:text-white text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-800 sm:border-0'
         }`}
         title={isOpen ? 'Hide the Hold' : 'Open the Hold'}
       >
@@ -103,14 +103,14 @@ export default function BrainDumpSidebar({
 
       {/* Sidebar panel */}
       <div
-        className={`fixed right-0 top-0 h-full w-full sm:w-80 bg-white border-l border-gray-200 shadow-xl z-40 transition-transform duration-300 flex flex-col ${
+        className={`fixed right-0 top-0 h-full w-full sm:w-80 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-800 shadow-xl z-40 transition-transform duration-300 flex flex-col ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {/* Header */}
-        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">The Hold</h2>
-          <button onClick={onToggle} className="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">The Hold</h2>
+          <button onClick={onToggle} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400 text-lg">&times;</button>
         </div>
 
         {/* Content */}
@@ -118,7 +118,7 @@ export default function BrainDumpSidebar({
           {/* Text area for brain dump */}
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 Dump your thoughts
               </label>
               {isSupported && (
@@ -126,8 +126,8 @@ export default function BrainDumpSidebar({
                   onClick={toggleVoice}
                   className={`flex items-center gap-1 px-2 py-1 text-xs rounded-lg transition-colors ${
                     isListening
-                      ? 'bg-red-100 text-red-600 animate-pulse'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 animate-pulse'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 dark:bg-gray-800'
                   }`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -144,7 +144,7 @@ export default function BrainDumpSidebar({
               value={dumpText}
               onChange={(e) => setDumpText(e.target.value)}
               placeholder="Type or dictate everything on your mind... groceries, meetings, errands, goals..."
-              className="w-full h-32 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+              className="w-full h-32 px-3 py-2 border border-gray-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
             />
             <button
               onClick={handleExtract}
@@ -169,7 +169,7 @@ export default function BrainDumpSidebar({
 
           {/* Quick add */}
           <div>
-            <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
               Or add a task manually
             </label>
             <div className="flex gap-2 mt-1">
@@ -179,12 +179,12 @@ export default function BrainDumpSidebar({
                 onChange={(e) => setQuickTask(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
                 placeholder="e.g. Buy groceries"
-                className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
               />
               <button
                 onClick={handleQuickAdd}
                 disabled={!quickTask.trim()}
-                className="px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-xl hover:bg-indigo-100 disabled:opacity-50 transition-colors"
+                className="px-3 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-800 dark:bg-indigo-900/40 disabled:opacity-50 transition-colors"
               >
                 Add
               </button>
@@ -194,10 +194,10 @@ export default function BrainDumpSidebar({
           {/* Unscheduled tasks */}
           {unscheduledTasks.length > 0 && (
             <div>
-              <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+              <label className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 Unscheduled ({unscheduledTasks.length})
               </label>
-              <p className="text-[11px] text-gray-400 mt-0.5 mb-2">
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5 mb-2">
                 {schedulingTask ? 'Now click a time slot on the calendar to place it' : 'Click a task to schedule it'}
               </p>
               <div className="space-y-1.5">
@@ -206,8 +206,8 @@ export default function BrainDumpSidebar({
                     key={task.id}
                     className={`group flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer transition-all ${
                       schedulingTask?.id === task.id
-                        ? 'bg-indigo-100 border-2 border-indigo-400 ring-2 ring-indigo-200'
-                        : 'bg-gray-50 border border-gray-100 hover:bg-indigo-50 hover:border-indigo-200'
+                        ? 'bg-indigo-100 dark:bg-indigo-900/40 border-2 border-indigo-400 ring-2 ring-indigo-200'
+                        : 'bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 dark:bg-indigo-950/40 hover:border-indigo-200 dark:border-indigo-800'
                     }`}
                     onClick={() => {
                       if (schedulingTask?.id === task.id) {
@@ -221,13 +221,13 @@ export default function BrainDumpSidebar({
                     {task.priority && (
                       <span className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOTS[task.priority]}`} />
                     )}
-                    <span className="flex-1 text-sm text-gray-800 truncate">{task.label}</span>
+                    <span className="flex-1 text-sm text-gray-800 dark:text-gray-200 truncate">{task.label}</span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         onDeleteTask(task.id);
                       }}
-                      className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M18 6 6 18" /><path d="m6 6 12 12" />
