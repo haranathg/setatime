@@ -216,6 +216,7 @@ function AppMain({
     completeTask: completePlanTask,
     removeTask: removePlanTask,
     markPlanTaskDone,
+    updatePlanTask,
   } = usePlan();
 
   const {
@@ -577,6 +578,7 @@ function AppMain({
           onAddToPlan={addToPlan}
           onCompletePlanTask={completePlanTask}
           onRemovePlanTask={removePlanTask}
+          onUpdatePlanTask={updatePlanTask}
           onStartPlanTask={(task) => {
             // 15-min default for planned work — bigger than the 2-min
             // Knock-one-out default because plan items are usually
