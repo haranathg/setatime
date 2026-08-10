@@ -105,7 +105,7 @@ function LinkifiedText({ text }: { text: string }) {
               href={part}
               target="_blank"
               rel="noreferrer noopener"
-              className="text-indigo-700 underline underline-offset-2 hover:text-indigo-900 break-all"
+              className="text-indigo-700 dark:text-indigo-300 underline underline-offset-2 hover:text-indigo-900 dark:hover:text-indigo-100 dark:text-indigo-100 break-all"
             >
               {part}
             </a>
@@ -687,11 +687,11 @@ function HomePhase({
   const [showAllPast, setShowAllPast] = useState(false);
   const visiblePast = showAllPast ? pastSessions : pastSessions.slice(0, 10);
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
         <header className="text-center">
-          <h2 className="text-lg font-semibold text-gray-900">Underway</h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Underway</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             One tap. One task. The rest sorts itself out.
           </p>
         </header>
@@ -712,34 +712,34 @@ function HomePhase({
             the app externalizes (BA principle) lives inside this flow. */}
         <button
           onClick={onOpenStuck}
-          className="w-full py-3.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-900 flex items-center justify-center gap-2 transition-colors"
+          className="w-full py-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-800 dark:bg-emerald-900/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100 flex items-center justify-center gap-2 transition-colors"
         >
           <span className="text-lg leading-none">🌱</span>
           <span className="font-semibold">Stuck?</span>
-          <span className="text-[12px] text-emerald-800">· start something small</span>
+          <span className="text-[12px] text-emerald-800 dark:text-emerald-200">· start something small</span>
         </button>
 
         {/* Streak — visible progress fights the "was that even productive?" fog */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-white border border-gray-200 rounded-2xl px-3 py-3 text-center">
-            <div className="text-[10px] uppercase tracking-wider text-gray-500">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-3 py-3 text-center">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
               This week
             </div>
-            <div className="text-3xl font-bold text-gray-900 tabular-nums">
+            <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">
               {weekCount}
             </div>
-            <div className="text-[10px] text-gray-500 mt-0.5">
+            <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
               {weekCount === 1 ? 'session' : 'sessions'}
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-2xl px-3 py-3 text-center">
-            <div className="text-[10px] uppercase tracking-wider text-gray-500">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-3 py-3 text-center">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
               Today
             </div>
-            <div className="text-3xl font-bold text-gray-900 tabular-nums">
+            <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">
               {todaysSessions.length}
             </div>
-            <div className="text-[10px] text-gray-500 mt-0.5">
+            <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
               {todaysSessions.length === 1 ? 'session' : 'sessions'}
             </div>
           </div>
@@ -747,8 +747,8 @@ function HomePhase({
 
         {/* Today's witness — what you already did today */}
         {todaysSessions.length > 0 && (
-          <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-            <header className="px-4 py-2 border-b border-gray-100 text-[10px] uppercase tracking-wider font-bold text-gray-500">
+          <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+            <header className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
               Today's log · tap to review
             </header>
             <ul>
@@ -764,13 +764,13 @@ function HomePhase({
             "Show all" toggle so history stays browsable but doesn't run
             the page long. */}
         {pastSessions.length > 0 && (
-          <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-            <header className="px-4 py-2 border-b border-gray-100 text-[10px] uppercase tracking-wider font-bold text-gray-500 flex items-center justify-between">
+          <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+            <header className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 flex items-center justify-between">
               <span>Past sessions ({pastSessions.length})</span>
               {pastSessions.length > 10 && (
                 <button
                   onClick={() => setShowAllPast((v) => !v)}
-                  className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 normal-case tracking-normal"
+                  className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 dark:text-indigo-200 normal-case tracking-normal"
                 >
                   {showAllPast ? 'Show fewer' : 'Show all'}
                 </button>
@@ -787,7 +787,7 @@ function HomePhase({
         {/* Escape hatch to the full ceremonial loop — quiet, not primary */}
         <button
           onClick={onOpenFullSetup}
-          className="w-full text-[12px] text-gray-500 hover:text-gray-800 underline underline-offset-2"
+          className="w-full text-[12px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 underline underline-offset-2"
         >
           Set up a full session (Pre-flight · Size · Wrap)
         </button>
@@ -835,53 +835,53 @@ function SessionRow({
   };
 
   return (
-    <li className="border-b border-gray-100 last:border-0">
+    <li className="border-b border-gray-100 dark:border-gray-800 last:border-0">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full px-4 py-2 text-left hover:bg-gray-50"
+        className="w-full px-4 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950"
       >
         <div className="flex items-center gap-2">
           <OutcomeDot outcome={s.outcome} />
-          <span className="flex-1 text-sm text-gray-800 truncate">
+          <span className="flex-1 text-sm text-gray-800 dark:text-gray-200 truncate">
             {s.taskLabel}
           </span>
           {s.entries && s.entries.length > 0 && (
             <span
-              className="text-[10px] text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-full px-1.5 py-0.5 tabular-nums"
+              className="text-[10px] text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900 rounded-full px-1.5 py-0.5 tabular-nums"
               title={`${s.entries.length} journal ${s.entries.length === 1 ? 'entry' : 'entries'}`}
             >
               📓 {s.entries.length}
             </span>
           )}
-          <span className="text-[11px] text-gray-500 tabular-nums">
+          <span className="text-[11px] text-gray-500 dark:text-gray-400 tabular-nums">
             {showDate ? `${dateStr}·${s.sizeMin}m` : `${s.sizeMin}m`}
           </span>
-          <span className={`text-gray-300 text-xs transition-transform ${open ? 'rotate-90' : ''}`}>
+          <span className={`text-gray-300 dark:text-gray-600 text-xs transition-transform ${open ? 'rotate-90' : ''}`}>
             ▶
           </span>
         </div>
         {s.note && !open && (
-          <div className="text-[11px] text-gray-500 mt-0.5 pl-4 truncate">{s.note}</div>
+          <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 pl-4 truncate">{s.note}</div>
         )}
       </button>
 
       {open && (
-        <div className="px-4 pb-3 pt-1 space-y-2 bg-gray-50/60 border-t border-gray-100">
-          <div className="flex items-center justify-between text-[11px] text-gray-500">
+        <div className="px-4 pb-3 pt-1 space-y-2 bg-gray-50/60 border-t border-gray-100 dark:border-gray-800">
+          <div className="flex items-center justify-between text-[11px] text-gray-500 dark:text-gray-400">
             <span>
               {timeStr} · {formatMMSS(s.durationSec)} elapsed · {s.outcome}
             </span>
             <div className="flex items-center gap-3">
               <button
                 onClick={copyLog}
-                className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
+                className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 dark:text-indigo-200"
                 title="Copy full log as markdown"
               >
                 {copied ? '✓ copied' : '⧉ copy log'}
               </button>
               <button
                 onClick={confirmDelete}
-                className="text-[11px] font-semibold text-gray-400 hover:text-red-500"
+                className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400"
                 title="Delete session"
               >
                 delete
@@ -890,16 +890,16 @@ function SessionRow({
           </div>
 
           {s.note && (
-            <div className="text-[12px] text-gray-700 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mr-1">
+            <div className="text-[12px] text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1.5">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mr-1">
                 Reflection:
               </span>
               {s.note}
             </div>
           )}
           {s.nextMicrostep && (
-            <div className="text-[12px] text-gray-700 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5">
-              <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mr-1">
+            <div className="text-[12px] text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-lg px-2.5 py-1.5">
+              <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mr-1">
                 Next microstep:
               </span>
               {s.nextMicrostep}
@@ -914,13 +914,13 @@ function SessionRow({
                 });
                 return (
                   <li key={e.id} className="flex items-start gap-2 text-[12px] leading-relaxed">
-                    <span className="text-gray-400 tabular-nums font-mono whitespace-nowrap pt-0.5">
+                    <span className="text-gray-400 dark:text-gray-500 tabular-nums font-mono whitespace-nowrap pt-0.5">
                       {t}
                     </span>
                     {e.emotion && (
                       <span className="text-sm leading-none pt-0.5" aria-hidden>{e.emotion}</span>
                     )}
-                    <span className="flex-1 min-w-0 text-gray-800 break-words">
+                    <span className="flex-1 min-w-0 text-gray-800 dark:text-gray-200 break-words">
                       <LinkifiedText text={e.text} />
                     </span>
                   </li>
@@ -928,7 +928,7 @@ function SessionRow({
               })}
             </ul>
           ) : (
-            <div className="text-[11px] text-gray-400 italic pt-1">
+            <div className="text-[11px] text-gray-400 dark:text-gray-500 italic pt-1">
               No journal entries were logged during this session.
             </div>
           )}
@@ -977,17 +977,17 @@ function QuickstartPhase({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
         <header className="text-center">
           <button
             onClick={onBack}
-            className="text-[11px] text-gray-500 hover:text-gray-800 mb-1"
+            className="text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 mb-1"
           >
             ← Back
           </button>
-          <h2 className="text-lg font-semibold text-gray-900">Start now</h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Start now</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             What are you doing? Any answer works.
           </p>
         </header>
@@ -1004,12 +1004,12 @@ function QuickstartPhase({
             }
           }}
           placeholder="e.g. reply to that email"
-          className="w-full px-4 py-4 text-base border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+          className="w-full px-4 py-4 text-base border border-gray-200 dark:border-gray-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900"
         />
 
         {recentLabels.length > 0 && (
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1.5">
               Recent
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -1017,7 +1017,7 @@ function QuickstartPhase({
                 <button
                   key={r}
                   onClick={() => setLabel(r)}
-                  className="px-2.5 py-1 text-[12px] rounded-full bg-white border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/40 text-gray-700"
+                  className="px-2.5 py-1 text-[12px] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/40 text-gray-700 dark:text-gray-300"
                 >
                   {r}
                 </button>
@@ -1027,7 +1027,7 @@ function QuickstartPhase({
         )}
 
         <div>
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1.5">
             How long?
           </div>
           <div className="grid grid-cols-3 gap-1.5">
@@ -1040,7 +1040,7 @@ function QuickstartPhase({
                   className={`py-3 rounded-xl text-sm font-semibold transition-colors ${
                     active
                       ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-200 hover:border-indigo-400'
+                      : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-800 hover:border-indigo-400 dark:hover:border-indigo-600'
                   }`}
                 >
                   {m} min
@@ -1053,12 +1053,12 @@ function QuickstartPhase({
         <button
           onClick={go}
           disabled={!canGo}
-          className="w-full py-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-2xl font-bold tracking-tight transition-colors"
+          className="w-full py-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 dark:bg-gray-700 disabled:cursor-not-allowed text-white text-2xl font-bold tracking-tight transition-colors"
         >
           Go
         </button>
 
-        <p className="text-[11px] text-gray-400 text-center">
+        <p className="text-[11px] text-gray-400 dark:text-gray-500 text-center">
           No countdown, no ceremony. The timer starts the moment you tap Go.
         </p>
       </div>
@@ -1146,17 +1146,17 @@ function StuckPhase({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
         <header className="text-center">
           <button
             onClick={onBack}
-            className="text-[11px] text-gray-500 hover:text-gray-800 mb-1"
+            className="text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 mb-1"
           >
             ← Back
           </button>
-          <h2 className="text-lg font-semibold text-gray-900">Stuck</h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Stuck</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Noticing this is the first step. That already counts.
           </p>
         </header>
@@ -1165,15 +1165,15 @@ function StuckPhase({
             large, editable, front-and-center. This is the piece the
             user asked for: the app remembers the solution so they
             don't have to. */}
-        <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+        <section className="rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 p-4">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-800">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-800 dark:text-emerald-200">
               Remember
             </div>
             {!editing ? (
               <button
                 onClick={() => { setMantraDraft(mantra); setEditing(true); }}
-                className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-900"
+                className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 dark:text-emerald-100"
               >
                 ✏️ edit
               </button>
@@ -1181,7 +1181,7 @@ function StuckPhase({
               <div className="flex items-center gap-2">
                 <button
                   onClick={revertMantra}
-                  className="text-[11px] text-emerald-700 hover:text-emerald-900"
+                  className="text-[11px] text-emerald-700 dark:text-emerald-300 hover:text-emerald-900 dark:hover:text-emerald-100 dark:text-emerald-100"
                 >
                   cancel
                 </button>
@@ -1195,7 +1195,7 @@ function StuckPhase({
             )}
           </div>
           {!editing ? (
-            <p className="text-[14px] leading-relaxed text-emerald-900 font-medium">
+            <p className="text-[14px] leading-relaxed text-emerald-900 dark:text-emerald-100 font-medium">
               {mantra}
             </p>
           ) : (
@@ -1205,7 +1205,7 @@ function StuckPhase({
               onChange={(e) => setMantraDraft(e.target.value)}
               rows={3}
               placeholder="Write yourself a line you want to hear when you're overwhelmed."
-              className="w-full px-3 py-2 text-sm border border-emerald-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-emerald-400 text-emerald-900"
+              className="w-full px-3 py-2 text-sm border border-emerald-300 dark:border-emerald-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 text-emerald-900 dark:text-emerald-100"
             />
           )}
         </section>
@@ -1216,13 +1216,13 @@ function StuckPhase({
             Auto-detected icons keep the Add form to two fields. */}
         <section>
           <div className="flex items-center justify-between mb-1.5">
-            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
               Pinned resources
             </div>
             {pinnedResources.length > 0 && (
               <button
                 onClick={() => setPinsEditMode((v) => !v)}
-                className="text-[10px] font-semibold text-gray-500 hover:text-gray-800"
+                className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200"
               >
                 {pinsEditMode ? 'done' : 'edit'}
               </button>
@@ -1237,7 +1237,7 @@ function StuckPhase({
                     href={r.url}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold text-gray-800 bg-white border border-gray-200 rounded-xl hover:border-emerald-300 hover:bg-emerald-50/40 max-w-full"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl hover:border-emerald-300 dark:hover:border-emerald-700 dark:border-emerald-700 hover:bg-emerald-50/40 max-w-full"
                     title={r.url}
                   >
                     <span className="text-sm leading-none">{r.emoji || '🔗'}</span>
@@ -1258,7 +1258,7 @@ function StuckPhase({
               {!addingResource && !pinsEditMode && (
                 <button
                   onClick={() => setAddingResource(true)}
-                  className="px-3 py-2 text-[12px] font-semibold text-gray-500 bg-white border border-dashed border-gray-300 rounded-xl hover:border-emerald-400 hover:text-emerald-700"
+                  className="px-3 py-2 text-[12px] font-semibold text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl hover:border-emerald-400 dark:hover:border-emerald-600 hover:text-emerald-700 dark:hover:text-emerald-300 dark:text-emerald-300"
                 >
                   + add
                 </button>
@@ -1269,21 +1269,21 @@ function StuckPhase({
           {pinnedResources.length === 0 && !addingResource && (
             <button
               onClick={() => setAddingResource(true)}
-              className="w-full py-3 text-[12px] text-gray-500 bg-white border border-dashed border-gray-300 rounded-xl hover:border-emerald-400 hover:text-emerald-700"
+              className="w-full py-3 text-[12px] text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-900 border border-dashed border-gray-300 dark:border-gray-700 rounded-xl hover:border-emerald-400 dark:hover:border-emerald-600 hover:text-emerald-700 dark:hover:text-emerald-300 dark:text-emerald-300"
             >
               + Pin a resource — pep talk, PDF, doc, anything you'll want when overwhelmed
             </button>
           )}
 
           {addingResource && (
-            <div className="space-y-2 bg-white border border-gray-200 rounded-xl p-3">
+            <div className="space-y-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-3">
               <input
                 autoFocus
                 type="text"
                 value={pinLabel}
                 onChange={(e) => setPinLabel(e.target.value)}
                 placeholder='Label (e.g. "5-min pep talk")'
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
               />
               <input
                 type="url"
@@ -1291,12 +1291,12 @@ function StuckPhase({
                 onChange={(e) => setPinUrl(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); savePin(); } }}
                 placeholder="https://…"
-                className="w-full px-3 py-2 text-sm font-mono border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                className="w-full px-3 py-2 text-sm font-mono border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400"
               />
               <div className="flex items-center justify-end gap-2">
                 <button
                   onClick={cancelPin}
-                  className="px-2 py-1 text-[11px] text-gray-500 hover:text-gray-800"
+                  className="px-2 py-1 text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200"
                 >
                   Cancel
                 </button>
@@ -1308,7 +1308,7 @@ function StuckPhase({
                   Save
                 </button>
               </div>
-              <p className="text-[10px] text-gray-400">
+              <p className="text-[10px] text-gray-400 dark:text-gray-500">
                 Icon is chosen automatically: 🎥 YouTube · 📄 PDF · 🎵 music · 📝 Google Doc · 📓 Notion · 🔗 other.
               </p>
             </div>
@@ -1317,7 +1317,7 @@ function StuckPhase({
 
         {/* Task input — freeform first, chips below for zero-typing. */}
         <div>
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1.5">
             What's the smallest step?
           </div>
           <input
@@ -1331,12 +1331,12 @@ function StuckPhase({
               }
             }}
             placeholder="Any small thing counts"
-            className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white"
+            className="w-full px-4 py-3 text-base border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-white dark:bg-gray-900"
           />
         </div>
 
         <div>
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1.5">
             Or pick one
           </div>
           <div className="grid grid-cols-2 gap-1.5">
@@ -1346,8 +1346,8 @@ function StuckPhase({
                 onClick={() => setLabel(p.task)}
                 className={`flex items-center gap-1.5 px-3 py-2 text-[12px] rounded-xl border transition-colors ${
                   label === p.task
-                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900 font-semibold'
-                    : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-300 hover:bg-emerald-50/30'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-100 font-semibold'
+                    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-emerald-300 dark:hover:border-emerald-700 dark:border-emerald-700 hover:bg-emerald-50/30'
                 }`}
               >
                 <span className="text-sm leading-none">{p.emoji}</span>
@@ -1358,7 +1358,7 @@ function StuckPhase({
         </div>
 
         <div>
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1.5">
             How long?
           </div>
           <div className="grid grid-cols-3 gap-1.5">
@@ -1371,7 +1371,7 @@ function StuckPhase({
                   className={`py-3 rounded-xl text-sm font-semibold transition-colors ${
                     active
                       ? 'bg-emerald-600 text-white'
-                      : 'bg-white text-gray-700 border border-gray-200 hover:border-emerald-400'
+                      : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-800 hover:border-emerald-400 dark:hover:border-emerald-600'
                   }`}
                 >
                   {m} min
@@ -1379,7 +1379,7 @@ function StuckPhase({
               );
             })}
           </div>
-          <p className="text-[11px] text-gray-400 mt-1.5">
+          <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1.5">
             2 minutes is the default when stuck. It's short enough that starting is free.
           </p>
         </div>
@@ -1387,7 +1387,7 @@ function StuckPhase({
         <button
           onClick={go}
           disabled={!canGo}
-          className="w-full py-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-2xl font-bold tracking-tight transition-colors"
+          className="w-full py-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 dark:bg-gray-700 disabled:cursor-not-allowed text-white text-2xl font-bold tracking-tight transition-colors"
         >
           Go
         </button>
@@ -1411,23 +1411,23 @@ function PickPhase({
 }) {
   const [freeform, setFreeform] = useState('');
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
         <header className="text-center">
           <button
             onClick={onBack}
-            className="text-[11px] text-gray-500 hover:text-gray-800 mb-1"
+            className="text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 mb-1"
           >
             ← Back
           </button>
-          <h2 className="text-lg font-semibold text-gray-900">Underway</h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Underway</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Pick one thing. Not three, not the whole list. One.
           </p>
         </header>
 
-        <section className="bg-white border border-gray-200 rounded-2xl p-4 space-y-3">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+        <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 space-y-3">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
             One thing right now
           </div>
           <div className="flex gap-2">
@@ -1441,7 +1441,7 @@ function PickPhase({
                 }
               }}
               placeholder="e.g. reply to that email"
-              className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
             <button
               onClick={() => freeform.trim() && onPickFreeform(freeform.trim())}
@@ -1454,20 +1454,20 @@ function PickPhase({
         </section>
 
         {list.length > 0 && (
-          <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-            <header className="px-4 py-2 border-b border-gray-100 text-[10px] uppercase tracking-wider font-bold text-gray-500">
+          <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+            <header className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
               From your hold ({list.length})
             </header>
             <ul>
               {list.map((t) => (
-                <li key={t.id} className="border-b border-gray-100 last:border-0">
+                <li key={t.id} className="border-b border-gray-100 dark:border-gray-800 last:border-0">
                   <button
                     onClick={() => onPickDump(t)}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-gray-50"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-left hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950"
                   >
-                    <span className="flex-1 text-sm text-gray-800">{t.label}</span>
+                    <span className="flex-1 text-sm text-gray-800 dark:text-gray-200">{t.label}</span>
                     {t.aged && (
-                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5">
+                      <span className="text-[10px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-full px-2 py-0.5">
                         aged
                       </span>
                     )}
@@ -1479,7 +1479,7 @@ function PickPhase({
         )}
 
         {list.length === 0 && (
-          <div className="text-center text-sm text-gray-500 border-2 border-dashed border-gray-200 rounded-2xl bg-white py-8 px-4">
+          <div className="text-center text-sm text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900 py-8 px-4">
             No held tasks. Type one above to get started.
           </div>
         )}
@@ -1507,26 +1507,26 @@ function PreflightPhase({
 }) {
   const checkedCount = PREFLIGHT_ITEMS.filter((i) => state[i.key]).length;
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
         <header className="text-center">
           <button
             onClick={onBack}
-            className="text-[11px] text-gray-500 hover:text-gray-800 mb-1"
+            className="text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 mb-1"
           >
             ← Pick again
           </button>
-          <h2 className="text-lg font-semibold text-gray-900">Pre-flight</h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Pre-flight</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Name the state you're bringing. Nothing here blocks you.
           </p>
         </header>
 
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2 text-center">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-700">
+        <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl px-3 py-2 text-center">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-700 dark:text-indigo-300">
             Task
           </div>
-          <div className="text-sm font-semibold text-indigo-900 mt-0.5">{taskLabel}</div>
+          <div className="text-sm font-semibold text-indigo-900 dark:text-indigo-100 mt-0.5">{taskLabel}</div>
         </div>
 
         <div className="space-y-2">
@@ -1538,13 +1538,13 @@ function PreflightPhase({
                 onClick={() => onToggle(item.key)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors text-left ${
                   on
-                    ? 'bg-emerald-50 border-emerald-200'
-                    : 'bg-white border-gray-200 hover:border-gray-300'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+                    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 dark:border-gray-700'
                 }`}
               >
                 <span
                   className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                    on ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300'
+                    on ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-gray-300 dark:border-gray-700'
                   }`}
                 >
                   {on && (
@@ -1554,10 +1554,10 @@ function PreflightPhase({
                   )}
                 </span>
                 <div className="flex-1">
-                  <div className={`text-sm font-semibold ${on ? 'text-emerald-900' : 'text-gray-800'}`}>
+                  <div className={`text-sm font-semibold ${on ? 'text-emerald-900 dark:text-emerald-100' : 'text-gray-800 dark:text-gray-200'}`}>
                     {item.label}
                   </div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">{item.hint}</div>
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{item.hint}</div>
                 </div>
               </button>
             );
@@ -1567,7 +1567,7 @@ function PreflightPhase({
         {!state.grounded && (
           <button
             onClick={onGround}
-            className="w-full text-[12px] text-indigo-700 hover:text-indigo-900 underline underline-offset-2"
+            className="w-full text-[12px] text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 dark:text-indigo-100 underline underline-offset-2"
           >
             → Do 3 min of Grounding first
           </button>
@@ -1598,26 +1598,26 @@ function SizePhase({
   onPick: (m: SizeMinutes) => void;
 }) {
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
         <header className="text-center">
           <button
             onClick={onBack}
-            className="text-[11px] text-gray-500 hover:text-gray-800 mb-1"
+            className="text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 mb-1"
           >
             ← Pre-flight
           </button>
-          <h2 className="text-lg font-semibold text-gray-900">How much?</h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">How much?</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Pick the smallest brave you can commit to. Any of them counts as shipping.
           </p>
         </header>
 
-        <div className="bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-2 text-center">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-700">
+        <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl px-3 py-2 text-center">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-700 dark:text-indigo-300">
             Task
           </div>
-          <div className="text-sm font-semibold text-indigo-900 mt-0.5">{taskLabel}</div>
+          <div className="text-sm font-semibold text-indigo-900 dark:text-indigo-100 mt-0.5">{taskLabel}</div>
         </div>
 
         <div className="space-y-2">
@@ -1625,18 +1625,18 @@ function SizePhase({
             <button
               key={opt.value}
               onClick={() => onPick(opt.value)}
-              className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-white border border-gray-200 hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors text-left"
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/30 transition-colors text-left"
             >
-              <div className="text-2xl font-bold text-indigo-700 w-16 tabular-nums">
+              <div className="text-2xl font-bold text-indigo-700 dark:text-indigo-300 w-16 tabular-nums">
                 {opt.label}
               </div>
-              <div className="flex-1 text-sm text-gray-700">{opt.hint}</div>
-              <span className="text-xl text-gray-300">→</span>
+              <div className="flex-1 text-sm text-gray-700 dark:text-gray-300">{opt.hint}</div>
+              <span className="text-xl text-gray-300 dark:text-gray-600">→</span>
             </button>
           ))}
         </div>
 
-        <p className="text-[11px] text-gray-400 text-center">
+        <p className="text-[11px] text-gray-400 dark:text-gray-500 text-center">
           You can bail cleanly at any time. That still counts as showing up.
         </p>
       </div>
@@ -1705,7 +1705,7 @@ function UnderwayPhase({
   // change of mode is felt without being alarming.
   const dashOffset = isOvertime ? 0 : CIRC * (1 - progressFraction);
   const ringColor = extending ? '#0ea5e9' : '#4f46e5';
-  const numberColor = extending ? 'text-sky-700' : 'text-gray-900';
+  const numberColor = extending ? 'text-sky-700 dark:text-sky-300' : 'text-gray-900 dark:text-gray-100';
 
   // Auto-collect URLs from all entries for the compact links strip.
   // Deduped, capped so the strip never dominates the layout.
@@ -1736,21 +1736,21 @@ function UnderwayPhase({
   const [showStream, setShowStream] = useState(false);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-5 space-y-4">
         {/* Task banner — compact, gives the timer + stream more room */}
         <div className="flex items-baseline justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
               Right now
             </div>
-            <h2 className="text-base font-semibold text-gray-900 leading-snug truncate">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 leading-snug truncate">
               {taskLabel}
             </h2>
           </div>
           <button
             onClick={doCopy}
-            className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 whitespace-nowrap"
+            className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 dark:text-indigo-200 whitespace-nowrap"
             title="Copy session log as markdown"
           >
             {copied ? '✓ copied' : '⧉ copy log'}
@@ -1765,7 +1765,7 @@ function UnderwayPhase({
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
             <circle
               cx="50" cy="50" r={RADIUS}
-              fill="none" stroke="#e5e7eb" strokeWidth="3"
+              fill="none" className="stroke-gray-200 dark:stroke-gray-800" strokeWidth="3"
             />
             <circle
               cx="50" cy="50" r={RADIUS}
@@ -1780,7 +1780,7 @@ function UnderwayPhase({
             <div className={`text-5xl sm:text-6xl font-bold tabular-nums leading-none ${numberColor}`}>
               {extending ? `+${formatMMSS(overtimeSec)}` : formatMMSS(remainingSec)}
             </div>
-            <div className="text-[11px] uppercase tracking-wider text-gray-400 mt-2">
+            <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-2">
               {extending ? `over ${sizeMin} min` : `of ${sizeMin} min`}
             </div>
           </div>
@@ -1790,12 +1790,12 @@ function UnderwayPhase({
             Uses emerald not red so the tone stays affirming: hitting your
             committed time is a win, not an alarm. */}
         {endPromptOpen && (
-          <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 space-y-3">
+          <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-300 dark:border-emerald-700 rounded-2xl p-4 space-y-3">
             <div>
-              <div className="text-sm font-semibold text-emerald-900">
+              <div className="text-sm font-semibold text-emerald-900 dark:text-emerald-100">
                 Time's up — end session?
               </div>
-              <div className="text-[11px] text-emerald-800 mt-1 leading-relaxed">
+              <div className="text-[11px] text-emerald-800 dark:text-emerald-200 mt-1 leading-relaxed">
                 You committed to {sizeMin} min and you're there. End cleanly,
                 or keep going — the timer will count up as extension.
               </div>
@@ -1809,7 +1809,7 @@ function UnderwayPhase({
               </button>
               <button
                 onClick={onKeepGoing}
-                className="px-3 py-2.5 rounded-xl text-sm font-semibold text-emerald-800 bg-white border border-emerald-300 hover:bg-emerald-50"
+                className="px-3 py-2.5 rounded-xl text-sm font-semibold text-emerald-800 dark:text-emerald-200 bg-white dark:bg-gray-900 border border-emerald-300 dark:border-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 dark:bg-emerald-950/40"
               >
                 Keep going →
               </button>
@@ -1820,7 +1820,7 @@ function UnderwayPhase({
         {/* Quiet extension banner — shown after the user chose Keep going
             so the timer state stays legible without re-prompting. */}
         {extending && !endPromptOpen && (
-          <div className="text-[11px] text-sky-800 bg-sky-50 border border-sky-200 rounded-xl px-3 py-1.5 text-center">
+          <div className="text-[11px] text-sky-800 dark:text-sky-200 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 rounded-xl px-3 py-1.5 text-center">
             In extension — {formatMMSS(overtimeSec)} past {sizeMin} min. Done/Some/Bail whenever.
           </div>
         )}
@@ -1829,7 +1829,7 @@ function UnderwayPhase({
             docs/tabs pasted while working. */}
         {collectedLinks.length > 0 && (
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
               Links from this session
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -1839,7 +1839,7 @@ function UnderwayPhase({
                   href={u}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-mono text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-full hover:bg-indigo-100 max-w-full truncate"
+                  className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-mono text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-800 dark:bg-indigo-900/40 max-w-full truncate"
                   title={u}
                 >
                   🔗 {tryHost(u)}
@@ -1853,16 +1853,16 @@ function UnderwayPhase({
             check-in shows a subtle amber banner ABOVE the input instead
             of a modal; input placeholder shifts too. */}
         {pendingCheckIn && (
-          <div className="text-[11px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+          <div className="text-[11px] font-semibold text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2">
             Check-in nudge — say one line (or tap a mood chip). Anything counts.
           </div>
         )}
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 flex-1">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 flex-1">
               Interstitial log
             </div>
-            <div className="text-[10px] text-gray-400 tabular-nums">
+            <div className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">
               {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
             </div>
           </div>
@@ -1883,10 +1883,10 @@ function UnderwayPhase({
                   ? 'What\'s happening right now?'
                   : 'Log a thought, feeling, next step, or paste a link…'
               }
-              className={`flex-1 min-w-0 px-3 py-2.5 text-sm border rounded-xl bg-white focus:outline-none focus:ring-2 ${
+              className={`flex-1 min-w-0 px-3 py-2.5 text-sm border rounded-xl bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 ${
                 pendingCheckIn
-                  ? 'border-amber-300 focus:ring-amber-400'
-                  : 'border-gray-200 focus:ring-indigo-400'
+                  ? 'border-amber-300 dark:border-amber-700 focus:ring-amber-400'
+                  : 'border-gray-200 dark:border-gray-800 focus:ring-indigo-400'
               }`}
             />
             <button
@@ -1904,7 +1904,7 @@ function UnderwayPhase({
               <button
                 key={m.emoji}
                 onClick={() => onLogMood(m.emoji, m.label)}
-                className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-gray-700 bg-white border border-gray-200 rounded-full hover:border-indigo-300 hover:bg-indigo-50/40"
+                className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-full hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700 hover:bg-indigo-50/40"
               >
                 <span className="text-sm leading-none">{m.emoji}</span>
                 <span>{m.label}</span>
@@ -1920,7 +1920,7 @@ function UnderwayPhase({
         {entries.length > 0 && !showStream && (
           <button
             onClick={() => setShowStream(true)}
-            className="w-full text-[11px] text-indigo-700 hover:text-indigo-900 bg-white border border-gray-200 rounded-xl px-3 py-2 flex items-center justify-center gap-1.5"
+            className="w-full text-[11px] text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-indigo-100 dark:text-indigo-100 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 flex items-center justify-center gap-1.5"
           >
             <span>📓</span>
             <span className="font-semibold tabular-nums">{entries.length}</span>
@@ -1928,14 +1928,14 @@ function UnderwayPhase({
           </button>
         )}
         {entries.length > 0 && showStream && (
-          <div className="border-t border-gray-200 pt-2">
+          <div className="border-t border-gray-200 dark:border-gray-800 pt-2">
             <div className="flex items-center justify-between mb-1">
-              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
                 Stream
               </div>
               <button
                 onClick={() => setShowStream(false)}
-                className="text-[10px] text-gray-500 hover:text-gray-800"
+                className="text-[10px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200"
               >
                 hide
               </button>
@@ -1943,7 +1943,7 @@ function UnderwayPhase({
             <ul className="space-y-1">
               {entries.map((e) => (
                 <li key={e.id} className="group flex items-start gap-2 text-[12px] leading-relaxed">
-                  <span className="text-gray-400 tabular-nums font-mono whitespace-nowrap pt-0.5">
+                  <span className="text-gray-400 dark:text-gray-500 tabular-nums font-mono whitespace-nowrap pt-0.5">
                     {sessionStartMs
                       ? new Date(sessionStartMs + e.atMs).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
                       : formatMMSS(Math.floor(e.atMs / 1000))}
@@ -1951,12 +1951,12 @@ function UnderwayPhase({
                   {e.emotion && (
                     <span className="text-sm leading-none pt-0.5" aria-hidden>{e.emotion}</span>
                   )}
-                  <span className="flex-1 min-w-0 text-gray-800 break-words">
+                  <span className="flex-1 min-w-0 text-gray-800 dark:text-gray-200 break-words">
                     <LinkifiedText text={e.text} />
                   </span>
                   <button
                     onClick={() => onRemoveEntry(e.id)}
-                    className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 text-sm leading-none transition-opacity"
+                    className="opacity-0 group-hover:opacity-100 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400 text-sm leading-none transition-opacity"
                     title="Remove"
                   >
                     ×
@@ -1983,12 +1983,12 @@ function UnderwayPhase({
           </button>
           <button
             onClick={onBail}
-            className="px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:border-gray-300"
+            className="px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 dark:border-gray-700"
           >
             Bail
           </button>
         </div>
-        <p className="text-[10px] text-gray-400 text-center">
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center">
           The tether: bail is always here. Stopping cleanly still counts as showing up.
         </p>
       </div>
@@ -2022,15 +2022,15 @@ function WrapPhase({
   startedAt: number | null;
 }) {
   const OUTCOME_META: Record<Outcome, { label: string; sub: string; chip: string; }> = {
-    'done':    { label: 'Done',          sub: 'Task shipped. Nice.',                        chip: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
-    'partial': { label: 'Some of it',    sub: 'You showed up. That counts.',                chip: 'bg-indigo-50 text-indigo-800 border-indigo-200'   },
-    'bailed':  { label: 'Bailed cleanly',sub: 'Bailing was the plan; you used the tether.', chip: 'bg-slate-100 text-slate-800 border-slate-200'     },
-    'time-up': { label: 'Time up',       sub: 'You ran the full session.',                  chip: 'bg-sky-50 text-sky-800 border-sky-200'            },
+    'done':    { label: 'Done',          sub: 'Task shipped. Nice.',                        chip: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800' },
+    'partial': { label: 'Some of it',    sub: 'You showed up. That counts.',                chip: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-200 border-indigo-200 dark:border-indigo-800'   },
+    'bailed':  { label: 'Bailed cleanly',sub: 'Bailing was the plan; you used the tether.', chip: 'bg-slate-100 dark:bg-slate-900/40 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-800'     },
+    'time-up': { label: 'Time up',       sub: 'You ran the full session.',                  chip: 'bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-200 border-sky-200 dark:border-sky-800'            },
   };
   const m = OUTCOME_META[outcome];
   const [showMore, setShowMore] = useState(false);
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
         {/* Outcome chip is the primary artifact — big, colored, felt.
             The Wrap screen used to have five fields; that's a wall at the
@@ -2040,13 +2040,13 @@ function WrapPhase({
           <div className={`inline-block px-4 py-1.5 rounded-full text-sm font-semibold border ${m.chip}`}>
             {m.label}
           </div>
-          <p className="text-xs text-gray-500 mt-2">{m.sub}</p>
-          <div className="text-[13px] font-semibold text-gray-800 mt-3">{taskLabel}</div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{m.sub}</p>
+          <div className="text-[13px] font-semibold text-gray-800 dark:text-gray-200 mt-3">{taskLabel}</div>
         </header>
 
         {/* One-line reflection — the only required field */}
         <div>
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1.5">
             One line — how did that go?
           </div>
           <input
@@ -2061,7 +2061,7 @@ function WrapPhase({
               }
             }}
             placeholder="Focused / scattered / surprisingly easy / hard start"
-            className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+            className="w-full px-4 py-3 text-base border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900"
           />
         </div>
 
@@ -2076,7 +2076,7 @@ function WrapPhase({
             you at the end. Time · check-ins · start time · next microstep. */}
         <button
           onClick={() => setShowMore((s) => !s)}
-          className="w-full text-[12px] text-gray-500 hover:text-gray-800 underline underline-offset-2"
+          className="w-full text-[12px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 underline underline-offset-2"
         >
           {showMore ? 'Hide details' : 'Add more (time · next step)'}
         </button>
@@ -2084,19 +2084,19 @@ function WrapPhase({
         {showMore && (
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-2">
-              <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
-                <div className="text-[10px] uppercase tracking-wider text-gray-500">Time</div>
-                <div className="text-lg font-semibold text-gray-900 tabular-nums">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 text-center">
+                <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Time</div>
+                <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
                   {formatMMSS(totalSec)}
                 </div>
               </div>
-              <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
-                <div className="text-[10px] uppercase tracking-wider text-gray-500">Log entries</div>
-                <div className="text-lg font-semibold text-gray-900 tabular-nums">{entryCount}</div>
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 text-center">
+                <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Log entries</div>
+                <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 tabular-nums">{entryCount}</div>
               </div>
-              <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
-                <div className="text-[10px] uppercase tracking-wider text-gray-500">Started</div>
-                <div className="text-lg font-semibold text-gray-900 tabular-nums">
+              <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 text-center">
+                <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Started</div>
+                <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
                   {startedAt
                     ? new Date(startedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
                     : '—'}
@@ -2106,7 +2106,7 @@ function WrapPhase({
 
             {outcome !== 'done' && (
               <div>
-                <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+                <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
                   Next microstep (optional)
                 </div>
                 <input
@@ -2114,7 +2114,7 @@ function WrapPhase({
                   value={nextMicrostep}
                   onChange={(e) => onNextMicrostepChange(e.target.value)}
                   placeholder="When you come back to this, start with…"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                  className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900"
                 />
               </div>
             )}

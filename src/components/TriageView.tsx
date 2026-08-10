@@ -147,11 +147,11 @@ export default function TriageView({
   // Empty state — no tasks in the dump to triage
   if (total === 0) {
     return (
-      <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
         <div className="max-w-md mx-auto px-4 py-10 text-center space-y-4">
           <div className="text-4xl">🎴</div>
-          <h2 className="text-lg font-semibold text-gray-900">Nothing to triage</h2>
-          <p className="text-sm text-gray-600">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Nothing to triage</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Your dump is empty. That's the goal — enjoy it.
           </p>
           <button
@@ -169,10 +169,10 @@ export default function TriageView({
   if (index >= total) {
     const moved = counts.doNow + counts.pin + counts.journaled + counts.someday + counts.dropped;
     return (
-      <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
         <div className="max-w-md mx-auto px-4 py-10 text-center space-y-5">
           <div className="text-5xl">✅</div>
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
             Triage done — {moved} moved
           </h2>
           <div className="grid grid-cols-2 gap-2 text-left">
@@ -210,23 +210,23 @@ export default function TriageView({
   const isAged = ageDays >= 5;
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-5 space-y-4">
         {/* Header — progress + exit */}
         <div className="flex items-center justify-between">
           <button
             onClick={onDone}
-            className="text-[11px] text-gray-500 hover:text-gray-800"
+            className="text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200"
           >
             ← Exit
           </button>
-          <div className="text-[11px] text-gray-500 tabular-nums font-mono">
+          <div className="text-[11px] text-gray-500 dark:text-gray-400 tabular-nums font-mono">
             {index + 1} / {total}
           </div>
         </div>
 
         {/* Progress bar */}
-        <div className="h-1 bg-gray-200 rounded-full overflow-hidden">
+        <div className="h-1 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
           <div
             className="h-full bg-indigo-500 transition-all"
             style={{ width: `${(index / total) * 100}%` }}
@@ -234,16 +234,16 @@ export default function TriageView({
         </div>
 
         {/* The card — big, single item, plenty of breathing room */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-6 min-h-[10rem] flex flex-col justify-center">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 min-h-[10rem] flex flex-col justify-center">
           {isAged && (
-            <div className="inline-block self-start text-[10px] font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 mb-3">
+            <div className="inline-block self-start text-[10px] font-semibold text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-full px-2 py-0.5 mb-3">
               aged · {ageDays} days
             </div>
           )}
-          <div className="text-lg font-semibold text-gray-900 leading-snug">
+          <div className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-snug">
             {current.label}
           </div>
-          <div className="text-[11px] text-gray-400 mt-2">
+          <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-2">
             {remaining === 1 ? 'last one' : `${remaining - 1} more after this`}
           </div>
         </div>
@@ -262,47 +262,47 @@ export default function TriageView({
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={pinToday}
-            className="px-3 py-3 rounded-xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-900 text-sm font-semibold flex items-center justify-center gap-1.5"
+            className="px-3 py-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-800 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-100 text-sm font-semibold flex items-center justify-center gap-1.5"
           >
             <span>📌</span> Pin today
           </button>
           <button
             onClick={journal}
-            className="px-3 py-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-sm font-semibold flex items-center justify-center gap-1.5"
+            className="px-3 py-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-800 dark:bg-amber-900/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100 text-sm font-semibold flex items-center justify-center gap-1.5"
           >
             <span>📝</span> To Journal
           </button>
           <button
             onClick={someday}
-            className="px-3 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 text-sm font-semibold flex items-center justify-center gap-1.5"
+            className="px-3 py-3 rounded-xl bg-slate-100 dark:bg-slate-900/40 hover:bg-slate-200 dark:hover:bg-slate-700 dark:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 text-sm font-semibold flex items-center justify-center gap-1.5"
           >
             <span>⏳</span> Someday
           </button>
           <button
             onClick={drop}
-            className="px-3 py-3 rounded-xl bg-white hover:bg-rose-50 border border-gray-200 text-rose-600 text-sm font-semibold flex items-center justify-center gap-1.5"
+            className="px-3 py-3 rounded-xl bg-white dark:bg-gray-900 hover:bg-rose-50 dark:hover:bg-rose-900/40 dark:bg-rose-950/40 border border-gray-200 dark:border-gray-800 text-rose-600 dark:text-rose-400 text-sm font-semibold flex items-center justify-center gap-1.5"
           >
             <span>✕</span> Drop
           </button>
         </div>
         <button
           onClick={skip}
-          className="w-full px-3 py-2 rounded-xl bg-white hover:bg-gray-50 border border-gray-200 text-gray-600 text-sm font-semibold flex items-center justify-center gap-1.5"
+          className="w-full px-3 py-2 rounded-xl bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 text-sm font-semibold flex items-center justify-center gap-1.5"
         >
           <span>→</span> Skip
         </button>
 
-        <p className="text-[11px] text-gray-400 text-center">
+        <p className="text-[11px] text-gray-400 dark:text-gray-500 text-center">
           One card at a time. Every decision counts — Skip is fine.
         </p>
-        <p className="text-[10px] text-gray-400 text-center font-mono tabular-nums">
-          keys: <kbd className="px-1 border border-gray-200 rounded bg-white">1</kbd> do ·
-          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">2</kbd> pin ·
-          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">3</kbd> journal ·
-          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">4</kbd> someday ·
-          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">5</kbd> drop ·
-          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">space</kbd> skip ·
-          <kbd className="px-1 border border-gray-200 rounded bg-white ml-1">esc</kbd> exit
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 text-center font-mono tabular-nums">
+          keys: <kbd className="px-1 border border-gray-200 dark:border-gray-800 rounded bg-white dark:bg-gray-900">1</kbd> do ·
+          <kbd className="px-1 border border-gray-200 dark:border-gray-800 rounded bg-white dark:bg-gray-900 ml-1">2</kbd> pin ·
+          <kbd className="px-1 border border-gray-200 dark:border-gray-800 rounded bg-white dark:bg-gray-900 ml-1">3</kbd> journal ·
+          <kbd className="px-1 border border-gray-200 dark:border-gray-800 rounded bg-white dark:bg-gray-900 ml-1">4</kbd> someday ·
+          <kbd className="px-1 border border-gray-200 dark:border-gray-800 rounded bg-white dark:bg-gray-900 ml-1">5</kbd> drop ·
+          <kbd className="px-1 border border-gray-200 dark:border-gray-800 rounded bg-white dark:bg-gray-900 ml-1">space</kbd> skip ·
+          <kbd className="px-1 border border-gray-200 dark:border-gray-800 rounded bg-white dark:bg-gray-900 ml-1">esc</kbd> exit
         </p>
       </div>
     </div>
@@ -319,12 +319,12 @@ function StatTile({
   color: 'indigo' | 'slate' | 'rose' | 'gray' | 'emerald' | 'amber';
 }) {
   const tone: Record<typeof color, string> = {
-    indigo:  'bg-indigo-50 text-indigo-900 border-indigo-200',
-    slate:   'bg-slate-100 text-slate-800 border-slate-200',
-    rose:    'bg-rose-50 text-rose-800 border-rose-200',
-    gray:    'bg-white text-gray-700 border-gray-200',
-    emerald: 'bg-emerald-50 text-emerald-900 border-emerald-200',
-    amber:   'bg-amber-50 text-amber-900 border-amber-200',
+    indigo:  'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-100 border-indigo-200 dark:border-indigo-800',
+    slate:   'bg-slate-100 dark:bg-slate-900/40 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-800',
+    rose:    'bg-rose-50 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 border-rose-200 dark:border-rose-800',
+    gray:    'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-800',
+    emerald: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-100 border-emerald-200 dark:border-emerald-800',
+    amber:   'bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-100 border-amber-200 dark:border-amber-800',
   };
   return (
     <div className={`rounded-xl border px-3 py-2 ${tone[color]}`}>

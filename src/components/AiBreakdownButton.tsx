@@ -45,7 +45,7 @@ export default function AiBreakdownButton({ mainTask, mainTime, onSubTasksGenera
       <button
         onClick={handleClick}
         disabled={disabled || loading || !mainTask}
-        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-800 dark:bg-indigo-900/40 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
       >
         {loading ? (
           <>
@@ -64,7 +64,7 @@ export default function AiBreakdownButton({ mainTask, mainTime, onSubTasksGenera
           </>
         )}
       </button>
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+      {error && <p className="text-xs text-red-500 dark:text-red-400 mt-1">{error}</p>}
     </div>
   );
 }

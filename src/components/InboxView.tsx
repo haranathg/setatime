@@ -149,18 +149,18 @@ export default function InboxView({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Inbox</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Capture a thought, then sort it into <span className="font-semibold text-gray-700">Now</span>, <span className="font-semibold text-gray-700">Future</span>, or <span className="font-semibold text-gray-700">Discard</span>. Keyboard: <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-200 rounded">n</kbd> <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-200 rounded">f</kbd> <kbd className="px-1.5 py-0.5 text-[10px] py-0.5 font-mono bg-gray-200 rounded">d</kbd>.
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Inbox</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Capture a thought, then sort it into <span className="font-semibold text-gray-700 dark:text-gray-300">Now</span>, <span className="font-semibold text-gray-700 dark:text-gray-300">Future</span>, or <span className="font-semibold text-gray-700 dark:text-gray-300">Discard</span>. Keyboard: <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-200 dark:bg-gray-800 rounded">n</kbd> <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-200 dark:bg-gray-800 rounded">f</kbd> <kbd className="px-1.5 py-0.5 text-[10px] py-0.5 font-mono bg-gray-200 dark:bg-gray-800 rounded">d</kbd>.
           </p>
         </div>
 
         {/* Capture */}
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-3">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-3">
           <textarea
             ref={captureRef}
             value={draft}
@@ -173,11 +173,11 @@ export default function InboxView({
             }}
             placeholder="What's on your mind? Press Enter to capture, Shift+Enter for newline."
             rows={2}
-            className="w-full px-3 py-2 text-base text-gray-900 placeholder:text-gray-400 resize-none focus:outline-none"
+            className="w-full px-3 py-2 text-base text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:text-gray-500 resize-none focus:outline-none"
             autoFocus
           />
           <div className="flex items-center justify-between mt-1 px-1">
-            <p className="text-[11px] text-gray-400">{draft.length > 0 ? `${draft.trim().split(/\s+/).filter(Boolean).length} words` : 'Each Enter captures a new thought'}</p>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">{draft.length > 0 ? `${draft.trim().split(/\s+/).filter(Boolean).length} words` : 'Each Enter captures a new thought'}</p>
             <button
               onClick={handleCapture}
               disabled={!draft.trim()}
@@ -189,7 +189,7 @@ export default function InboxView({
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 rounded-lg p-0.5 text-sm">
+        <div className="flex gap-1 bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 text-sm">
           <TabButton active={tab === 'triage'} onClick={() => setTab('triage')} label="To Triage" count={buckets.triage.length} accent="indigo" />
           <TabButton active={tab === 'now'} onClick={() => setTab('now')} label="Now" count={buckets.now.length} accent="red" />
           <TabButton active={tab === 'future'} onClick={() => setTab('future')} label="Future" count={buckets.future.length} accent="blue" />
@@ -246,20 +246,20 @@ function TabButton({
   accent: 'indigo' | 'red' | 'blue' | 'gray';
 }) {
   const accentColor =
-    accent === 'red' ? 'text-red-600' :
-    accent === 'blue' ? 'text-blue-600' :
-    accent === 'gray' ? 'text-gray-500' :
-    'text-indigo-600';
+    accent === 'red' ? 'text-red-600 dark:text-red-400' :
+    accent === 'blue' ? 'text-blue-600 dark:text-blue-400' :
+    accent === 'gray' ? 'text-gray-500 dark:text-gray-400' :
+    'text-indigo-600 dark:text-indigo-400';
   return (
     <button
       onClick={onClick}
       className={`flex-1 px-3 py-1.5 text-sm font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 ${
-        active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+        active ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300'
       }`}
     >
       <span>{label}</span>
       {count > 0 && (
-        <span className={`text-[10px] font-bold ${active ? accentColor : 'text-gray-400'}`}>
+        <span className={`text-[10px] font-bold ${active ? accentColor : 'text-gray-400 dark:text-gray-500'}`}>
           {count}
         </span>
       )}
@@ -299,36 +299,36 @@ function ThoughtCard({
 
   return (
     <div
-      className={`bg-white border rounded-xl shadow-sm transition-shadow ${
-        isTopOfTriage ? 'border-indigo-300 ring-2 ring-indigo-100' : 'border-gray-200'
+      className={`bg-white dark:bg-gray-900 border rounded-xl shadow-sm transition-shadow ${
+        isTopOfTriage ? 'border-indigo-300 dark:border-indigo-700 ring-2 ring-indigo-100' : 'border-gray-200 dark:border-gray-800'
       }`}
     >
       <div className="p-3">
         {/* Meta line */}
-        <div className="flex items-center gap-2 mb-1.5 text-[11px] text-gray-400">
+        <div className="flex items-center gap-2 mb-1.5 text-[11px] text-gray-400 dark:text-gray-500">
           <span>{relativeTime(thought.capturedAt)}</span>
           {resurfaced && (
-            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] font-semibold uppercase tracking-wide">
+            <span className="px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded text-[10px] font-semibold uppercase tracking-wide">
               Resurfaced
             </span>
           )}
           {tab === 'future' && thought.futureSurfaceDate && (
-            <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-[10px] font-semibold">
+            <span className="px-1.5 py-0.5 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 rounded text-[10px] font-semibold">
               Resurfaces {formatDate(thought.futureSurfaceDate)}
             </span>
           )}
           {sentToDump && (
-            <span className="px-1.5 py-0.5 bg-green-50 text-green-700 rounded text-[10px] font-semibold">
+            <span className="px-1.5 py-0.5 bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-300 rounded text-[10px] font-semibold">
               ✓ in Hold
             </span>
           )}
           {isTopOfTriage && (
-            <span className="ml-auto text-[10px] text-indigo-500 font-mono">[n / f / d]</span>
+            <span className="ml-auto text-[10px] text-indigo-500 dark:text-indigo-400 font-mono">[n / f / d]</span>
           )}
         </div>
 
         {/* Body */}
-        <p className="text-sm text-gray-900 leading-relaxed whitespace-pre-wrap">{thought.text}</p>
+        <p className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed whitespace-pre-wrap">{thought.text}</p>
 
         {/* Actions */}
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
@@ -378,7 +378,7 @@ function ThoughtCard({
             onClick={() => {
               if (confirm('Delete this thought permanently?')) onDelete();
             }}
-            className="ml-auto text-[11px] text-gray-400 hover:text-red-600 transition-colors"
+            className="ml-auto text-[11px] text-gray-400 dark:text-gray-500 hover:text-red-600 dark:text-red-400 transition-colors"
             title="Delete forever"
           >
             ✕
@@ -400,10 +400,10 @@ function ActionButton({
 }) {
   const styles =
     color === 'red'
-      ? 'text-red-700 bg-red-50 hover:bg-red-100 border-red-200'
+      ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/40 hover:bg-red-100 dark:hover:bg-red-800 dark:bg-red-900/40 border-red-200 dark:border-red-800'
       : color === 'blue'
-      ? 'text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200'
-      : 'text-gray-600 bg-gray-50 hover:bg-gray-100 border-gray-200';
+      ? 'text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-800 dark:bg-blue-900/40 border-blue-200 dark:border-blue-800'
+      : 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-950 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 border-gray-200 dark:border-gray-800';
   return (
     <button
       onClick={onClick}
@@ -437,14 +437,14 @@ function FuturePicker({
   }, [onClose]);
 
   return (
-    <div ref={ref} className="absolute left-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg p-2 z-20">
-      <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold px-1 mb-1.5">Resurface in</p>
+    <div ref={ref} className="absolute left-0 top-full mt-1 w-56 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-lg p-2 z-20">
+      <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 font-semibold px-1 mb-1.5">Resurface in</p>
       <div className="grid grid-cols-2 gap-1 mb-2">
         {FUTURE_PRESETS.map((p) => (
           <button
             key={p.label}
             onClick={() => onPick(p.days)}
-            className="px-2 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors"
+            className="px-2 py-1.5 text-xs font-medium text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-800 dark:bg-blue-900/40 rounded-md transition-colors"
           >
             {p.label}
           </button>
@@ -456,7 +456,7 @@ function FuturePicker({
           value={customDate}
           onChange={(e) => onCustomDateChange(e.target.value)}
           min={todayKey()}
-          className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="flex-1 px-2 py-1 text-xs border border-gray-200 dark:border-gray-800 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
         />
         <button
           onClick={() => customDate && onPick(null, customDate)}
@@ -481,9 +481,9 @@ function EmptyState({ tab }: { tab: TabKey }) {
   };
   const { title, body } = messages[tab];
   return (
-    <div className="text-center py-10 px-4 border-2 border-dashed border-gray-200 rounded-xl bg-white">
-      <p className="text-sm font-semibold text-gray-700">{title}</p>
-      <p className="text-xs text-gray-500 mt-1">{body}</p>
+    <div className="text-center py-10 px-4 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-xl bg-white dark:bg-gray-900">
+      <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{title}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{body}</p>
     </div>
   );
 }
@@ -532,38 +532,38 @@ function PatternsPanel({ thoughts }: { thoughts: Thought[] }) {
   const pct = (n: number) => (stats.total ? Math.round((n / stats.total) * 100) : 0);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-4 space-y-4">
-      <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl shadow-sm p-4 space-y-4">
+      <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
         Patterns
-        <span className="text-[11px] font-normal text-gray-400">{stats.total} thoughts captured</span>
+        <span className="text-[11px] font-normal text-gray-400 dark:text-gray-500">{stats.total} thoughts captured</span>
       </h2>
 
       {/* Status breakdown */}
       <div>
-        <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-2">Triage breakdown</p>
-        <div className="flex h-2 rounded-full overflow-hidden bg-gray-100">
+        <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 font-semibold mb-2">Triage breakdown</p>
+        <div className="flex h-2 rounded-full overflow-hidden bg-gray-100 dark:bg-gray-800">
           {stats.counts.inbox > 0 && <div className="bg-indigo-400" style={{ width: `${pct(stats.counts.inbox)}%` }} />}
           {stats.counts.now > 0 && <div className="bg-red-400" style={{ width: `${pct(stats.counts.now)}%` }} />}
           {stats.counts.future > 0 && <div className="bg-blue-400" style={{ width: `${pct(stats.counts.future)}%` }} />}
-          {stats.counts.discarded > 0 && <div className="bg-gray-300" style={{ width: `${pct(stats.counts.discarded)}%` }} />}
+          {stats.counts.discarded > 0 && <div className="bg-gray-300 dark:bg-gray-700" style={{ width: `${pct(stats.counts.discarded)}%` }} />}
         </div>
         <div className="grid grid-cols-4 gap-2 mt-2 text-[11px]">
           <Legend dot="bg-indigo-400" label="Inbox" n={stats.counts.inbox} pct={pct(stats.counts.inbox)} />
           <Legend dot="bg-red-400" label="Now" n={stats.counts.now} pct={pct(stats.counts.now)} />
           <Legend dot="bg-blue-400" label="Future" n={stats.counts.future} pct={pct(stats.counts.future)} />
-          <Legend dot="bg-gray-300" label="Discarded" n={stats.counts.discarded} pct={pct(stats.counts.discarded)} />
+          <Legend dot="bg-gray-300 dark:bg-gray-700" label="Discarded" n={stats.counts.discarded} pct={pct(stats.counts.discarded)} />
         </div>
       </div>
 
       {/* Captures per day */}
       <div>
-        <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-2">Last 14 days</p>
+        <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 font-semibold mb-2">Last 14 days</p>
         <div className="flex items-end gap-0.5 h-12">
           {stats.days.map((d) => (
             <div
               key={d.key}
               title={`${d.key}: ${d.count}`}
-              className="flex-1 bg-indigo-200 hover:bg-indigo-400 rounded-sm transition-colors"
+              className="flex-1 bg-indigo-200 dark:bg-indigo-800 hover:bg-indigo-400 rounded-sm transition-colors"
               style={{ height: `${(d.count / stats.maxDay) * 100}%`, minHeight: d.count > 0 ? '4px' : '2px' }}
             />
           ))}
@@ -573,15 +573,15 @@ function PatternsPanel({ thoughts }: { thoughts: Thought[] }) {
       {/* Top words */}
       {stats.topWords.length > 0 && (
         <div>
-          <p className="text-[10px] uppercase tracking-wide text-gray-400 font-semibold mb-2">Recurring words</p>
+          <p className="text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 font-semibold mb-2">Recurring words</p>
           <div className="flex flex-wrap gap-1.5">
             {stats.topWords.map(([word, n]) => (
               <span
                 key={word}
-                className="px-2 py-0.5 text-[11px] bg-gray-100 text-gray-700 rounded-full"
+                className="px-2 py-0.5 text-[11px] bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full"
                 style={{ fontSize: `${Math.min(14, 10 + n)}px` }}
               >
-                {word} <span className="text-gray-400">·{n}</span>
+                {word} <span className="text-gray-400 dark:text-gray-500">·{n}</span>
               </span>
             ))}
           </div>
@@ -595,8 +595,8 @@ function Legend({ dot, label, n, pct }: { dot: string; label: string; n: number;
   return (
     <div className="flex items-center gap-1.5">
       <span className={`w-2 h-2 rounded-full ${dot}`} />
-      <span className="text-gray-600">{label}</span>
-      <span className="text-gray-400 ml-auto">{n} · {pct}%</span>
+      <span className="text-gray-600 dark:text-gray-400">{label}</span>
+      <span className="text-gray-400 dark:text-gray-500 ml-auto">{n} · {pct}%</span>
     </div>
   );
 }

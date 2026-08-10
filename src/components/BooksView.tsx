@@ -58,10 +58,10 @@ export default function BooksView({
   const progressBook = progressId ? books.find((b) => b.id === progressId) ?? null : null;
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="text-lg font-semibold tracking-tight text-gray-900">Books</h2>
+          <h2 className="text-lg font-semibold tracking-tight text-gray-900 dark:text-gray-100">Books</h2>
           <button
             onClick={() => setAdding(true)}
             className="px-3 py-1.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
@@ -69,7 +69,7 @@ export default function BooksView({
             + Add
           </button>
         </div>
-        <p className="text-xs text-gray-500 mb-5">What you&rsquo;re reading, what&rsquo;s next, what&rsquo;s done.</p>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-5">What you&rsquo;re reading, what&rsquo;s next, what&rsquo;s done.</p>
 
         {books.length === 0 ? (
           <EmptyState onAdd={() => setAdding(true)} />
@@ -114,7 +114,7 @@ export default function BooksView({
               <div className="mt-8">
                 <button
                   onClick={() => setShowFinished((v) => !v)}
-                  className="text-xs text-gray-400 hover:text-gray-600"
+                  className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-400"
                 >
                   {showFinished ? 'Hide' : 'Show'} finished ({finished.length})
                 </button>
@@ -197,8 +197,8 @@ function Section({
   return (
     <section className={className}>
       <div className="flex items-baseline gap-2 mb-2">
-        <h3 className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold">{title}</h3>
-        <span className="text-[11px] text-gray-400 tabular-nums">{count}</span>
+        <h3 className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">{title}</h3>
+        <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">{count}</span>
       </div>
       {children}
     </section>
@@ -206,14 +206,14 @@ function Section({
 }
 
 function EmptySection({ text }: { text: string }) {
-  return <p className="text-xs text-gray-400 px-1">{text}</p>;
+  return <p className="text-xs text-gray-400 dark:text-gray-500 px-1">{text}</p>;
 }
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="text-center bg-white border border-gray-200 rounded-2xl p-8 mt-2">
-      <h3 className="text-base font-semibold text-gray-900 mb-1">Add your first book</h3>
-      <p className="text-sm text-gray-500 mb-5 leading-relaxed">
+    <div className="text-center bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-8 mt-2">
+      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Add your first book</h3>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-5 leading-relaxed">
         Anything you want to read, or anything you&rsquo;re part-way through. Track it with one number: the page you&rsquo;re on.
       </p>
       <button
@@ -240,33 +240,33 @@ function ReadingCard({
   const pct = percent(book);
   const hasTotal = book.totalPages > 0;
   return (
-    <li className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <li className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
       <div className="flex items-stretch">
-        <button onClick={onUpdateProgress} className="flex-1 text-left px-4 py-3 hover:bg-gray-50 transition-colors">
+        <button onClick={onUpdateProgress} className="flex-1 text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors">
           <div className="flex items-baseline justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-sm font-medium text-gray-900 truncate">{book.title}</div>
-              {book.author && <div className="text-[11px] text-gray-500 truncate">{book.author}</div>}
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{book.title}</div>
+              {book.author && <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{book.author}</div>}
             </div>
             <div className="text-right flex-shrink-0">
-              <div className="text-base font-semibold text-gray-900 tabular-nums">
+              <div className="text-base font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
                 {book.currentPage}
-                {hasTotal && <span className="text-gray-400 font-normal"> / {book.totalPages}</span>}
+                {hasTotal && <span className="text-gray-400 dark:text-gray-500 font-normal"> / {book.totalPages}</span>}
               </div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">
+              <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500">
                 {hasTotal ? `${pct}%` : 'page'}
               </div>
             </div>
           </div>
           {hasTotal && (
-            <div className="mt-2 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="mt-2 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
               <div
                 className="h-full bg-indigo-500 rounded-full transition-all"
                 style={{ width: `${pct}%` }}
               />
             </div>
           )}
-          <div className="text-[11px] text-indigo-600 font-medium mt-2">Update progress &rarr;</div>
+          <div className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium mt-2">Update progress &rarr;</div>
         </button>
         <EditButton onClick={onEdit} />
       </div>
@@ -284,15 +284,15 @@ function WantCard({
   onEdit: () => void;
 }) {
   return (
-    <li className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <li className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
       <div className="flex items-stretch">
-        <button onClick={onStart} className="flex-1 text-left px-4 py-3 hover:bg-gray-50 transition-colors">
+        <button onClick={onStart} className="flex-1 text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors">
           <div className="flex items-baseline justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-sm font-medium text-gray-900 truncate">{book.title}</div>
-              {book.author && <div className="text-[11px] text-gray-500 truncate">{book.author}</div>}
+              <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{book.title}</div>
+              {book.author && <div className="text-[11px] text-gray-500 dark:text-gray-400 truncate">{book.author}</div>}
             </div>
-            <span className="text-[11px] text-indigo-600 font-medium flex-shrink-0">Start &rarr;</span>
+            <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium flex-shrink-0">Start &rarr;</span>
           </div>
         </button>
         <EditButton onClick={onEdit} />
@@ -303,15 +303,15 @@ function WantCard({
 
 function FinishedCard({ book, onEdit }: { book: Book; onEdit: () => void }) {
   return (
-    <li className="bg-white border border-gray-200 rounded-xl overflow-hidden opacity-80">
+    <li className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden opacity-80">
       <div className="flex items-stretch">
-        <button onClick={onEdit} className="flex-1 text-left px-4 py-3 hover:bg-gray-50 transition-colors">
+        <button onClick={onEdit} className="flex-1 text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors">
           <div className="flex items-baseline justify-between gap-3">
             <div className="min-w-0">
-              <div className="text-sm font-medium text-gray-700 truncate">{book.title}</div>
-              {book.author && <div className="text-[11px] text-gray-400 truncate">{book.author}</div>}
+              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate">{book.title}</div>
+              {book.author && <div className="text-[11px] text-gray-400 dark:text-gray-500 truncate">{book.author}</div>}
             </div>
-            <span className="text-[11px] text-gray-400 flex-shrink-0 tabular-nums">
+            <span className="text-[11px] text-gray-400 dark:text-gray-500 flex-shrink-0 tabular-nums">
               {formatShortDate(book.finishedAt)}
             </span>
           </div>
@@ -326,7 +326,7 @@ function EditButton({ onClick }: { onClick: () => void }) {
     <button
       onClick={onClick}
       title="Edit"
-      className="px-3 flex items-center text-gray-300 hover:text-gray-600 border-l border-gray-100"
+      className="px-3 flex items-center text-gray-300 dark:text-gray-600 hover:text-gray-600 dark:text-gray-400 border-l border-gray-100 dark:border-gray-800"
     >
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M12 20h9" />
@@ -368,11 +368,11 @@ function ProgressModal({
       onClick={onCancel}
     >
       <div
-        className="w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl shadow-xl p-5"
+        className="w-full sm:max-w-sm bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-xl p-5"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-1">Current page</div>
-        <div className="text-base font-semibold text-gray-900 mb-4 truncate">{book.title}</div>
+        <div className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-1">Current page</div>
+        <div className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4 truncate">{book.title}</div>
 
         <input
           type="number"
@@ -382,13 +382,13 @@ function ProgressModal({
           onChange={(e) => setValue(e.target.value)}
           onFocus={(e) => e.target.select()}
           placeholder="Page number"
-          className="w-full px-4 py-3 text-2xl font-semibold text-center tabular-nums border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          className="w-full px-4 py-3 text-2xl font-semibold text-center tabular-nums border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
           autoFocus
         />
         {book.totalPages > 0 && (
-          <div className="text-[11px] text-gray-400 text-center mt-1">
+          <div className="text-[11px] text-gray-400 dark:text-gray-500 text-center mt-1">
             of {book.totalPages}
-            {willFinish && <span className="text-green-600 ml-1 font-medium">&middot; will mark finished</span>}
+            {willFinish && <span className="text-green-600 dark:text-green-400 ml-1 font-medium">&middot; will mark finished</span>}
           </div>
         )}
 
@@ -401,7 +401,7 @@ function ProgressModal({
           </button>
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 dark:text-gray-100 transition-colors"
           >
             Cancel
           </button>
@@ -449,11 +449,11 @@ function BookModal({
       onClick={onCancel}
     >
       <div
-        className="w-full sm:max-w-md bg-white rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto"
+        className="w-full sm:max-w-md bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h3 className="text-base font-semibold text-gray-900">{book ? 'Edit book' : 'New book'}</h3>
+        <div className="px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{book ? 'Edit book' : 'New book'}</h3>
         </div>
 
         <div className="px-5 py-4 space-y-4">
@@ -462,7 +462,7 @@ function BookModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Atomic Habits"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
               autoFocus
             />
           </Field>
@@ -472,7 +472,7 @@ function BookModal({
               value={author}
               onChange={(e) => setAuthor(e.target.value)}
               placeholder="e.g. James Clear"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </Field>
 
@@ -484,7 +484,7 @@ function BookModal({
               value={totalPages}
               onChange={(e) => setTotalPages(e.target.value)}
               placeholder="e.g. 320"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </Field>
 
@@ -497,8 +497,8 @@ function BookModal({
                   onClick={() => setStatus(s)}
                   className={`flex-1 px-3 py-2 text-xs font-medium rounded-lg border transition-colors ${
                     status === s
-                      ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
-                      : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-700 text-indigo-700 dark:text-indigo-300'
+                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950'
                   }`}
                 >
                   {s === 'want' ? 'Want to read' : s === 'reading' ? 'Reading now' : 'Finished'}
@@ -508,7 +508,7 @@ function BookModal({
           </Field>
         </div>
 
-        <div className="px-5 py-4 border-t border-gray-100 flex items-center gap-2">
+        <div className="px-5 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center gap-2">
           <button
             onClick={handleSave}
             disabled={!canSave}
@@ -518,7 +518,7 @@ function BookModal({
           </button>
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 dark:text-gray-100 transition-colors"
           >
             Cancel
           </button>
@@ -529,13 +529,13 @@ function BookModal({
             {onMarkFinished && (
               <button
                 onClick={onMarkFinished}
-                className="text-xs text-green-600 hover:text-green-800 font-medium"
+                className="text-xs text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200 dark:text-green-200 font-medium"
               >
                 Mark finished
               </button>
             )}
             {onDelete && (
-              <button onClick={onDelete} className="text-xs text-red-500 hover:text-red-700">
+              <button onClick={onDelete} className="text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 dark:text-red-300">
                 Delete
               </button>
             )}
@@ -557,9 +557,9 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-700 mb-1">{label}</label>
+      <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">{label}</label>
       {children}
-      {hint && <p className="text-[11px] text-gray-400 mt-1 leading-snug">{hint}</p>}
+      {hint && <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-1 leading-snug">{hint}</p>}
     </div>
   );
 }

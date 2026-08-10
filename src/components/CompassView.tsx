@@ -30,7 +30,7 @@ const CATEGORY_META: Record<ControlCategory, {
   control: {
     label: 'In your control',
     short: 'Control',
-    tone: 'bg-indigo-50 border-indigo-200',
+    tone: 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800',
     ring: 'ring-indigo-500',
     chip: 'bg-indigo-600 text-white border-indigo-600',
     hint: 'Your actions, effort, response, whether you ask for help.',
@@ -38,7 +38,7 @@ const CATEGORY_META: Record<ControlCategory, {
   influence: {
     label: 'You can influence',
     short: 'Influence',
-    tone: 'bg-sky-50 border-sky-200',
+    tone: 'bg-sky-50 dark:bg-sky-950/40 border-sky-200 dark:border-sky-800',
     ring: 'ring-sky-500',
     chip: 'bg-sky-600 text-white border-sky-600',
     hint: 'You can shape it, but not decide it. Others involved.',
@@ -46,7 +46,7 @@ const CATEGORY_META: Record<ControlCategory, {
   concern: {
     label: 'Only concern',
     short: 'Concern',
-    tone: 'bg-slate-100 border-slate-200',
+    tone: 'bg-slate-100 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800',
     ring: 'ring-slate-500',
     chip: 'bg-slate-700 text-white border-slate-700',
     hint: "Care about it, can't change it. Energy here is rumination.",
@@ -170,11 +170,11 @@ function HomePhase({
   onStart: () => void;
 }) {
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
         <header className="text-center">
-          <h2 className="text-lg font-semibold text-gray-900">Compass</h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Compass</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Sort what's on your mind. Steer where you can; set down what you can't.
           </p>
         </header>
@@ -192,17 +192,17 @@ function HomePhase({
         </button>
 
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-white border border-gray-200 rounded-2xl px-3 py-3 text-center">
-            <div className="text-[10px] uppercase tracking-wider text-gray-500">This week</div>
-            <div className="text-3xl font-bold text-gray-900 tabular-nums">{weekCount}</div>
-            <div className="text-[10px] text-gray-500 mt-0.5">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-3 py-3 text-center">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">This week</div>
+            <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{weekCount}</div>
+            <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
               {weekCount === 1 ? 'sort' : 'sorts'}
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-2xl px-3 py-3 text-center">
-            <div className="text-[10px] uppercase tracking-wider text-gray-500">All-time</div>
-            <div className="text-3xl font-bold text-gray-900 tabular-nums">{entries.length}</div>
-            <div className="text-[10px] text-gray-500 mt-0.5">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-3 py-3 text-center">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">All-time</div>
+            <div className="text-3xl font-bold text-gray-900 dark:text-gray-100 tabular-nums">{entries.length}</div>
+            <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
               {entries.length === 1 ? 'entry' : 'entries'}
             </div>
           </div>
@@ -218,8 +218,8 @@ function HomePhase({
 
 function RecentEntriesList({ entries }: { entries: CompassEntry[] }) {
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-      <header className="px-4 py-2 border-b border-gray-100 text-[10px] uppercase tracking-wider font-bold text-gray-500">
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
         Recent
       </header>
       <ul>
@@ -231,17 +231,17 @@ function RecentEntriesList({ entries }: { entries: CompassEntry[] }) {
             month: 'short', day: 'numeric',
           });
           return (
-            <li key={e.id} className="px-4 py-2 border-b border-gray-100 last:border-0">
+            <li key={e.id} className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 last:border-0">
               <div className="flex items-center gap-2">
-                <span className="flex-1 text-[13px] text-gray-800 truncate">
+                <span className="flex-1 text-[13px] text-gray-800 dark:text-gray-200 truncate">
                   {e.items[0]?.text || '(empty)'} {e.items.length > 1 ? `+${e.items.length - 1}` : ''}
                 </span>
-                <span className="text-[11px] text-gray-400 tabular-nums">{when}</span>
+                <span className="text-[11px] text-gray-400 dark:text-gray-500 tabular-nums">{when}</span>
               </div>
               <div className="flex items-center gap-2 mt-1 text-[10px]">
-                {control > 0 && <span className="text-indigo-700">● {control} control</span>}
-                {influence > 0 && <span className="text-sky-700">● {influence} influence</span>}
-                {concern > 0 && <span className="text-slate-500">● {concern} concern</span>}
+                {control > 0 && <span className="text-indigo-700 dark:text-indigo-300">● {control} control</span>}
+                {influence > 0 && <span className="text-sky-700 dark:text-sky-300">● {influence} influence</span>}
+                {concern > 0 && <span className="text-slate-500 dark:text-slate-400">● {concern} concern</span>}
               </div>
             </li>
           );
@@ -263,15 +263,15 @@ function CircleOfControlDiagram({ compact = false }: { compact?: boolean }) {
     <div className={`${size} mx-auto`}>
       <svg viewBox="0 0 100 100" className="w-full h-full">
         {/* Concern — outer */}
-        <circle cx="50" cy="50" r="46" fill="#f1f5f9" stroke="#cbd5e1" strokeWidth="0.5" />
+        <circle cx="50" cy="50" r="46" className="fill-slate-100 dark:fill-slate-900 stroke-slate-300 dark:stroke-slate-700" strokeWidth="0.5" />
         {/* Influence — middle */}
-        <circle cx="50" cy="50" r="32" fill="#e0f2fe" stroke="#7dd3fc" strokeWidth="0.5" />
+        <circle cx="50" cy="50" r="32" className="fill-sky-100 dark:fill-sky-950 stroke-sky-300 dark:stroke-sky-800" strokeWidth="0.5" />
         {/* Control — inner */}
-        <circle cx="50" cy="50" r="16" fill="#e0e7ff" stroke="#818cf8" strokeWidth="0.5" />
+        <circle cx="50" cy="50" r="16" className="fill-indigo-100 dark:fill-indigo-950 stroke-indigo-400 dark:stroke-indigo-700" strokeWidth="0.5" />
         {/* Labels */}
-        <text x="50" y="10" textAnchor="middle" fontSize="4" fill="#475569" fontWeight="600">Concern</text>
-        <text x="50" y="26" textAnchor="middle" fontSize="4" fill="#0369a1" fontWeight="600">Influence</text>
-        <text x="50" y="52" textAnchor="middle" fontSize="4.5" fill="#3730a3" fontWeight="700">Control</text>
+        <text x="50" y="10" textAnchor="middle" fontSize="4" className="fill-slate-600 dark:fill-slate-400" fontWeight="600">Concern</text>
+        <text x="50" y="26" textAnchor="middle" fontSize="4" className="fill-sky-700 dark:fill-sky-300" fontWeight="600">Influence</text>
+        <text x="50" y="52" textAnchor="middle" fontSize="4.5" className="fill-indigo-800 dark:fill-indigo-200" fontWeight="700">Control</text>
       </svg>
     </div>
   );
@@ -301,17 +301,17 @@ function SortPhase({
   nextEnabled: boolean;
 }) {
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-6 space-y-4 pb-24">
         <header className="text-center">
           <button
             onClick={onBack}
-            className="text-[11px] text-gray-500 hover:text-gray-800 mb-1"
+            className="text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 mb-1"
           >
             ← Back
           </button>
-          <h2 className="text-lg font-semibold text-gray-900">What's on your mind?</h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">What's on your mind?</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             List each piece. Sort each into Control · Influence · Concern.
           </p>
         </header>
@@ -332,7 +332,7 @@ function SortPhase({
               }
             }}
             placeholder='e.g. "deadline Friday", "friend upset with me"'
-            className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+            className="flex-1 min-w-0 px-3 py-2.5 text-sm border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900"
           />
           <button
             onClick={onAdd}
@@ -344,7 +344,7 @@ function SortPhase({
         </div>
 
         {items.length === 0 && (
-          <div className="text-center text-[12px] text-gray-500 border-2 border-dashed border-gray-200 rounded-2xl bg-white py-6 px-4">
+          <div className="text-center text-[12px] text-gray-500 dark:text-gray-400 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900 py-6 px-4">
             Add whatever's tugging at your attention. One thing per line — you
             don't have to be complete or exact.
           </div>
@@ -352,12 +352,12 @@ function SortPhase({
 
         <ul className="space-y-2">
           {items.map((it) => (
-            <li key={it.id} className="bg-white border border-gray-200 rounded-2xl p-3 space-y-2">
+            <li key={it.id} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-3 space-y-2">
               <div className="flex items-start gap-2">
-                <span className="flex-1 text-sm text-gray-800 pt-0.5">{it.text}</span>
+                <span className="flex-1 text-sm text-gray-800 dark:text-gray-200 pt-0.5">{it.text}</span>
                 <button
                   onClick={() => onRemove(it.id)}
-                  className="text-gray-300 hover:text-red-500 text-lg leading-none"
+                  className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400 text-lg leading-none"
                   title="Remove"
                 >
                   ×
@@ -374,7 +374,7 @@ function SortPhase({
                       className={`px-2 py-1.5 text-[11px] font-semibold rounded-lg border transition-colors ${
                         active
                           ? m.chip
-                          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+                          : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 dark:border-gray-700'
                       }`}
                     >
                       {m.short}
@@ -383,7 +383,7 @@ function SortPhase({
                 })}
               </div>
               {it.category && (
-                <div className="text-[10px] text-gray-500 italic pl-0.5">
+                <div className="text-[10px] text-gray-500 dark:text-gray-400 italic pl-0.5">
                   {CATEGORY_META[it.category].hint}
                 </div>
               )}
@@ -393,12 +393,12 @@ function SortPhase({
       </div>
 
       {/* Sticky Next bar */}
-      <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur border-t border-gray-200 px-4 py-3">
+      <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur border-t border-gray-200 dark:border-gray-800 px-4 py-3">
         <div className="max-w-md mx-auto">
           <button
             onClick={onNext}
             disabled={!nextEnabled}
-            className="w-full py-3 rounded-2xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+            className="w-full py-3 rounded-2xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 dark:bg-gray-700 disabled:cursor-not-allowed transition-colors"
           >
             {items.length === 0
               ? 'Add at least one item'
@@ -436,17 +436,17 @@ function ActPhase({
   const concernItems   = useMemo(() => items.filter((i) => i.category === 'concern'),   [items]);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-6 space-y-5 pb-24">
         <header className="text-center">
           <button
             onClick={onBack}
-            className="text-[11px] text-gray-500 hover:text-gray-800 mb-1"
+            className="text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 mb-1"
           >
             ← Back
           </button>
-          <h2 className="text-lg font-semibold text-gray-900">Decide what to do</h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Decide what to do</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             One concrete next step for the actionable pieces. Set down the rest.
           </p>
         </header>
@@ -455,10 +455,10 @@ function ActPhase({
         {controlItems.length > 0 && (
           <section className={`rounded-2xl border p-4 space-y-3 ${CATEGORY_META.control.tone}`}>
             <div>
-              <div className="text-[11px] uppercase tracking-wider font-bold text-indigo-900">
+              <div className="text-[11px] uppercase tracking-wider font-bold text-indigo-900 dark:text-indigo-100">
                 In your control
               </div>
-              <div className="text-[11px] text-indigo-800 mt-1 leading-relaxed">
+              <div className="text-[11px] text-indigo-800 dark:text-indigo-200 mt-1 leading-relaxed">
                 <strong>"Ask for help" is in your control.</strong> Getting help counts as action —
                 reaching out to a friend, a coworker, or a professional is often the
                 highest-leverage next step. Don't leave it off the list.
@@ -466,20 +466,20 @@ function ActPhase({
             </div>
             <ul className="space-y-2">
               {controlItems.map((it) => (
-                <li key={it.id} className="bg-white/80 rounded-xl p-3 space-y-2 border border-indigo-100">
-                  <div className="text-sm font-semibold text-gray-900">{it.text}</div>
+                <li key={it.id} className="bg-white/80 rounded-xl p-3 space-y-2 border border-indigo-100 dark:border-indigo-900">
+                  <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{it.text}</div>
                   <input
                     type="text"
                     value={it.nextStep || ''}
                     onChange={(e) => onSetNextStep(it.id, e.target.value)}
                     placeholder="One concrete next step (or 'ask X for help')"
-                    className="w-full px-3 py-2 text-sm border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+                    className="w-full px-3 py-2 text-sm border border-indigo-200 dark:border-indigo-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900"
                   />
                 </li>
               ))}
             </ul>
 
-            <label className="flex items-center gap-2 text-[12px] text-indigo-900 pt-1">
+            <label className="flex items-center gap-2 text-[12px] text-indigo-900 dark:text-indigo-100 pt-1">
               <input
                 type="checkbox"
                 checked={sendControlToHold}
@@ -495,23 +495,23 @@ function ActPhase({
         {influenceItems.length > 0 && (
           <section className={`rounded-2xl border p-4 space-y-3 ${CATEGORY_META.influence.tone}`}>
             <div>
-              <div className="text-[11px] uppercase tracking-wider font-bold text-sky-900">
+              <div className="text-[11px] uppercase tracking-wider font-bold text-sky-900 dark:text-sky-100">
                 You can influence
               </div>
-              <div className="text-[11px] text-sky-800 mt-1">
+              <div className="text-[11px] text-sky-800 dark:text-sky-200 mt-1">
                 Not yours to decide, but you can shape how it goes.
               </div>
             </div>
             <ul className="space-y-2">
               {influenceItems.map((it) => (
-                <li key={it.id} className="bg-white/80 rounded-xl p-3 space-y-2 border border-sky-100">
-                  <div className="text-sm font-semibold text-gray-900">{it.text}</div>
+                <li key={it.id} className="bg-white/80 rounded-xl p-3 space-y-2 border border-sky-100 dark:border-sky-900">
+                  <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{it.text}</div>
                   <input
                     type="text"
                     value={it.nextStep || ''}
                     onChange={(e) => onSetNextStep(it.id, e.target.value)}
                     placeholder="One thing you can do to shape this"
-                    className="w-full px-3 py-2 text-sm border border-sky-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white"
+                    className="w-full px-3 py-2 text-sm border border-sky-200 dark:border-sky-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-400 bg-white dark:bg-gray-900"
                   />
                 </li>
               ))}
@@ -523,10 +523,10 @@ function ActPhase({
         {concernItems.length > 0 && (
           <section className={`rounded-2xl border p-4 space-y-3 ${CATEGORY_META.concern.tone}`}>
             <div>
-              <div className="text-[11px] uppercase tracking-wider font-bold text-slate-700">
+              <div className="text-[11px] uppercase tracking-wider font-bold text-slate-700 dark:text-slate-300">
                 Only concern — set it down
               </div>
-              <div className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+              <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">
                 You care about this. That's OK. Notice it, name it, and set it
                 down for now. Energy spent here is rumination — you can pick it
                 up again later if it changes.
@@ -534,16 +534,16 @@ function ActPhase({
             </div>
             <ul className="space-y-2">
               {concernItems.map((it) => (
-                <li key={it.id} className="bg-white/80 rounded-xl p-3 flex items-center gap-2 border border-slate-200">
-                  <span className={`flex-1 text-sm ${it.released ? 'text-slate-400 line-through' : 'text-gray-900'}`}>
+                <li key={it.id} className="bg-white/80 rounded-xl p-3 flex items-center gap-2 border border-slate-200 dark:border-slate-800">
+                  <span className={`flex-1 text-sm ${it.released ? 'text-slate-400 line-through' : 'text-gray-900 dark:text-gray-100'}`}>
                     {it.text}
                   </span>
                   <button
                     onClick={() => onToggleReleased(it.id)}
                     className={`px-3 py-1.5 text-[11px] font-semibold rounded-lg border transition-colors ${
                       it.released
-                        ? 'bg-slate-200 text-slate-600 border-slate-300'
-                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
+                        ? 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-300 dark:border-slate-700'
+                        : 'bg-white dark:bg-gray-900 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 dark:bg-slate-900/40'
                     }`}
                   >
                     {it.released ? 'Set down ✓' : 'Set down'}
@@ -555,7 +555,7 @@ function ActPhase({
         )}
       </div>
 
-      <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur border-t border-gray-200 px-4 py-3">
+      <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur border-t border-gray-200 dark:border-gray-800 px-4 py-3">
         <div className="max-w-md mx-auto">
           <button
             onClick={onFinish}
@@ -585,17 +585,17 @@ function DonePhase({
   const concern   = items.filter((i) => i.category === 'concern').length;
   const released  = items.filter((i) => i.released).length;
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-8 space-y-5 text-center">
-        <div className="inline-block px-4 py-1.5 rounded-full text-sm font-semibold border bg-indigo-50 text-indigo-800 border-indigo-200">
+        <div className="inline-block px-4 py-1.5 rounded-full text-sm font-semibold border bg-indigo-50 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-200 border-indigo-200 dark:border-indigo-800">
           Saved
         </div>
-        <h2 className="text-lg font-semibold text-gray-900">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
           {items.length === 1
             ? "That's one thing out of your head."
             : `That's ${items.length} things out of your head.`}
         </h2>
-        <p className="text-sm text-gray-600 leading-relaxed">
+        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
           {control > 0 && <>{control} you can act on. </>}
           {influence > 0 && <>{influence} you can shape. </>}
           {concern > 0 && (
@@ -612,7 +612,7 @@ function DonePhase({
         <div className="grid grid-cols-2 gap-2">
           <button
             onClick={onAgain}
-            className="py-3 rounded-2xl text-sm font-semibold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50"
+            className="py-3 rounded-2xl text-sm font-semibold text-indigo-700 dark:text-indigo-300 bg-white dark:bg-gray-900 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 dark:bg-indigo-950/40"
           >
             Sort more
           </button>

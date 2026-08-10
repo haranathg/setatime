@@ -126,17 +126,17 @@ export default function GroundingView() {
                                '#64748b';  // slate  — empty and still
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-6 space-y-5">
         <header className="text-center">
-          <h2 className="text-lg font-semibold text-gray-900">Grounding</h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Grounding</h2>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
             Box breathing — four equal sides. Steady the helm before you set the course.
           </p>
         </header>
 
         {/* The box. Traces one full cycle per revolution. */}
-        <div className="bg-white border border-gray-200 rounded-2xl p-5">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5">
           <div className="relative aspect-square w-full max-w-xs mx-auto">
             <svg viewBox="0 0 100 100" className="absolute inset-0 w-full h-full">
               {/* Idle square outline */}
@@ -147,7 +147,7 @@ export default function GroundingView() {
                 height="88"
                 rx="10"
                 fill="none"
-                stroke="#e5e7eb"
+                className="stroke-gray-200 dark:stroke-gray-800"
                 strokeWidth="1.5"
               />
               {/* Active side — highlighted */}
@@ -181,17 +181,17 @@ export default function GroundingView() {
               >
                 {phase.label}
               </div>
-              <div className="text-4xl font-bold text-gray-800 tabular-nums mt-1">
+              <div className="text-4xl font-bold text-gray-800 dark:text-gray-200 tabular-nums mt-1">
                 {secondsLeft}
               </div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400 mt-1">
+              <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-1">
                 {running ? `${sideSec}s per side` : 'ready'}
               </div>
             </div>
           </div>
 
           {/* Hint under the box — one clean line, changes per phase */}
-          <p className="mt-3 text-center text-xs text-gray-600 min-h-[1.25rem]">
+          <p className="mt-3 text-center text-xs text-gray-600 dark:text-gray-400 min-h-[1.25rem]">
             {phase.hint}
           </p>
         </div>
@@ -209,7 +209,7 @@ export default function GroundingView() {
           <button
             onClick={reset}
             disabled={cycles === 0 && totalSec === 0 && !running}
-            className="px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 bg-white border border-gray-200 hover:border-gray-300 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 dark:border-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Reset
           </button>
@@ -217,7 +217,7 @@ export default function GroundingView() {
 
         {/* Pace picker — disabled while running so the tempo doesn't jerk */}
         <div>
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1.5">
             Pace
           </div>
           <div className="grid grid-cols-5 gap-1.5">
@@ -231,7 +231,7 @@ export default function GroundingView() {
                   className={`px-2 py-2 rounded-lg text-xs font-semibold transition-colors ${
                     active
                       ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-600 border border-gray-200 hover:border-indigo-300'
+                      : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   {sec}s
@@ -239,31 +239,31 @@ export default function GroundingView() {
               );
             })}
           </div>
-          <p className="text-[10px] text-gray-400 mt-1.5">
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">
             One full cycle = {sideSec * 4}s. Start at 4s; work up to 6–8 as it gets comfortable.
           </p>
         </div>
 
         {/* Session stats */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wider text-gray-500">Cycles</div>
-            <div className="text-xl font-semibold text-gray-900 tabular-nums">{cycles}</div>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 text-center">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Cycles</div>
+            <div className="text-xl font-semibold text-gray-900 dark:text-gray-100 tabular-nums">{cycles}</div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl px-3 py-2 text-center">
-            <div className="text-[10px] uppercase tracking-wider text-gray-500">Time</div>
-            <div className="text-xl font-semibold text-gray-900 tabular-nums">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-3 py-2 text-center">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">Time</div>
+            <div className="text-xl font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
               {formatMMSS(totalSec)}
             </div>
           </div>
         </div>
 
         {/* Why-it-works nudge — a light touch, not a lecture */}
-        <details className="bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700">
-          <summary className="cursor-pointer text-[13px] font-semibold text-gray-800">
+        <details className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-sm text-gray-700 dark:text-gray-300">
+          <summary className="cursor-pointer text-[13px] font-semibold text-gray-800 dark:text-gray-200">
             Why box breathing?
           </summary>
-          <p className="mt-2 text-xs text-gray-600 leading-relaxed">
+          <p className="mt-2 text-xs text-gray-600 dark:text-gray-400 leading-relaxed">
             Slow, controlled breathing (~6 breaths/min) lifts vagal tone, which
             downshifts the sympathetic nervous system. Equal sides keep the
             pace measured so you don't unconsciously creep back to a shallower

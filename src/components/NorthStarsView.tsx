@@ -69,12 +69,12 @@ export default function NorthStarsView({
   }, [initialFocusId]);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#fbfaf7]">
+    <div className="flex-1 overflow-y-auto bg-[#fbfaf7] dark:bg-[#171614]">
       <div className="max-w-3xl mx-auto px-5 py-6 space-y-5">
         <header className="flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-gray-900">North Stars</h1>
-            <p className="text-sm text-gray-500 mt-1 leading-snug">
+            <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">North Stars</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-snug">
               1–3 long-term anchors that steer the small daily moves. Everything else attributes to them.
             </p>
           </div>
@@ -138,7 +138,7 @@ export default function NorthStarsView({
           <section>
             <button
               onClick={() => setShowArchived(!showArchived)}
-              className="text-[11px] uppercase tracking-wider font-bold text-gray-400 hover:text-gray-700"
+              className="text-[11px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300"
             >
               {showArchived ? '▾' : '▸'} Archived · {archived.length}
             </button>
@@ -149,22 +149,22 @@ export default function NorthStarsView({
                   return (
                     <li
                       key={star.id}
-                      className="bg-white border border-gray-200 rounded-xl px-4 py-2 flex items-center gap-3"
+                      className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-2 flex items-center gap-3"
                     >
                       <span
                         className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                         style={{ backgroundColor: c.hex }}
                       />
-                      <span className="flex-1 min-w-0 text-sm text-gray-700 truncate">{star.name}</span>
+                      <span className="flex-1 min-w-0 text-sm text-gray-700 dark:text-gray-300 truncate">{star.name}</span>
                       {active.length < MAX_ACTIVE_STARS ? (
                         <button
                           onClick={() => onUnarchiveStar(star.id)}
-                          className="text-[11px] uppercase tracking-wider font-semibold text-indigo-600 hover:text-indigo-700"
+                          className="text-[11px] uppercase tracking-wider font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300"
                         >
                           Restore
                         </button>
                       ) : (
-                        <span className="text-[10px] text-gray-400">3 active</span>
+                        <span className="text-[10px] text-gray-400 dark:text-gray-500">3 active</span>
                       )}
                       <button
                         onClick={() => {
@@ -172,7 +172,7 @@ export default function NorthStarsView({
                             onDeleteStar(star.id);
                           }
                         }}
-                        className="text-[16px] leading-none text-gray-300 hover:text-red-500"
+                        className="text-[16px] leading-none text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400"
                         title="Permanently delete"
                       >
                         &times;
@@ -193,9 +193,9 @@ export default function NorthStarsView({
 
 function EmptyStars({ onStart }: { onStart: () => void }) {
   return (
-    <div className="bg-white border-2 border-dashed border-gray-200 rounded-2xl px-6 py-10 text-center">
-      <h2 className="text-base font-semibold text-gray-900">Pick your anchors</h2>
-      <p className="text-sm text-gray-500 mt-2 max-w-lg mx-auto leading-relaxed">
+    <div className="bg-white dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl px-6 py-10 text-center">
+      <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Pick your anchors</h2>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 max-w-lg mx-auto leading-relaxed">
         Research on goal pursuit is consistent: 1–3 concurrent anchors beats more. Values-direction
         ("live in a way that respects my body") tends to outlast outcome targets ("lose 10 lbs")
         because it survives setbacks. Start with one; add up to three.
@@ -282,21 +282,21 @@ function StarCard({
 
   return (
     <section
-      className={`bg-white border border-gray-200 rounded-2xl overflow-hidden`}
+      className={`bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden`}
       style={{ boxShadow: `inset 4px 0 0 0 ${c.hex}` }}
     >
       <div className="px-5 py-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-gray-900 tracking-tight">{star.name}</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 tracking-tight">{star.name}</h2>
             {star.direction && (
-              <p className="text-sm text-gray-500 mt-0.5 italic leading-snug">{star.direction}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 italic leading-snug">{star.direction}</p>
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={onEdit}
-              className="text-[11px] uppercase tracking-wider text-gray-500 hover:text-gray-800"
+              className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200"
             >
               Edit
             </button>
@@ -304,14 +304,14 @@ function StarCard({
               onClick={() => {
                 if (confirm(`Archive "${star.name}"? Its spirals stay but stop attributing to it.`)) onArchive();
               }}
-              className="text-[11px] uppercase tracking-wider text-gray-400 hover:text-red-500"
+              className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400"
             >
               Archive
             </button>
           </div>
         </div>
         {star.why && (
-          <p className="text-sm text-gray-700 mt-2 leading-relaxed whitespace-pre-wrap">{star.why}</p>
+          <p className="text-sm text-gray-700 dark:text-gray-300 mt-2 leading-relaxed whitespace-pre-wrap">{star.why}</p>
         )}
       </div>
 
@@ -330,7 +330,7 @@ function StarCard({
       {/* Attributed spirals */}
       <div className="px-5 pb-4">
         <div className="flex items-center justify-between mb-2">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
             Spirals feeding this star · {tagged.length}
           </div>
           <div className="flex items-center gap-3">
@@ -341,7 +341,7 @@ function StarCard({
             )}
             <button
               onClick={tagging ? onCloseTagging : onOpenTagging}
-              className="text-[11px] uppercase tracking-wider font-semibold text-indigo-600 hover:text-indigo-700"
+              className="text-[11px] uppercase tracking-wider font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300"
             >
               {tagging ? 'Done' : 'Manage tags ›'}
             </button>
@@ -357,16 +357,16 @@ function StarCard({
                   <button
                     onClick={() => onToggleIndicator(ind.id)}
                     className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-left transition-colors ${
-                      on ? `${c.bg} ${c.ring} ring-1` : 'bg-white border border-gray-200 hover:border-indigo-200'
+                      on ? `${c.bg} ${c.ring} ring-1` : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-indigo-200 dark:border-indigo-800'
                     }`}
                   >
-                    <span className="w-6 h-6 flex items-center justify-center text-gray-600">
+                    <span className="w-6 h-6 flex items-center justify-center text-gray-600 dark:text-gray-400">
                       <IndicatorIcon indicator={ind} size={18} />
                     </span>
-                    <span className="flex-1 min-w-0 text-sm text-gray-900 truncate">{ind.name}</span>
+                    <span className="flex-1 min-w-0 text-sm text-gray-900 dark:text-gray-100 truncate">{ind.name}</span>
                     <span
                       className={`text-[10px] uppercase tracking-wider font-bold ${
-                        on ? c.text : 'text-gray-400'
+                        on ? c.text : 'text-gray-400 dark:text-gray-500'
                       }`}
                     >
                       {on ? 'Tagged' : 'Tap to tag'}
@@ -379,7 +379,7 @@ function StarCard({
         ) : tagged.length === 0 ? (
           <button
             onClick={onOpenTagging}
-            className="w-full text-left px-3 py-2.5 border-2 border-dashed border-gray-200 hover:border-indigo-300 rounded-xl text-[12px] text-gray-500 hover:text-indigo-700 transition-colors"
+            className="w-full text-left px-3 py-2.5 border-2 border-dashed border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700 rounded-xl text-[12px] text-gray-500 dark:text-gray-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300 transition-colors"
           >
             No spirals attributed yet. Tap to tag existing spirals to this star.
           </button>
@@ -390,13 +390,13 @@ function StarCard({
               return (
                 <li
                   key={ind.id}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-950 rounded-lg"
                 >
-                  <span className="w-5 h-5 flex items-center justify-center text-gray-600">
+                  <span className="w-5 h-5 flex items-center justify-center text-gray-600 dark:text-gray-400">
                     <IndicatorIcon indicator={ind} size={16} />
                   </span>
-                  <span className="flex-1 min-w-0 text-sm text-gray-800 truncate">{ind.name}</span>
-                  <span className="text-[10px] font-mono text-gray-500">{wk} / wk</span>
+                  <span className="flex-1 min-w-0 text-sm text-gray-800 dark:text-gray-200 truncate">{ind.name}</span>
+                  <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400">{wk} / wk</span>
                 </li>
               );
             })}
@@ -438,11 +438,11 @@ function StarEditor({
 
   return (
     <section
-      className="bg-white border border-gray-200 rounded-2xl overflow-hidden"
+      className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden"
       style={{ boxShadow: `inset 4px 0 0 0 ${c.hex}` }}
     >
       <div className="px-5 py-4 space-y-3">
-        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
           {existing ? 'Edit star' : 'New star'}
         </div>
         <input
@@ -451,24 +451,24 @@ function StarEditor({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder='e.g. "Metabolic efficiency"'
-          className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="w-full px-4 py-3 text-base border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400"
         />
         <textarea
           value={direction}
           onChange={(e) => setDirection(e.target.value)}
           placeholder='Optional direction · e.g. "live in a way that respects my body"'
           rows={2}
-          className="w-full px-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 italic"
+          className="w-full px-4 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 italic"
         />
         <textarea
           value={why}
           onChange={(e) => setWhy(e.target.value)}
           placeholder="Optional 'why' — what does this mean to you?"
           rows={3}
-          className="w-full px-4 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 leading-relaxed"
+          className="w-full px-4 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 leading-relaxed"
         />
         <div>
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1.5">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1.5">
             Color
           </div>
           <div className="flex flex-wrap gap-2">
@@ -489,17 +489,17 @@ function StarEditor({
             })}
           </div>
         </div>
-        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm text-gray-500 hover:text-gray-800"
+            className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200"
           >
             Cancel
           </button>
           <button
             onClick={submit}
             disabled={!name.trim()}
-            className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:cursor-not-allowed rounded-xl transition-colors"
+            className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 dark:bg-gray-800 disabled:cursor-not-allowed rounded-xl transition-colors"
           >
             {existing ? 'Save' : 'Add star'}
           </button>
@@ -559,9 +559,9 @@ function TargetsSection({
   };
 
   return (
-    <div className="px-5 pb-4 border-t border-gray-100 pt-3">
+    <div className="px-5 pb-4 border-t border-gray-100 dark:border-gray-800 pt-3">
       <div className="flex items-center justify-between mb-2">
-        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
           Targets · {active.length} / {MAX_ACTIVE_TARGETS_PER_STAR} active
         </div>
         {!addingOpen && !capReached && (
@@ -578,7 +578,7 @@ function TargetsSection({
       {active.length === 0 && !addingOpen && (
         <button
           onClick={() => setAddingOpen(true)}
-          className="w-full text-left px-3 py-3 border-2 border-dashed border-gray-200 hover:border-indigo-300 rounded-xl text-[12px] text-gray-500 hover:text-indigo-700 transition-colors"
+          className="w-full text-left px-3 py-3 border-2 border-dashed border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700 rounded-xl text-[12px] text-gray-500 dark:text-gray-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300 transition-colors"
         >
           What's a specific, measurable target for this star? · e.g. "6:55 mile time"
         </button>
@@ -610,19 +610,19 @@ function TargetsSection({
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && submitNew()}
             placeholder='e.g. "6:55 mile time"'
-            className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
           <button
             onClick={submitNew}
             disabled={!newTitle.trim()}
-            className="px-3 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:cursor-not-allowed rounded-lg transition-colors"
+            className="px-3 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 dark:bg-gray-800 disabled:cursor-not-allowed rounded-lg transition-colors"
           >
             Add
           </button>
           {active.length > 0 && (
             <button
               onClick={() => { setAddingOpen(false); setNewTitle(''); }}
-              className="text-xs text-gray-500 hover:text-gray-800"
+              className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200"
             >
               Cancel
             </button>
@@ -631,7 +631,7 @@ function TargetsSection({
       )}
 
       {capReached && (
-        <p className="text-[10px] text-gray-400 mt-2">
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
           At the {MAX_ACTIVE_TARGETS_PER_STAR}-active cap. Achieve or abandon one to add another.
         </p>
       )}
@@ -640,7 +640,7 @@ function TargetsSection({
         <div className="mt-3">
           <button
             onClick={() => setShowHistory(!showHistory)}
-            className="text-[10px] uppercase tracking-wider font-bold text-gray-400 hover:text-gray-700"
+            className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300"
           >
             {showHistory ? '▾' : '▸'} History · {achieved.length} achieved · {abandoned.length} abandoned
           </button>
@@ -649,23 +649,23 @@ function TargetsSection({
               {[...achieved, ...abandoned].map((t) => (
                 <li
                   key={t.id}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg text-[12px]"
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-950 rounded-lg text-[12px]"
                 >
                   <span
                     className={`text-[9px] uppercase tracking-wider font-bold ${
-                      t.status === 'achieved' ? 'text-emerald-700' : 'text-gray-400'
+                      t.status === 'achieved' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-400 dark:text-gray-500'
                     }`}
                   >
                     {t.status === 'achieved' ? '✓' : '×'}
                   </span>
                   <span className={`flex-1 min-w-0 truncate ${
-                    t.status === 'achieved' ? 'text-gray-800' : 'text-gray-400 line-through'
+                    t.status === 'achieved' ? 'text-gray-800 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500 line-through'
                   }`}>
                     {t.title}
                   </span>
                   <button
                     onClick={() => onSetTargetStatus(t.id, 'active')}
-                    className="text-[10px] uppercase tracking-wider font-semibold text-indigo-600 hover:text-indigo-700"
+                    className="text-[10px] uppercase tracking-wider font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300"
                   >
                     Reopen
                   </button>
@@ -673,7 +673,7 @@ function TargetsSection({
                     onClick={() => {
                       if (confirm(`Delete "${t.title}"?`)) onDeleteTarget(t.id);
                     }}
-                    className="text-[14px] leading-none text-gray-300 hover:text-red-500"
+                    className="text-[14px] leading-none text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400"
                     title="Delete"
                   >
                     &times;
@@ -741,7 +741,7 @@ function TargetRow({
   };
 
   return (
-    <li className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <li className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
       <div className="px-3 py-2 flex items-center gap-2">
         <span
           className="w-1.5 h-1.5 rounded-full flex-shrink-0"
@@ -769,12 +769,12 @@ function TargetRow({
                 setEditingTitle(false);
               }
             }}
-            className="flex-1 min-w-0 px-2 py-0.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            className="flex-1 min-w-0 px-2 py-0.5 text-sm border border-gray-200 dark:border-gray-800 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
           />
         ) : (
           <button
             onClick={() => { setTitleDraft(target.title); setEditingTitle(true); }}
-            className="flex-1 min-w-0 text-left text-sm font-medium text-gray-900 truncate hover:text-indigo-700"
+            className="flex-1 min-w-0 text-left text-sm font-medium text-gray-900 dark:text-gray-100 truncate hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300"
           >
             {target.title}
           </button>
@@ -786,13 +786,13 @@ function TargetRow({
             value={target.targetDate ?? ''}
             onChange={(e) => onUpdate({ targetDate: e.target.value || undefined })}
             onBlur={() => setEditingDate(false)}
-            className="px-2 py-0.5 text-xs font-mono border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
+            className="px-2 py-0.5 text-xs font-mono border border-gray-200 dark:border-gray-800 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400"
           />
         ) : (
           <button
             onClick={() => setEditingDate(true)}
             className={`text-[10px] uppercase tracking-wider font-semibold flex-shrink-0 ${
-              target.targetDate ? c.text : 'text-gray-300 hover:text-gray-500'
+              target.targetDate ? c.text : 'text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:text-gray-400'
             }`}
             title={target.targetDate ? 'Change target date' : 'Add a target date'}
           >
@@ -801,7 +801,7 @@ function TargetRow({
         )}
         <button
           onClick={() => onSetStatus('achieved')}
-          className="text-[14px] leading-none text-gray-300 hover:text-emerald-500 px-1 flex-shrink-0"
+          className="text-[14px] leading-none text-gray-300 dark:text-gray-600 hover:text-emerald-500 dark:text-emerald-400 px-1 flex-shrink-0"
           title="Mark achieved"
         >
           ✓
@@ -810,7 +810,7 @@ function TargetRow({
           onClick={() => {
             if (confirm(`Delete target "${target.title}"?`)) onDelete();
           }}
-          className="text-[14px] leading-none text-gray-300 hover:text-red-500 px-1 flex-shrink-0"
+          className="text-[14px] leading-none text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400 px-1 flex-shrink-0"
           title="Delete"
         >
           &times;
@@ -818,8 +818,8 @@ function TargetRow({
       </div>
 
       {/* Next step prompt */}
-      <div className="px-3 pb-2 pt-1 border-t border-gray-50 bg-gray-50/40">
-        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+      <div className="px-3 pb-2 pt-1 border-t border-gray-50 dark:border-gray-900 bg-gray-50/40">
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
           Next step
         </div>
         <div className="flex items-center gap-1.5">
@@ -830,12 +830,12 @@ function TargetRow({
             onBlur={persistStep}
             onKeyDown={(e) => e.key === 'Enter' && scheduleStep()}
             placeholder="What's the immediate next move?"
-            className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white"
+            className="flex-1 min-w-0 px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-800 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 bg-white dark:bg-gray-900"
           />
           <button
             onClick={scheduleStep}
             disabled={!draftStep.trim()}
-            className="flex-shrink-0 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-sky-600 hover:bg-sky-700 disabled:bg-gray-200 disabled:cursor-not-allowed rounded-md transition-colors"
+            className="flex-shrink-0 px-2.5 py-1.5 text-[11px] font-semibold text-white bg-sky-600 hover:bg-sky-700 disabled:bg-gray-200 dark:bg-gray-800 disabled:cursor-not-allowed rounded-md transition-colors"
             title="Jump to the calendar with this step pre-filled"
           >
             ↳ Schedule
@@ -843,7 +843,7 @@ function TargetRow({
           <button
             onClick={dumpStep}
             disabled={!draftStep.trim()}
-            className="flex-shrink-0 px-2.5 py-1.5 text-[11px] font-semibold text-[#1a4a73] bg-white border border-[#1a4a73] hover:bg-[#e8eef4] disabled:opacity-30 disabled:cursor-not-allowed rounded-md transition-colors"
+            className="flex-shrink-0 px-2.5 py-1.5 text-[11px] font-semibold text-[#1a4a73] bg-white dark:bg-gray-900 border border-[#1a4a73] hover:bg-[#e8eef4] dark:bg-[#1a2432] disabled:opacity-30 disabled:cursor-not-allowed rounded-md transition-colors"
             title="Send this step to the Hold"
           >
             ↗ Hold

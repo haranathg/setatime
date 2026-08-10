@@ -289,7 +289,7 @@ export default function TodayView({
 
   if (states.length === 0) {
     return (
-      <div className="flex-1 overflow-y-auto bg-gray-50">
+      <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
           <Header today={today} doneSubTasks={0} totalSubTasks={0} />
           <ActivateNowStrip
@@ -325,7 +325,7 @@ export default function TodayView({
           />
           <button
             onClick={() => setShowMoreToday((v) => !v)}
-            className="w-full text-[11px] font-semibold text-gray-500 hover:text-indigo-700 py-1.5 border-t border-dashed border-gray-200"
+            className="w-full text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300 py-1.5 border-t border-dashed border-gray-200 dark:border-gray-800"
           >
             {showMoreToday ? '− hide more on today' : '▶ show more on today (6)'}
           </button>
@@ -379,9 +379,9 @@ export default function TodayView({
               />
             </>
           )}
-          <div className="mt-8 text-center py-16 px-4 border-2 border-dashed border-gray-200 rounded-2xl bg-white">
-            <p className="text-base font-semibold text-gray-700">Nothing scheduled for today</p>
-            <p className="text-sm text-gray-500 mt-2 mb-4">Add a block in the calendar to start tracking your progress here.</p>
+          <div className="mt-8 text-center py-16 px-4 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900">
+            <p className="text-base font-semibold text-gray-700 dark:text-gray-300">Nothing scheduled for today</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-4">Add a block in the calendar to start tracking your progress here.</p>
             <button
               onClick={onSwitchToCalendar}
               className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
@@ -396,7 +396,7 @@ export default function TodayView({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-gray-50">
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
         <Header today={today} doneSubTasks={doneSubTasks} totalSubTasks={totalSubTasks} />
 
@@ -438,7 +438,7 @@ export default function TodayView({
             default; user preference persists per device. */}
         <button
           onClick={() => setShowMoreToday((v) => !v)}
-          className="w-full text-[11px] font-semibold text-gray-500 hover:text-indigo-700 py-1.5 border-t border-dashed border-gray-200"
+          className="w-full text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300 py-1.5 border-t border-dashed border-gray-200 dark:border-gray-800"
         >
           {showMoreToday ? '− hide more on today' : '▶ show more on today (6)'}
         </button>
@@ -501,15 +501,15 @@ export default function TodayView({
 
         {/* All-day banner — reserved-day events surface here as compact chips */}
         {allDayToday.length > 0 && (
-          <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
-            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-2">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-2">
               All-day today
             </div>
             <div className="flex flex-wrap gap-1.5">
               {allDayToday.map((b) => (
                 <span
                   key={b.id}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold text-gray-900"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold text-gray-900 dark:text-gray-100"
                   style={{ backgroundColor: b.color }}
                 >
                   {b.mainTask}
@@ -531,9 +531,9 @@ export default function TodayView({
         ) : nextUp ? (
           <UpNextCard state={nextUp} now={now} />
         ) : (
-          <div className="bg-white border border-gray-200 rounded-2xl p-5 text-center">
-            <p className="text-sm font-semibold text-gray-700">You're done for the day ✓</p>
-            <p className="text-xs text-gray-500 mt-1">No upcoming blocks left.</p>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 text-center">
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">You're done for the day ✓</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">No upcoming blocks left.</p>
           </div>
         )}
 
@@ -581,16 +581,16 @@ function Header({ today, doneSubTasks, totalSubTasks }: { today: Date; doneSubTa
   return (
     <div>
       <div className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Today</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Today</h1>
         {totalSubTasks > 0 && (
-          <span className="text-xs text-gray-500 font-mono">
+          <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
             {doneSubTasks}/{totalSubTasks} done · {pct}%
           </span>
         )}
       </div>
-      <p className="text-sm text-gray-500 mt-1">{formatFullDate(today)}</p>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{formatFullDate(today)}</p>
       {totalSubTasks > 0 && (
-        <div className="mt-3 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+        <div className="mt-3 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
           <div
             className="h-full bg-indigo-500 transition-all duration-300"
             style={{ width: `${pct}%` }}
@@ -606,7 +606,7 @@ function Header({ today, doneSubTasks, totalSubTasks }: { today: Date; doneSubTa
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="space-y-2">
-      <h2 className="text-[11px] uppercase tracking-wider font-semibold text-gray-400 px-1">{title}</h2>
+      <h2 className="text-[11px] uppercase tracking-wider font-semibold text-gray-400 dark:text-gray-500 px-1">{title}</h2>
       {children}
     </div>
   );
@@ -633,10 +633,10 @@ function BlockCard({
 
   const containerClass =
     variant === 'now'
-      ? 'bg-white border-2 border-indigo-500 ring-4 ring-indigo-100 shadow-lg'
+      ? 'bg-white dark:bg-gray-900 border-2 border-indigo-500 ring-4 ring-indigo-100 shadow-lg'
       : variant === 'past'
-      ? 'bg-gray-50 border border-gray-200 opacity-70'
-      : 'bg-white border border-gray-200 shadow-sm';
+      ? 'bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 opacity-70'
+      : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm';
 
   const nextSub = variant === 'now' ? nextUncheckedFrom(todaySubTasks, now) : null;
 
@@ -647,28 +647,28 @@ function BlockCard({
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           {variant === 'now' && (
             <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold text-white bg-indigo-600 rounded-full flex items-center gap-1">
-              <span className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" /> Now
+              <span className="w-1.5 h-1.5 bg-white dark:bg-gray-900 rounded-full animate-pulse" /> Now
             </span>
           )}
           {variant === 'past' && (
-            <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 bg-gray-200 rounded-full">
+            <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400 bg-gray-200 dark:bg-gray-800 rounded-full">
               Earlier
             </span>
           )}
-          <span className={`text-xs font-mono ${variant === 'now' ? 'text-indigo-700' : 'text-gray-500'}`}>
+          <span className={`text-xs font-mono ${variant === 'now' ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}>
             {formatTime24to12(block.mainTime)}
           </span>
           {total > 0 && (
-            <span className="ml-auto text-xs text-gray-500 font-mono tabular-nums">
+            <span className="ml-auto text-xs text-gray-500 dark:text-gray-400 font-mono tabular-nums">
               {doneCount}/{total}
             </span>
           )}
         </div>
-        <h3 className={`text-lg font-semibold leading-tight ${variant === 'past' && pct === 100 ? 'line-through text-gray-500' : 'text-gray-900'}`}>
+        <h3 className={`text-lg font-semibold leading-tight ${variant === 'past' && pct === 100 ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100'}`}>
           {block.mainTask}
         </h3>
         {total > 0 && (
-          <div className={`mt-3 h-1.5 rounded-full overflow-hidden ${variant === 'now' ? 'bg-indigo-100' : 'bg-gray-100'}`}>
+          <div className={`mt-3 h-1.5 rounded-full overflow-hidden ${variant === 'now' ? 'bg-indigo-100 dark:bg-indigo-900/40' : 'bg-gray-100 dark:bg-gray-800'}`}>
             <div
               className={`h-full transition-all duration-300 ${variant === 'now' ? 'bg-indigo-600' : variant === 'past' ? 'bg-gray-400' : 'bg-indigo-400'}`}
               style={{ width: `${pct}%` }}
@@ -695,7 +695,7 @@ function BlockCard({
         </div>
       )}
       {total === 0 && (
-        <div className="px-4 pb-4 -mt-1 text-xs text-gray-400 italic">No subtasks for today.</div>
+        <div className="px-4 pb-4 -mt-1 text-xs text-gray-400 dark:text-gray-500 italic">No subtasks for today.</div>
       )}
     </div>
   );
@@ -729,7 +729,7 @@ function SubTaskCheckRow({
       <button
         onClick={onToggle}
         className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left transition-colors ${
-          isNext ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-gray-50'
+          isNext ? 'bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-800 dark:bg-amber-900/40' : 'hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950'
         }`}
       >
         <span
@@ -737,8 +737,8 @@ function SubTaskCheckRow({
             done
               ? 'bg-indigo-600 border-indigo-600'
               : isNext
-              ? 'border-amber-500 bg-white'
-              : 'border-gray-300 bg-white'
+              ? 'border-amber-500 bg-white dark:bg-gray-900'
+              : 'border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900'
           }`}
         >
           {done && (
@@ -748,26 +748,26 @@ function SubTaskCheckRow({
           )}
         </span>
         <span className={`text-xs font-medium px-2 py-0.5 rounded font-mono min-w-[60px] text-center tabular-nums ${
-          isNext ? 'bg-amber-200 text-amber-800' : done ? 'bg-gray-100 text-gray-400' : 'bg-indigo-50 text-indigo-700'
+          isNext ? 'bg-amber-200 dark:bg-amber-800 text-amber-800 dark:text-amber-200' : done ? 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500' : 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300'
         }`}>
           {formatTime24to12(subTask.time)}
         </span>
         <span className={`flex-1 text-base leading-snug ${
-          done ? 'line-through text-gray-400' : 'text-gray-900'
+          done ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'
         }`}>
           {subTask.label}
         </span>
         {hasSteps && (
-          <span className="text-[10px] font-mono tabular-nums text-gray-500 px-1.5 py-0.5 bg-gray-100 rounded">
+          <span className="text-[10px] font-mono tabular-nums text-gray-500 dark:text-gray-400 px-1.5 py-0.5 bg-gray-100 dark:bg-gray-800 rounded">
             {stepsDone}/{stepsTotal}
           </span>
         )}
         {isNext && !done && (
-          <span className="text-[10px] uppercase tracking-wider font-bold text-amber-700">Next</span>
+          <span className="text-[10px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-300">Next</span>
         )}
       </button>
       {hasSteps && (
-        <div className="ml-8 pl-3 my-1 border-l-2 border-gray-200 space-y-0.5">
+        <div className="ml-8 pl-3 my-1 border-l-2 border-gray-200 dark:border-gray-800 space-y-0.5">
           {subTask.steps!.map((step) => (
             <StepRow key={step.id} step={step} parentDone={done} onToggle={() => onToggleStep(step.id)} />
           ))}
@@ -789,11 +789,11 @@ function StepRow({
   return (
     <button
       onClick={onToggle}
-      className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-left hover:bg-gray-50 transition-colors"
+      className="w-full flex items-center gap-2 px-2 py-2 rounded-md text-left hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors"
     >
       <span
         className={`flex-shrink-0 w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
-          step.done ? 'bg-indigo-500 border-indigo-500' : 'border-gray-300 bg-white'
+          step.done ? 'bg-indigo-500 border-indigo-500' : 'border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900'
         }`}
       >
         {step.done && (
@@ -803,7 +803,7 @@ function StepRow({
         )}
       </span>
       <span className={`flex-1 text-sm leading-snug ${
-        step.done || parentDone ? 'line-through text-gray-400' : 'text-gray-800'
+        step.done || parentDone ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-800 dark:text-gray-200'
       }`}>
         {step.label}
       </span>
@@ -822,18 +822,18 @@ function UpNextCard({ state, now }: { state: BlockState; now: number }) {
       ? `in ${minsAway} min`
       : `in ${Math.floor(minsAway / 60)}h ${minsAway % 60}m`;
   return (
-    <div className="bg-white border-2 border-dashed border-indigo-300 rounded-2xl p-5">
+    <div className="bg-white dark:bg-gray-900 border-2 border-dashed border-indigo-300 dark:border-indigo-700 rounded-2xl p-5">
       <div className="flex items-center gap-2 mb-2">
-        <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold text-indigo-700 bg-indigo-100 rounded-full">
+        <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/40 rounded-full">
           Up next
         </span>
-        <span className="text-xs font-mono text-indigo-700">
+        <span className="text-xs font-mono text-indigo-700 dark:text-indigo-300">
           {formatTime24to12(state.block.mainTime)} · {label}
         </span>
       </div>
-      <h3 className="text-lg font-semibold text-gray-900 leading-tight">{state.block.mainTask}</h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight">{state.block.mainTask}</h3>
       {state.todaySubTasks.length > 0 && (
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
           {state.todaySubTasks.length} subtask{state.todaySubTasks.length === 1 ? '' : 's'} planned
         </p>
       )}
@@ -887,13 +887,13 @@ function PinsStrip({
   const doneCount = pins.filter((p) => isCheckedToday(p)).length;
 
   return (
-    <section className="bg-white border-2 border-amber-300 rounded-2xl shadow-sm overflow-hidden">
-      <header className="px-4 py-2 bg-amber-50 border-b border-amber-200 flex items-center justify-between">
+    <section className="bg-white dark:bg-gray-900 border-2 border-amber-300 dark:border-amber-700 rounded-2xl shadow-sm overflow-hidden">
+      <header className="px-4 py-2 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-base">📌</span>
-          <h3 className="text-[13px] font-semibold text-amber-900">Don't forget</h3>
+          <h3 className="text-[13px] font-semibold text-amber-900 dark:text-amber-100">Don't forget</h3>
         </div>
-        <span className="text-[10px] uppercase tracking-wider font-bold text-amber-700">
+        <span className="text-[10px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-300">
           {total === 0 ? 'Pin friction-free todos' : `${doneCount}/${total} today`}
         </span>
       </header>
@@ -921,13 +921,13 @@ function PinsStrip({
                       if (e.key === 'Enter') commitEdit();
                       if (e.key === 'Escape') { setEditingId(null); setEditDraft(''); }
                     }}
-                    className="flex-1 min-w-0 px-2 py-0.5 text-sm border border-amber-300 rounded-md focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    className="flex-1 min-w-0 px-2 py-0.5 text-sm border border-amber-300 dark:border-amber-700 rounded-md focus:outline-none focus:ring-1 focus:ring-amber-500"
                   />
                 ) : (
                   <button
                     onClick={() => startEdit(p)}
                     className={`flex-1 min-w-0 text-left text-sm truncate ${
-                      checked ? 'line-through text-gray-400' : 'text-gray-900'
+                      checked ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'
                     }`}
                     title="Click to edit"
                   >
@@ -936,7 +936,7 @@ function PinsStrip({
                 )}
                 <button
                   onClick={() => onRemovePin(p.id)}
-                  className="flex-shrink-0 text-gray-300 hover:text-red-500 text-base leading-none px-1"
+                  className="flex-shrink-0 text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400 text-base leading-none px-1"
                   title="Remove pin"
                 >
                   &times;
@@ -946,25 +946,25 @@ function PinsStrip({
           })}
         </ul>
       )}
-      <div className="px-3 py-2 border-t border-amber-100 bg-amber-50/40 flex items-center gap-2">
+      <div className="px-3 py-2 border-t border-amber-100 dark:border-amber-900 bg-amber-50/40 flex items-center gap-2">
         <input
           type="text"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && submit()}
           placeholder='e.g. "take vitamins", "reply to mom"'
-          className="flex-1 min-w-0 px-2 py-1 text-sm border border-amber-200 rounded-md focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-amber-400"
+          className="flex-1 min-w-0 px-2 py-1 text-sm border border-amber-200 dark:border-amber-800 rounded-md focus:outline-none focus:ring-1 focus:ring-amber-500 placeholder:text-amber-400"
         />
         <button
           onClick={submit}
           disabled={!draft.trim()}
-          className="px-3 py-1 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 disabled:bg-amber-200 disabled:cursor-not-allowed rounded-md transition-colors"
+          className="px-3 py-1 text-xs font-semibold text-white bg-amber-500 hover:bg-amber-600 disabled:bg-amber-200 dark:bg-amber-800 disabled:cursor-not-allowed rounded-md transition-colors"
         >
           Pin
         </button>
       </div>
       {pins.length === 0 && (
-        <div className="px-4 pb-3 text-[11px] text-amber-700 leading-snug">
+        <div className="px-4 pb-3 text-[11px] text-amber-700 dark:text-amber-300 leading-snug">
           Friction-free todos that just need to be in sight: vitamins, refills, the email you keep forgetting. Resets every morning so you see them again.
         </div>
       )}
@@ -984,13 +984,13 @@ function OverduePredictionsStrip({
 }) {
   if (overdue.length === 0) return null;
   return (
-    <section className="bg-white border-2 border-indigo-300 rounded-2xl shadow-sm overflow-hidden">
-      <header className="px-4 py-2 bg-indigo-50 border-b border-indigo-200 flex items-center justify-between">
+    <section className="bg-white dark:bg-gray-900 border-2 border-indigo-300 dark:border-indigo-700 rounded-2xl shadow-sm overflow-hidden">
+      <header className="px-4 py-2 bg-indigo-50 dark:bg-indigo-950/40 border-b border-indigo-200 dark:border-indigo-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-base">🔍</span>
-          <h3 className="text-[13px] font-semibold text-indigo-900">Close the loop</h3>
+          <h3 className="text-[13px] font-semibold text-indigo-900 dark:text-indigo-100">Close the loop</h3>
         </div>
-        <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-700">
+        <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-700 dark:text-indigo-300">
           {overdue.length} prediction{overdue.length === 1 ? '' : 's'} ready to reflect on
         </span>
       </header>
@@ -1002,12 +1002,12 @@ function OverduePredictionsStrip({
               className="w-full text-left px-3 py-2 hover:bg-indigo-50/60 transition-colors flex items-center gap-3"
             >
               <span className="flex-1 min-w-0">
-                <span className="block text-sm text-gray-900 truncate">{e.prediction}</span>
-                <span className="block text-[10px] text-gray-500 mt-0.5">
+                <span className="block text-sm text-gray-900 dark:text-gray-100 truncate">{e.prediction}</span>
+                <span className="block text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
                   Predicted {formatRelativeDays(e.createdAt)} · {e.confidence}% confidence
                 </span>
               </span>
-              <span className="flex-shrink-0 text-[10px] uppercase tracking-wider font-bold text-indigo-700">
+              <span className="flex-shrink-0 text-[10px] uppercase tracking-wider font-bold text-indigo-700 dark:text-indigo-300">
                 Reflect ›
               </span>
             </button>
@@ -1069,10 +1069,10 @@ function SpiralEditor({
   const daysOfWeek = ind.daysOfWeek ?? [];
   const scheduleOn = !!ind.schedule;
   return (
-    <div className="mt-2 ml-10 pl-3 border-l-2 border-indigo-100 space-y-3">
+    <div className="mt-2 ml-10 pl-3 border-l-2 border-indigo-100 dark:border-indigo-900 space-y-3">
       {/* Cadence */}
       <div>
-        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
           Cadence
         </div>
         <div className="flex gap-1.5 flex-wrap">
@@ -1082,8 +1082,8 @@ function SpiralEditor({
               onClick={() => onSetCadence(ind.id, c, c === 'specific' ? daysOfWeek : undefined)}
               className={`px-2.5 py-1 text-xs font-semibold rounded-lg border ${
                 cad === c
-                  ? 'bg-indigo-50 border-indigo-400 text-indigo-700'
-                  : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-200'
+                  ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-400 text-indigo-700 dark:text-indigo-300'
+                  : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-200 dark:border-indigo-800'
               }`}
             >
               {c === 'daily' ? 'Every day' : c === 'weekdays' ? 'Weekdays' : 'Pick days'}
@@ -1106,7 +1106,7 @@ function SpiralEditor({
                   className={`w-7 h-7 text-xs font-bold rounded-full transition-colors ${
                     active
                       ? 'bg-indigo-600 text-white'
-                      : 'bg-white text-gray-500 border border-gray-200 hover:border-indigo-300'
+                      : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700'
                   }`}
                   title={['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][i]}
                 >
@@ -1121,7 +1121,7 @@ function SpiralEditor({
       {/* Schedule */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
             Schedule on the calendar
           </div>
           <button
@@ -1133,16 +1133,16 @@ function SpiralEditor({
             className={`w-10 h-5 rounded-full border-2 transition-colors flex items-center ${
               scheduleOn
                 ? 'bg-indigo-600 border-indigo-600 justify-end'
-                : 'bg-white border-gray-300 justify-start'
+                : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 justify-start'
             }`}
             title={scheduleOn ? 'Disable schedule' : 'Schedule on calendar'}
           >
-            <span className="w-3 h-3 bg-white rounded-full shadow-sm mx-0.5" />
+            <span className="w-3 h-3 bg-white dark:bg-gray-900 rounded-full shadow-sm mx-0.5" />
           </button>
         </div>
         {scheduleOn && ind.schedule && (
           <div className="flex items-center gap-2">
-            <label className="text-[10px] text-gray-500 flex items-center gap-1.5">
+            <label className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
               At
               <input
                 type="time"
@@ -1153,10 +1153,10 @@ function SpiralEditor({
                     durationMinutes: ind.schedule!.durationMinutes ?? 30,
                   })
                 }
-                className="px-2 py-1 text-sm border border-gray-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="px-2 py-1 text-sm border border-gray-200 dark:border-gray-800 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
             </label>
-            <label className="text-[10px] text-gray-500 flex items-center gap-1.5">
+            <label className="text-[10px] text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
               For
               <input
                 type="number"
@@ -1170,14 +1170,14 @@ function SpiralEditor({
                     durationMinutes: Math.max(5, Number(e.target.value) || 30),
                   })
                 }
-                className="w-16 px-2 py-1 text-sm border border-gray-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-16 px-2 py-1 text-sm border border-gray-200 dark:border-gray-800 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
               />
               min
             </label>
           </div>
         )}
         {scheduleOn && (
-          <p className="text-[10px] text-gray-400 mt-1.5">
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">
             Auto-renders as a virtual block on every active day. Tap the block in the
             calendar to log, skip, or open these settings.
           </p>
@@ -1186,14 +1186,14 @@ function SpiralEditor({
 
       {/* Pause */}
       <div>
-        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
           Pause
         </div>
         <div className="flex gap-1.5 flex-wrap">
           {paused ? (
             <button
               onClick={() => onSetPause(ind.id, null)}
-              className="px-2.5 py-1 text-xs font-semibold rounded-lg border bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100"
+              className="px-2.5 py-1 text-xs font-semibold rounded-lg border bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100 dark:hover:bg-amber-800 dark:bg-amber-900/40"
             >
               Resume
             </button>
@@ -1205,7 +1205,7 @@ function SpiralEditor({
                   d.setDate(d.getDate() + 7);
                   onSetPause(ind.id, d.toISOString());
                 }}
-                className="px-2.5 py-1 text-xs font-semibold rounded-lg border bg-white border-gray-200 text-gray-700 hover:border-amber-300"
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-amber-300 dark:hover:border-amber-700 dark:border-amber-700"
               >
                 For a week
               </button>
@@ -1215,13 +1215,13 @@ function SpiralEditor({
                   d.setMonth(d.getMonth() + 1);
                   onSetPause(ind.id, d.toISOString());
                 }}
-                className="px-2.5 py-1 text-xs font-semibold rounded-lg border bg-white border-gray-200 text-gray-700 hover:border-amber-300"
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-amber-300 dark:hover:border-amber-700 dark:border-amber-700"
               >
                 For a month
               </button>
               <button
                 onClick={() => onSetPause(ind.id, undefined)}
-                className="px-2.5 py-1 text-xs font-semibold rounded-lg border bg-white border-gray-200 text-gray-700 hover:border-amber-300"
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg border bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-amber-300 dark:hover:border-amber-700 dark:border-amber-700"
               >
                 Indefinitely
               </button>
@@ -1233,7 +1233,7 @@ function SpiralEditor({
       {/* North Star tags */}
       {activeStars.length > 0 && (
         <div>
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
             Feeds North Star
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -1247,7 +1247,7 @@ function SpiralEditor({
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors ${
                     on
                       ? `${c.bg} ${c.text} border-transparent`
-                      : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+                      : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 dark:border-gray-700'
                   }`}
                 >
                   <span
@@ -1288,7 +1288,7 @@ function UndoLogToast({
     >
       <span className="text-emerald-300">✓</span>
       <span className="font-medium">
-        Logged <span className="text-gray-300">·</span> {toast.label}
+        Logged <span className="text-gray-300 dark:text-gray-600">·</span> {toast.label}
       </span>
       <button
         onClick={() => onUndo(toast.spiralId)}
@@ -1298,7 +1298,7 @@ function UndoLogToast({
       </button>
       <button
         onClick={onDismiss}
-        className="text-gray-400 hover:text-gray-200 text-base leading-none"
+        className="text-gray-400 dark:text-gray-500 hover:text-gray-200 text-base leading-none"
         title="Dismiss"
       >
         ×
@@ -1348,17 +1348,17 @@ function BasicsDashboard({
   // Disabled indicators don't appear in `views` — render only the live tiles.
   if (views.length === 0 && !settingsOpen) {
     return (
-      <section className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
+      <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3">
         <header className="flex items-center justify-between">
-          <h3 className="text-[13px] font-semibold text-gray-800">Upward spirals</h3>
+          <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Upward spirals</h3>
           <button
             onClick={() => setSettingsOpen(true)}
-            className="text-[11px] uppercase tracking-wider text-gray-400 hover:text-gray-700"
+            className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300"
           >
             ⚙ Configure
           </button>
         </header>
-        <p className="text-[11px] text-gray-500 mt-2">
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2">
           No active indicators. Open settings to turn on hydration, meals, exercise, sleep, etc.
         </p>
       </section>
@@ -1366,12 +1366,12 @@ function BasicsDashboard({
   }
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-      <header className="px-4 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-        <h3 className="text-[13px] font-semibold text-gray-800">Daily basics</h3>
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 bg-gray-50 dark:bg-gray-950 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+        <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Daily basics</h3>
         <button
           onClick={() => setSettingsOpen(true)}
-          className="text-[10px] uppercase tracking-wider text-gray-400 hover:text-gray-700"
+          className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300"
           title="Manage indicators"
         >
           ⚙
@@ -1411,13 +1411,13 @@ function BasicsDashboard({
 // rather than a flat block: soft inner gradient, ring acts as bezel, the
 // glyph picks up the state color via currentColor.
 const TILE_STYLES: Record<IndicatorView['state'], string> = {
-  cold: 'bg-gradient-to-br from-gray-50 to-gray-100 ring-1 ring-gray-200 text-gray-400',
+  cold: 'bg-gradient-to-br from-gray-50 to-gray-100 ring-1 ring-gray-200 text-gray-400 dark:text-gray-500',
   green:
-    'bg-gradient-to-br from-emerald-50 to-emerald-100 ring-1 ring-emerald-200 text-emerald-700',
+    'bg-gradient-to-br from-emerald-50 to-emerald-100 ring-1 ring-emerald-200 text-emerald-700 dark:text-emerald-300',
   amber:
-    'bg-gradient-to-br from-amber-50 to-amber-100 ring-1 ring-amber-300 text-amber-700 shadow-[inset_0_0_0_1px_rgba(217,119,6,0.15)]',
+    'bg-gradient-to-br from-amber-50 to-amber-100 ring-1 ring-amber-300 text-amber-700 dark:text-amber-300 shadow-[inset_0_0_0_1px_rgba(217,119,6,0.15)]',
   red:
-    'bg-gradient-to-br from-red-50 to-red-100 ring-2 ring-red-300 text-red-700 shadow-[inset_0_0_18px_rgba(239,68,68,0.25)] animate-pulse',
+    'bg-gradient-to-br from-red-50 to-red-100 ring-2 ring-red-300 text-red-700 dark:text-red-300 shadow-[inset_0_0_18px_rgba(239,68,68,0.25)] animate-pulse',
 };
 
 function IndicatorTile({
@@ -1484,7 +1484,7 @@ function IndicatorTile({
       {todayCount > 0 && (
         <button
           onClick={onUndoLast}
-          className="absolute top-1 left-1 text-[10px] leading-none w-5 h-5 rounded-full bg-white/80 backdrop-blur ring-1 ring-gray-200 text-gray-400 hover:text-red-500 transition-colors"
+          className="absolute top-1 left-1 text-[10px] leading-none w-5 h-5 rounded-full bg-white/80 backdrop-blur ring-1 ring-gray-200 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400 transition-colors"
           title="Undo last log"
         >
           ↩
@@ -1493,7 +1493,7 @@ function IndicatorTile({
       {showEscalation && (
         <button
           onClick={onPushToDump}
-          className="absolute top-1 right-1 text-[10px] uppercase tracking-wider font-bold leading-none px-1.5 py-1 rounded-md bg-white ring-1 ring-current shadow-sm hover:bg-red-500 hover:text-white hover:ring-red-500 transition-colors"
+          className="absolute top-1 right-1 text-[10px] uppercase tracking-wider font-bold leading-none px-1.5 py-1 rounded-md bg-white dark:bg-gray-900 ring-1 ring-current shadow-sm hover:bg-red-500 hover:text-white hover:ring-red-500 transition-colors"
           title="Push as an urgent task to the Hold"
         >
           ↗
@@ -1559,14 +1559,14 @@ function IndicatorSettingsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">Daily basics</h3>
+        <header className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Daily basics</h3>
           <button
             onClick={onClose}
-            className="text-xl leading-none text-gray-400 hover:text-gray-700"
+            className="text-xl leading-none text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300"
           >
             &times;
           </button>
@@ -1579,27 +1579,27 @@ function IndicatorSettingsModal({
               return (
                 <li key={ind.id} className="py-2">
                   <div className="flex items-center gap-3">
-                    <span className="w-7 h-7 flex items-center justify-center text-gray-600">
+                    <span className="w-7 h-7 flex items-center justify-center text-gray-600 dark:text-gray-400">
                       <IndicatorIcon indicator={ind} size={22} />
                     </span>
                     <button
                       onClick={() => setExpandedId(isExpanded ? null : ind.id)}
                       className="flex-1 min-w-0 text-left"
                     >
-                      <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                      <div className="text-sm font-medium text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
                         {ind.name}
                         {paused && (
-                          <span className="text-[9px] uppercase tracking-wider font-bold text-gray-500 bg-gray-100 rounded px-1.5 py-0.5">
+                          <span className="text-[9px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded px-1.5 py-0.5">
                             Paused
                           </span>
                         )}
                         {ind.schedule && (
-                          <span className="text-[9px] uppercase tracking-wider font-semibold text-indigo-600 bg-indigo-50 rounded px-1.5 py-0.5">
+                          <span className="text-[9px] uppercase tracking-wider font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 rounded px-1.5 py-0.5">
                             {ind.schedule.time}
                           </span>
                         )}
                       </div>
-                      <div className="text-[10px] text-gray-500 truncate">
+                      <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
                         {cadenceLabel(ind)}
                         {ind.hint ? ` · ${ind.hint}` : ''}
                       </div>
@@ -1609,11 +1609,11 @@ function IndicatorSettingsModal({
                       className={`w-10 h-6 rounded-full border-2 transition-colors flex items-center ${
                         ind.enabled
                           ? 'bg-indigo-600 border-indigo-600 justify-end'
-                          : 'bg-white border-gray-300 justify-start'
+                          : 'bg-white dark:bg-gray-900 border-gray-300 dark:border-gray-700 justify-start'
                       }`}
                       title={ind.enabled ? 'Disable' : 'Enable'}
                     >
-                      <span className="w-4 h-4 bg-white rounded-full shadow-sm mx-0.5" />
+                      <span className="w-4 h-4 bg-white dark:bg-gray-900 rounded-full shadow-sm mx-0.5" />
                     </button>
                     {!ind.preset && (
                       <button
@@ -1622,7 +1622,7 @@ function IndicatorSettingsModal({
                             onRemove(ind.id);
                           }
                         }}
-                        className="text-[16px] leading-none text-gray-300 hover:text-red-500"
+                        className="text-[16px] leading-none text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400"
                         title="Remove custom indicator"
                       >
                         &times;
@@ -1646,8 +1646,8 @@ function IndicatorSettingsModal({
           </ul>
 
           {showAdd ? (
-            <div className="border-t border-gray-100 pt-3 space-y-2">
-              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+            <div className="border-t border-gray-100 dark:border-gray-800 pt-3 space-y-2">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
                 Add custom indicator
               </div>
               <div className="flex gap-2">
@@ -1656,14 +1656,14 @@ function IndicatorSettingsModal({
                   value={icon}
                   onChange={(e) => setIcon(e.target.value.slice(0, 4))}
                   placeholder="🔆"
-                  className="w-14 px-2 py-2 text-center text-xl border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-14 px-2 py-2 text-center text-xl border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Name (e.g. Sunlight)"
-                  className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
               <div className="flex gap-2">
@@ -1671,8 +1671,8 @@ function IndicatorSettingsModal({
                   onClick={() => setMode('daily')}
                   className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border ${
                     mode === 'daily'
-                      ? 'bg-indigo-50 border-indigo-400 text-indigo-700'
-                      : 'bg-white border-gray-200 text-gray-700'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-400 text-indigo-700 dark:text-indigo-300'
+                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300'
                   }`}
                 >
                   Once a day
@@ -1681,8 +1681,8 @@ function IndicatorSettingsModal({
                   onClick={() => setMode('counter')}
                   className={`flex-1 px-3 py-1.5 text-xs font-semibold rounded-lg border ${
                     mode === 'counter'
-                      ? 'bg-indigo-50 border-indigo-400 text-indigo-700'
-                      : 'bg-white border-gray-200 text-gray-700'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-400 text-indigo-700 dark:text-indigo-300'
+                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300'
                   }`}
                 >
                   Multi-tap with target
@@ -1690,7 +1690,7 @@ function IndicatorSettingsModal({
               </div>
               {mode === 'daily' ? (
                 <div className="grid grid-cols-2 gap-2">
-                  <label className="text-[10px] uppercase tracking-wider text-gray-500">
+                  <label className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Amber after (hour)
                     <input
                       type="number"
@@ -1698,10 +1698,10 @@ function IndicatorSettingsModal({
                       max={24}
                       value={warnH}
                       onChange={(e) => setWarnH(Number(e.target.value))}
-                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </label>
-                  <label className="text-[10px] uppercase tracking-wider text-gray-500">
+                  <label className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Red after (hour)
                     <input
                       type="number"
@@ -1709,13 +1709,13 @@ function IndicatorSettingsModal({
                       max={26}
                       value={urgentH}
                       onChange={(e) => setUrgentH(Number(e.target.value))}
-                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </label>
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-2">
-                  <label className="text-[10px] uppercase tracking-wider text-gray-500">
+                  <label className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Target/day
                     <input
                       type="number"
@@ -1723,10 +1723,10 @@ function IndicatorSettingsModal({
                       max={50}
                       value={target}
                       onChange={(e) => setTarget(Number(e.target.value))}
-                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </label>
-                  <label className="text-[10px] uppercase tracking-wider text-gray-500">
+                  <label className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Amber (min)
                     <input
                       type="number"
@@ -1734,10 +1734,10 @@ function IndicatorSettingsModal({
                       max={1440}
                       value={warnM}
                       onChange={(e) => setWarnM(Number(e.target.value))}
-                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </label>
-                  <label className="text-[10px] uppercase tracking-wider text-gray-500">
+                  <label className="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     Red (min)
                     <input
                       type="number"
@@ -1745,7 +1745,7 @@ function IndicatorSettingsModal({
                       max={1440}
                       value={urgentM}
                       onChange={(e) => setUrgentM(Number(e.target.value))}
-                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                      className="w-full mt-1 px-2 py-1 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-500"
                     />
                   </label>
                 </div>
@@ -1754,13 +1754,13 @@ function IndicatorSettingsModal({
                 <button
                   onClick={submit}
                   disabled={!name.trim()}
-                  className="flex-1 px-3 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:cursor-not-allowed rounded-lg transition-colors"
+                  className="flex-1 px-3 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 dark:bg-gray-800 disabled:cursor-not-allowed rounded-lg transition-colors"
                 >
                   Add indicator
                 </button>
                 <button
                   onClick={() => setShowAdd(false)}
-                  className="px-3 py-2 text-sm text-gray-500 hover:text-gray-700"
+                  className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300"
                 >
                   Cancel
                 </button>
@@ -1769,7 +1769,7 @@ function IndicatorSettingsModal({
           ) : (
             <button
               onClick={() => setShowAdd(true)}
-              className="w-full px-3 py-2 text-sm font-semibold text-indigo-600 hover:text-indigo-700 border-2 border-dashed border-indigo-200 hover:border-indigo-400 rounded-lg transition-colors"
+              className="w-full px-3 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300 border-2 border-dashed border-indigo-200 dark:border-indigo-800 hover:border-indigo-400 dark:hover:border-indigo-600 rounded-lg transition-colors"
             >
               + Add custom indicator
             </button>
@@ -1803,37 +1803,37 @@ const ACTIVATE_OPTIONS: {
   {
     key: 'stuck', emoji: '🌱', label: 'Stuck?',
     sub: 'start ridiculously small · uses your BA reminder',
-    tone: 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-900',
+    tone: 'bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-800 dark:bg-emerald-900/40 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100',
   },
   {
     key: 'start', emoji: '🚀', label: 'Start a session',
     sub: 'Underway · 15 min · one thing',
-    tone: 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-900',
+    tone: 'bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-800 dark:bg-indigo-900/40 border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-100',
   },
   {
     key: 'knockOne', emoji: '🎯', label: 'Knock one out',
     sub: '2 min · picks a small one from your hold',
-    tone: 'bg-teal-50 hover:bg-teal-100 border-teal-200 text-teal-900',
+    tone: 'bg-teal-50 dark:bg-teal-950/40 hover:bg-teal-100 dark:hover:bg-teal-800 dark:bg-teal-900/40 border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-100',
   },
   {
     key: 'triage', emoji: '🎴', label: 'Triage the dump',
     sub: 'one card at a time · Do now / Pin / Someday / Drop',
-    tone: 'bg-amber-50 hover:bg-amber-100 border-amber-200 text-amber-900',
+    tone: 'bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-800 dark:bg-amber-900/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100',
   },
   {
     key: 'predict', emoji: '🔮', label: 'Make a prediction',
     sub: 'small bet · prove yourself right · Lab',
-    tone: 'bg-violet-50 hover:bg-violet-100 border-violet-200 text-violet-900',
+    tone: 'bg-violet-50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-800 dark:bg-violet-900/40 border-violet-200 dark:border-violet-800 text-violet-900 dark:text-violet-100',
   },
   {
     key: 'sort', emoji: '🧭', label: 'Sort what\'s on my mind',
     sub: 'Circle of Control · Compass',
-    tone: 'bg-sky-50 hover:bg-sky-100 border-sky-200 text-sky-900',
+    tone: 'bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-800 dark:bg-sky-900/40 border-sky-200 dark:border-sky-800 text-sky-900 dark:text-sky-100',
   },
   {
     key: 'breathe', emoji: '🌊', label: 'Breathe',
     sub: '4-4-4-4 box breathing · Grounding',
-    tone: 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-900',
+    tone: 'bg-slate-100 dark:bg-slate-900/40 hover:bg-slate-200 dark:hover:bg-slate-700 dark:bg-slate-800 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100',
   },
 ];
 
@@ -1883,12 +1883,12 @@ function ActivateNowStrip({
   };
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-      <header className="px-4 py-2 border-b border-gray-100 flex items-baseline justify-between">
-        <h3 className="text-[13px] font-semibold text-gray-800">Activate now</h3>
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex items-baseline justify-between">
+        <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Activate now</h3>
         <button
           onClick={surpriseMe}
-          className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800"
+          className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 dark:text-indigo-200"
           title="Random pick — when you can't choose"
         >
           🎲 surprise me
@@ -1900,12 +1900,12 @@ function ActivateNowStrip({
           editable). */}
       <button
         onClick={onStuck}
-        className="w-full text-left px-4 py-3 border-b border-gray-100 bg-emerald-50/50 hover:bg-emerald-50 transition-colors"
+        className="w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-800 bg-emerald-50/50 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 dark:bg-emerald-950/40 transition-colors"
         title="Edit on the Stuck screen"
       >
         <div className="flex items-start gap-2">
           <span className="text-sm leading-tight pt-0.5">🌱</span>
-          <p className="flex-1 text-[13px] leading-relaxed text-emerald-900 font-medium">
+          <p className="flex-1 text-[13px] leading-relaxed text-emerald-900 dark:text-emerald-100 font-medium">
             {mantra}
           </p>
         </div>
@@ -1933,13 +1933,13 @@ function ActivateNowStrip({
                 </div>
                 {showDumpBadge && activeDumpCount > 0 && (
                   <span
-                    className="text-[10px] font-semibold text-gray-700 bg-white/70 border border-gray-200 rounded-full px-1.5 py-0.5 tabular-nums"
+                    className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 bg-white/70 border border-gray-200 dark:border-gray-800 rounded-full px-1.5 py-0.5 tabular-nums"
                     title={`${activeDumpCount} in your hold`}
                   >
                     {activeDumpCount}
                   </span>
                 )}
-                <span className="text-gray-400 text-lg">→</span>
+                <span className="text-gray-400 dark:text-gray-500 text-lg">→</span>
               </button>
             </li>
           );
@@ -1951,7 +1951,7 @@ function ActivateNowStrip({
       <div className="px-3 pb-3">
         <button
           onClick={() => setShowMoreStrategies((v) => !v)}
-          className="w-full text-[11px] font-semibold text-gray-500 hover:text-indigo-700 py-1"
+          className="w-full text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300 py-1"
         >
           {showMoreStrategies
             ? '− fewer strategies'
@@ -1987,20 +1987,20 @@ const PLAN_SIZE_META: Record<DailyPlanSize, {
   big: {
     label: 'Big',
     glyph: '★',
-    tone: 'bg-amber-50/40 border-amber-100',
-    headerTone: 'text-amber-800',
+    tone: 'bg-amber-50/40 border-amber-100 dark:border-amber-900',
+    headerTone: 'text-amber-800 dark:text-amber-200',
   },
   medium: {
     label: 'Medium',
     glyph: '●',
-    tone: 'bg-indigo-50/40 border-indigo-100',
-    headerTone: 'text-indigo-800',
+    tone: 'bg-indigo-50/40 border-indigo-100 dark:border-indigo-900',
+    headerTone: 'text-indigo-800 dark:text-indigo-200',
   },
   small: {
     label: 'Small',
     glyph: '●',
-    tone: 'bg-teal-50/40 border-teal-100',
-    headerTone: 'text-teal-800',
+    tone: 'bg-teal-50/40 border-teal-100 dark:border-teal-900',
+    headerTone: 'text-teal-800 dark:text-teal-200',
   },
 };
 
@@ -2041,10 +2041,10 @@ function TodaysPlanStrip({
   const isEmpty = totalHave === 0;
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-      <header className="px-4 py-2 border-b border-gray-100 flex items-baseline justify-between">
-        <h3 className="text-[13px] font-semibold text-gray-800">Today's plan</h3>
-        <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 tabular-nums">
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex items-baseline justify-between">
+        <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Today's plan</h3>
+        <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 tabular-nums">
           {isEmpty
             ? `1 · 3 · 5`
             : `${totalDone} / ${totalHave} done · ${totalHave}/${totalCap}`}
@@ -2052,12 +2052,12 @@ function TodaysPlanStrip({
       </header>
 
       {isEmpty ? (
-        <div className="px-4 py-4 text-center text-[12px] text-gray-500 space-y-2">
+        <div className="px-4 py-4 text-center text-[12px] text-gray-500 dark:text-gray-400 space-y-2">
           <p>
             Pick <strong>1 big</strong>, <strong>3 medium</strong>, and <strong>5 small</strong> things
             you'll actually do today.
           </p>
-          <p className="text-[11px] text-gray-400">
+          <p className="text-[11px] text-gray-400 dark:text-gray-500">
             No scheduling. State-based. Completing anything counts.
           </p>
         </div>
@@ -2181,14 +2181,14 @@ function PlanSection({
         !atCap && (
           <button
             onClick={onOpenAdd}
-            className="mt-1 w-full py-1.5 text-[11px] font-semibold text-gray-500 border border-dashed border-gray-300 rounded-lg hover:border-indigo-400 hover:text-indigo-700"
+            className="mt-1 w-full py-1.5 text-[11px] font-semibold text-gray-500 dark:text-gray-400 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg hover:border-indigo-400 dark:hover:border-indigo-600 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300"
           >
             + add {meta.label.toLowerCase()}
           </button>
         )
       )}
       {atCap && !isAdding && (
-        <p className="text-[10px] text-gray-400 mt-1 text-center">
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 text-center">
           {cap}/{cap} · full · remove one to add
         </p>
       )}
@@ -2234,7 +2234,7 @@ function LinkifiedResource({ text }: { text: string }) {
               href={part}
               target="_blank"
               rel="noreferrer noopener"
-              className="text-indigo-700 underline underline-offset-2 hover:text-indigo-900 break-all"
+              className="text-indigo-700 dark:text-indigo-300 underline underline-offset-2 hover:text-indigo-900 dark:hover:text-indigo-100 dark:text-indigo-100 break-all"
             >
               {part}
             </a>
@@ -2291,14 +2291,14 @@ function PlanRow({
   };
 
   return (
-    <li className="bg-white/80 rounded-lg border border-gray-100">
+    <li className="bg-white/80 rounded-lg border border-gray-100 dark:border-gray-800">
       <div className="group flex items-center gap-2 px-2 py-1.5">
         <button
           onClick={() => onComplete(task.id)}
           className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
             done
               ? 'bg-emerald-500 border-emerald-500 text-white'
-              : 'border-gray-300 hover:border-emerald-400'
+              : 'border-gray-300 dark:border-gray-700 hover:border-emerald-400 dark:hover:border-emerald-600'
           }`}
           aria-label={done ? 'Uncomplete' : 'Complete'}
         >
@@ -2310,7 +2310,7 @@ function PlanRow({
         </button>
         <span
           className={`flex-1 min-w-0 truncate text-[13px] ${
-            done ? 'text-gray-400 line-through' : 'text-gray-900'
+            done ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-900 dark:text-gray-100'
           }`}
           title={task.label}
         >
@@ -2322,8 +2322,8 @@ function PlanRow({
           <span
             className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border tabular-nums whitespace-nowrap ${
               helpLate
-                ? 'bg-amber-100 border-amber-300 text-amber-900'
-                : 'bg-rose-50 border-rose-200 text-rose-700'
+                ? 'bg-amber-100 dark:bg-amber-900/40 border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-100'
+                : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300'
             }`}
             title={helpLate ? 'Help-by time passed' : 'Get help by this time if stuck'}
           >
@@ -2332,7 +2332,7 @@ function PlanRow({
         )}
         {hasRes && (
           <span
-            className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border bg-indigo-50 border-indigo-200 text-indigo-800 tabular-nums whitespace-nowrap"
+            className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200 tabular-nums whitespace-nowrap"
             title={`${task.resources!.length} resource${task.resources!.length === 1 ? '' : 's'}`}
           >
             🔗 {task.resources!.length}
@@ -2342,7 +2342,7 @@ function PlanRow({
         {!done && (
           <button
             onClick={() => onStart(task)}
-            className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 dark:text-indigo-200 opacity-0 group-hover:opacity-100 transition-opacity"
             title="Start a session for this"
           >
             → Do
@@ -2352,8 +2352,8 @@ function PlanRow({
           onClick={() => setExpanded((v) => !v)}
           className={`text-[10px] font-semibold transition-opacity ${
             expanded || hasHelp || hasRes
-              ? 'text-gray-500 hover:text-gray-800'
-              : 'text-gray-400 hover:text-gray-800 opacity-0 group-hover:opacity-100'
+              ? 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200'
+              : 'text-gray-400 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 opacity-0 group-hover:opacity-100'
           }`}
           title="Details: help-by + resources"
           aria-expanded={expanded}
@@ -2362,7 +2362,7 @@ function PlanRow({
         </button>
         <button
           onClick={() => onRemove(task.id)}
-          className="text-gray-300 hover:text-red-500 text-sm leading-none opacity-0 group-hover:opacity-100 transition-opacity"
+          className="text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400 text-sm leading-none opacity-0 group-hover:opacity-100 transition-opacity"
           title="Remove"
         >
           ×
@@ -2372,10 +2372,10 @@ function PlanRow({
       {/* Details panel — collapsed by default; shows what's set (read-only)
           plus the edit form. */}
       {expanded && (
-        <div className="border-t border-gray-100 px-3 py-2 space-y-2">
+        <div className="border-t border-gray-100 dark:border-gray-800 px-3 py-2 space-y-2">
           {/* Read-only quick view of what's already set */}
           {(hasRes) && (
-            <ul className="space-y-0.5 text-[12px] text-gray-700 pl-3">
+            <ul className="space-y-0.5 text-[12px] text-gray-700 dark:text-gray-300 pl-3">
               {task.resources!.map((r, i) => (
                 <li key={i} className="leading-relaxed">
                   · <LinkifiedResource text={r} />
@@ -2387,19 +2387,19 @@ function PlanRow({
           {/* Edit form */}
           <div className="space-y-2 pt-1">
             <div className="flex items-center gap-2">
-              <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 flex-shrink-0">
+              <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 flex-shrink-0">
                 🆘 Get help by
               </label>
               <input
                 type="time"
                 value={helpDraft}
                 onChange={(e) => setHelpDraft(e.target.value)}
-                className="px-2 py-1 text-[12px] border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400 tabular-nums"
+                className="px-2 py-1 text-[12px] border border-gray-200 dark:border-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400 tabular-nums"
               />
               {helpDraft && (
                 <button
                   onClick={clearHelp}
-                  className="text-[10px] text-gray-500 hover:text-red-500"
+                  className="text-[10px] text-gray-500 dark:text-gray-400 hover:text-red-500 dark:text-red-400"
                   title="Clear"
                 >
                   clear
@@ -2408,7 +2408,7 @@ function PlanRow({
             </div>
 
             <div>
-              <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+              <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
                 🔗 Resources
               </label>
               <textarea
@@ -2416,7 +2416,7 @@ function PlanRow({
                 onChange={(e) => setResDraft(e.target.value)}
                 placeholder="One per line — links, docs, phone numbers, anything you'll need."
                 rows={3}
-                className="w-full px-2 py-1.5 text-[12px] border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none font-mono"
+                className="w-full px-2 py-1.5 text-[12px] border border-gray-200 dark:border-gray-800 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none font-mono"
               />
             </div>
 
@@ -2427,7 +2427,7 @@ function PlanRow({
                   setResDraft((task.resources || []).join('\n'));
                   setExpanded(false);
                 }}
-                className="text-[11px] text-gray-500 hover:text-gray-800"
+                className="text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200"
               >
                 cancel
               </button>
@@ -2471,7 +2471,7 @@ function PlanAddForm({
   };
 
   return (
-    <div className="mt-2 space-y-1.5 bg-white/80 border border-gray-200 rounded-lg p-2">
+    <div className="mt-2 space-y-1.5 bg-white/80 border border-gray-200 dark:border-gray-800 rounded-lg p-2">
       <div className="flex gap-1.5">
         <input
           autoFocus
@@ -2488,7 +2488,7 @@ function PlanAddForm({
             }
           }}
           placeholder="What is it?"
-          className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-gray-200 dark:border-gray-800 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400"
         />
         <button
           onClick={commit}
@@ -2499,14 +2499,14 @@ function PlanAddForm({
         </button>
         <button
           onClick={onCancel}
-          className="px-1.5 py-1 text-[11px] text-gray-500 hover:text-gray-800"
+          className="px-1.5 py-1 text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200"
         >
           ×
         </button>
       </div>
       {suggestions.length > 0 && (
         <div>
-          <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-0.5">
+          <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-0.5">
             {label.trim() ? 'From your hold' : 'Recent in hold'}
           </div>
           <div className="flex flex-wrap gap-1">
@@ -2514,7 +2514,7 @@ function PlanAddForm({
               <button
                 key={t.id}
                 onClick={() => onSubmit(t.label, t.id)}
-                className="px-2 py-0.5 text-[11px] rounded-full bg-white border border-gray-200 text-gray-700 hover:border-indigo-400 hover:bg-indigo-50/40 max-w-[15rem] truncate"
+                className="px-2 py-0.5 text-[11px] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/40 max-w-[15rem] truncate"
                 title={t.label}
               >
                 {t.label}
@@ -2647,24 +2647,24 @@ function WeekBoardStrip({
   }, [items, daySections]);
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-      <header className="px-4 py-2 border-b border-gray-100 flex items-baseline justify-between">
-        <h3 className="text-[13px] font-semibold text-gray-800">This week</h3>
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex items-baseline justify-between">
+        <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">This week</h3>
         <div className="flex items-center gap-2">
           {flashDrop > 0 && (
-            <span className="text-[10px] font-semibold text-emerald-700 animate-pulse">
+            <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 animate-pulse">
               ✓ dropped
             </span>
           )}
           {dropsThisWeek > 0 && (
             <span
-              className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 tabular-nums"
+              className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-full px-2 py-0.5 tabular-nums"
               title="Intentional drops in the last 7 days — protecting your capacity"
             >
               {dropsThisWeek} dropped
             </span>
           )}
-          <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 tabular-nums">
+          <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 tabular-nums">
             {items.length} in pool
           </span>
         </div>
@@ -2762,13 +2762,13 @@ function WeekBoardSection({
   const isUnsorted = sectionKey === '';
   const isToday = !isUnsorted && sectionKey === daySections[0]?.key;
   const headerTone = isUnsorted
-    ? 'text-gray-600'
+    ? 'text-gray-600 dark:text-gray-400'
     : isToday
-    ? 'text-indigo-800'
-    : 'text-gray-700';
+    ? 'text-indigo-800 dark:text-indigo-200'
+    : 'text-gray-700 dark:text-gray-300';
 
   return (
-    <div className={`rounded-xl border ${isToday ? 'border-indigo-200 bg-indigo-50/30' : 'border-gray-100 bg-gray-50/40'} px-2 py-1.5`}>
+    <div className={`rounded-xl border ${isToday ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/30' : 'border-gray-100 dark:border-gray-800 bg-gray-50/40'} px-2 py-1.5`}>
       <div className="flex items-baseline justify-between mb-1">
         <div className={`text-[11px] uppercase tracking-wider font-bold ${headerTone} flex items-baseline gap-1.5`}>
           <span>{label}</span>
@@ -2805,7 +2805,7 @@ function WeekBoardSection({
       ) : (
         <button
           onClick={onOpenAdd}
-          className="mt-1 w-full py-1 text-[10px] font-semibold text-gray-400 hover:text-indigo-700 border border-dashed border-transparent hover:border-indigo-300 rounded"
+          className="mt-1 w-full py-1 text-[10px] font-semibold text-gray-400 dark:text-gray-500 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300 border border-dashed border-transparent hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700 rounded"
         >
           + add {isUnsorted ? 'to unsorted' : label.toLowerCase()}
         </button>
@@ -2852,7 +2852,7 @@ function WeekBoardAddInput({
             }
           }}
           placeholder={placeholder}
-          className="flex-1 min-w-0 px-2 py-1 text-[12px] border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white"
+          className="flex-1 min-w-0 px-2 py-1 text-[12px] border border-gray-200 dark:border-gray-800 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white dark:bg-gray-900"
         />
         <button
           onClick={commit}
@@ -2863,7 +2863,7 @@ function WeekBoardAddInput({
         </button>
         <button
           onClick={onCancel}
-          className="px-1 py-0.5 text-[11px] text-gray-500 hover:text-gray-800"
+          className="px-1 py-0.5 text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200"
         >
           ×
         </button>
@@ -2874,7 +2874,7 @@ function WeekBoardAddInput({
             <button
               key={t.id}
               onClick={() => onSubmit(t.label)}
-              className="px-2 py-0.5 text-[10px] rounded-full bg-white border border-gray-200 text-gray-700 hover:border-indigo-400 hover:bg-indigo-50/40 max-w-[15rem] truncate"
+              className="px-2 py-0.5 text-[10px] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/40 max-w-[15rem] truncate"
               title={t.label}
             >
               {t.label}
@@ -2906,8 +2906,8 @@ function WeekBoardRow({
   onSetDay: (id: string, day: string | undefined) => void;
 }) {
   return (
-    <li className="group flex items-center gap-1 bg-white hover:shadow-sm rounded-lg px-2 py-1.5 border border-gray-100">
-      <span className="flex-1 min-w-0 truncate text-[13px] text-gray-900" title={item.label}>
+    <li className="group flex items-center gap-1 bg-white dark:bg-gray-900 hover:shadow-sm rounded-lg px-2 py-1.5 border border-gray-100 dark:border-gray-800">
+      <span className="flex-1 min-w-0 truncate text-[13px] text-gray-900 dark:text-gray-100" title={item.label}>
         {item.label}
       </span>
       <select
@@ -2915,7 +2915,7 @@ function WeekBoardRow({
         onChange={(e) => onSetDay(item.id, e.target.value || undefined)}
         title="Change day"
         aria-label="Change day"
-        className="text-[10px] text-gray-500 bg-transparent border border-transparent rounded px-1 py-0.5 hover:bg-gray-50 hover:border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 max-w-[5.5rem]"
+        className="text-[10px] text-gray-500 dark:text-gray-400 bg-transparent border border-transparent rounded px-1 py-0.5 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 hover:border-gray-200 dark:border-gray-800 focus:outline-none focus:ring-2 focus:ring-indigo-400 max-w-[5.5rem]"
       >
         <option value="">Unsorted</option>
         {daySections.map((s) => (
@@ -2927,7 +2927,7 @@ function WeekBoardRow({
       <SizePromoteButton
         glyph="★"
         label="Big"
-        tone="text-amber-700 hover:bg-amber-50"
+        tone="text-amber-700 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-900/40 dark:bg-amber-950/40"
         disabled={capBig}
         title={capBig ? 'Big slot full for today' : 'Promote to today · Big'}
         onClick={() => onPromote(item.id, 'big')}
@@ -2935,7 +2935,7 @@ function WeekBoardRow({
       <SizePromoteButton
         glyph="●"
         label="Medium"
-        tone="text-indigo-700 hover:bg-indigo-50"
+        tone="text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 dark:bg-indigo-950/40"
         disabled={capMed}
         title={capMed ? 'Medium slots full for today' : 'Promote to today · Medium'}
         onClick={() => onPromote(item.id, 'medium')}
@@ -2943,14 +2943,14 @@ function WeekBoardRow({
       <SizePromoteButton
         glyph="●"
         label="Small"
-        tone="text-teal-700 hover:bg-teal-50"
+        tone="text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/40 dark:bg-teal-950/40"
         disabled={capSm}
         title={capSm ? 'Small slots full for today' : 'Promote to today · Small'}
         onClick={() => onPromote(item.id, 'small')}
       />
       <button
         onClick={() => onDrop(item.id)}
-        className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+        className="w-6 h-6 flex items-center justify-center rounded text-gray-400 dark:text-gray-500 hover:text-emerald-700 dark:hover:text-emerald-300 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/40 dark:bg-emerald-950/40 transition-colors"
         title="Drop — protect capacity"
         aria-label="Drop"
       >
@@ -2982,7 +2982,7 @@ function SizePromoteButton({
       title={title}
       aria-label={`Promote to ${label}`}
       className={`w-6 h-6 flex items-center justify-center rounded text-[11px] font-bold transition-colors ${
-        disabled ? 'text-gray-300 cursor-not-allowed' : tone
+        disabled ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' : tone
       }`}
     >
       {glyph}
@@ -3010,26 +3010,26 @@ function NorthStarsStrip({
     return (
       <button
         onClick={onOpenAll}
-        className="w-full text-left bg-white border-2 border-dashed border-gray-200 hover:border-indigo-300 rounded-2xl px-4 py-3 transition-colors"
+        className="w-full text-left bg-white dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700 rounded-2xl px-4 py-3 transition-colors"
       >
-        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
           North Stars · 0 anchors
         </div>
-        <div className="text-sm text-gray-700 mt-1 leading-snug">
+        <div className="text-sm text-gray-700 dark:text-gray-300 mt-1 leading-snug">
           Pick 1–3 long-term anchors. Everything you do here can attribute to them.
         </div>
       </button>
     );
   }
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-      <header className="px-4 py-2 flex items-center justify-between border-b border-gray-100">
-        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 flex items-center justify-between border-b border-gray-100 dark:border-gray-800">
+        <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
           North Stars · steering toward
         </div>
         <button
           onClick={onOpenAll}
-          className="text-[10px] uppercase tracking-wider font-semibold text-indigo-600 hover:text-indigo-700"
+          className="text-[10px] uppercase tracking-wider font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300"
         >
           Manage ›
         </button>
@@ -3041,21 +3041,21 @@ function NorthStarsStrip({
             <li key={star.id}>
               <button
                 onClick={() => onOpenStar(star.id)}
-                className="w-full text-left px-4 py-2 flex items-center gap-3 hover:bg-gray-50 transition-colors"
+                className="w-full text-left px-4 py-2 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950 transition-colors"
               >
                 <span
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: c.hex }}
                 />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-gray-900 truncate">{star.name}</div>
+                  <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{star.name}</div>
                   {star.direction && (
-                    <div className="text-[11px] text-gray-500 italic truncate">
+                    <div className="text-[11px] text-gray-500 dark:text-gray-400 italic truncate">
                       {star.direction}
                     </div>
                   )}
                 </div>
-                <span className="text-[10px] uppercase tracking-wider text-gray-400 flex-shrink-0">
+                <span className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 flex-shrink-0">
                   Open ›
                 </span>
               </button>
@@ -3083,13 +3083,13 @@ function AgedDumpStrip({
 }) {
   if (tasks.length === 0) return null;
   return (
-    <section className="bg-white border-2 border-sky-300 rounded-2xl shadow-sm overflow-hidden">
-      <header className="px-4 py-2 bg-sky-50 border-b border-sky-200 flex items-center justify-between">
+    <section className="bg-white dark:bg-gray-900 border-2 border-sky-300 dark:border-sky-700 rounded-2xl shadow-sm overflow-hidden">
+      <header className="px-4 py-2 bg-sky-50 dark:bg-sky-950/40 border-b border-sky-200 dark:border-sky-800 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-base">📥</span>
-          <h3 className="text-[13px] font-semibold text-sky-900">Aging in the Hold</h3>
+          <h3 className="text-[13px] font-semibold text-sky-900 dark:text-sky-100">Aging in the Hold</h3>
         </div>
-        <span className="text-[10px] uppercase tracking-wider font-bold text-sky-700">
+        <span className="text-[10px] uppercase tracking-wider font-bold text-sky-700 dark:text-sky-300">
           {tasks.length} task{tasks.length === 1 ? '' : 's'} · schedule or drop
         </span>
       </header>
@@ -3101,8 +3101,8 @@ function AgedDumpStrip({
           return (
             <li key={t.id} className="px-3 py-2 flex items-center gap-2">
               <div className="flex-1 min-w-0">
-                <div className="text-sm text-gray-900 truncate">{t.label}</div>
-                <div className="text-[10px] text-gray-500 mt-0.5">
+                <div className="text-sm text-gray-900 dark:text-gray-100 truncate">{t.label}</div>
+                <div className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
                   {ageDays}d ago
                 </div>
               </div>
@@ -3119,7 +3119,7 @@ function AgedDumpStrip({
                     onDrop(t.id);
                   }
                 }}
-                className="flex-shrink-0 text-[14px] leading-none text-gray-300 hover:text-red-500 px-1.5 py-1"
+                className="flex-shrink-0 text-[14px] leading-none text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400 px-1.5 py-1"
                 title="Drop this task"
               >
                 &times;
@@ -3155,11 +3155,11 @@ const ENERGY_OPTIONS: {
   text: string;
   dot: string; // solid color for the trail dot
 }[] = [
-  { value: 1, label: 'Doldrums', emoji: '🪫', ring: 'ring-rose-300', bg: 'bg-rose-50', text: 'text-rose-700', dot: 'bg-rose-500' },
-  { value: 2, label: 'Fog', emoji: '🌫', ring: 'ring-amber-300', bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500' },
-  { value: 3, label: 'Cruising', emoji: '⛵', ring: 'ring-gray-300', bg: 'bg-gray-100', text: 'text-gray-700', dot: 'bg-gray-500' },
-  { value: 4, label: 'Tailwind', emoji: '💨', ring: 'ring-sky-300', bg: 'bg-sky-50', text: 'text-sky-700', dot: 'bg-sky-500' },
-  { value: 5, label: 'Following seas', emoji: '🌊', ring: 'ring-emerald-300', bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  { value: 1, label: 'Doldrums', emoji: '🪫', ring: 'ring-rose-300', bg: 'bg-rose-50 dark:bg-rose-950/40', text: 'text-rose-700 dark:text-rose-300', dot: 'bg-rose-500' },
+  { value: 2, label: 'Fog', emoji: '🌫', ring: 'ring-amber-300', bg: 'bg-amber-50 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-300', dot: 'bg-amber-500' },
+  { value: 3, label: 'Cruising', emoji: '⛵', ring: 'ring-gray-300', bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-700 dark:text-gray-300', dot: 'bg-gray-500' },
+  { value: 4, label: 'Tailwind', emoji: '💨', ring: 'ring-sky-300', bg: 'bg-sky-50 dark:bg-sky-950/40', text: 'text-sky-700 dark:text-sky-300', dot: 'bg-sky-500' },
+  { value: 5, label: 'Following seas', emoji: '🌊', ring: 'ring-emerald-300', bg: 'bg-emerald-50 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-500' },
 ];
 
 function energyStyle(level: EnergyLevel) {
@@ -3175,9 +3175,9 @@ const DIRECTION_OPTIONS: {
   glyph: string;
   activeClass: string;
 }[] = [
-  { value: 'recharged', label: 'Recharged', glyph: '↑', activeClass: 'bg-emerald-50 border-emerald-300 text-emerald-800' },
-  { value: 'neutral',   label: 'Neutral',   glyph: '·', activeClass: 'bg-gray-100 border-gray-300 text-gray-800' },
-  { value: 'drained',   label: 'Drained',   glyph: '↓', activeClass: 'bg-rose-50 border-rose-300 text-rose-800' },
+  { value: 'recharged', label: 'Recharged', glyph: '↑', activeClass: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200' },
+  { value: 'neutral',   label: 'Neutral',   glyph: '·', activeClass: 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200' },
+  { value: 'drained',   label: 'Drained',   glyph: '↓', activeClass: 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200' },
 ];
 
 function formatClockTime(iso: string): string {
@@ -3249,10 +3249,10 @@ function StateLogStrip({
   const suggestedReasons = recentReasons.slice(0, 10);
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-      <header className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
-        <h3 className="text-[13px] font-semibold text-gray-800">Log a moment</h3>
-        <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+        <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Log a moment</h3>
+        <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
           {todaysEntries.length === 0
             ? 'How are you sailing right now?'
             : `${todaysEntries.length} today`}
@@ -3271,7 +3271,7 @@ function StateLogStrip({
                 className={`flex flex-col items-center justify-center px-1 py-2 rounded-xl transition-all ${
                   active
                     ? `${opt.bg} ring-2 ${opt.ring} ${opt.text}`
-                    : 'bg-gray-50 hover:bg-gray-100 text-gray-700'
+                    : 'bg-gray-50 dark:bg-gray-950 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
                 }`}
                 title={opt.label}
               >
@@ -3289,7 +3289,7 @@ function StateLogStrip({
           <div className="space-y-3">
             {/* Direction toggle — did this recharge or drain you? */}
             <div>
-              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
                 Trend
               </div>
               <div className="flex gap-1.5">
@@ -3302,7 +3302,7 @@ function StateLogStrip({
                       className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
                         active
                           ? d.activeClass
-                          : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 dark:border-gray-700'
                       }`}
                     >
                       <span className="text-sm leading-none">{d.glyph}</span>
@@ -3314,7 +3314,7 @@ function StateLogStrip({
             </div>
 
             <div>
-              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
                 Because…
               </div>
               <div className="flex items-center gap-1.5">
@@ -3330,12 +3330,12 @@ function StateLogStrip({
                     }
                   }}
                   placeholder='e.g. "morning run", "8h sleep", "coffee"'
-                  className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 />
                 <button
                   onClick={commitReasonDraft}
                   disabled={!reasonDraft.trim()}
-                  className="px-2.5 py-2 text-xs font-semibold text-indigo-600 hover:text-indigo-700 disabled:text-gray-300"
+                  className="px-2.5 py-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300 disabled:text-gray-300 dark:text-gray-600"
                 >
                   Add
                 </button>
@@ -3346,17 +3346,17 @@ function StateLogStrip({
                     <button
                       key={r}
                       onClick={() => toggleReason(r)}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-mono text-indigo-800 bg-indigo-50 border border-indigo-200 rounded-full hover:bg-indigo-100"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-mono text-indigo-800 dark:text-indigo-200 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-full hover:bg-indigo-100 dark:hover:bg-indigo-800 dark:bg-indigo-900/40"
                     >
                       {r}
-                      <span className="text-indigo-400 hover:text-indigo-700">×</span>
+                      <span className="text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300">×</span>
                     </button>
                   ))}
                 </div>
               )}
               {suggestedReasons.length > 0 && (
                 <div className="mt-2">
-                  <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
+                  <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
                     Recent
                   </div>
                   <div className="flex flex-wrap gap-1">
@@ -3368,8 +3368,8 @@ function StateLogStrip({
                           onClick={() => toggleReason(r)}
                           className={`px-2 py-0.5 text-[11px] font-mono rounded-full border transition-colors ${
                             active
-                              ? 'bg-indigo-50 border-indigo-300 text-indigo-800'
-                              : 'bg-white border-gray-200 text-gray-600 hover:border-indigo-300'
+                              ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-700 text-indigo-800 dark:text-indigo-200'
+                              : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700'
                           }`}
                         >
                           {r}
@@ -3382,7 +3382,7 @@ function StateLogStrip({
             </div>
 
             <div>
-              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
                 Note (optional)
               </div>
               <input
@@ -3390,14 +3390,14 @@ function StateLogStrip({
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder='One-line context if you want to remember why later'
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
               />
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-1">
               <button
                 onClick={cancel}
-                className="text-xs text-gray-500 hover:text-gray-800"
+                className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200"
               >
                 Cancel
               </button>
@@ -3416,7 +3416,7 @@ function StateLogStrip({
             the day's trajectory reads consistently. */}
         {todaysEntries.length > 0 && (
           <div className="pt-1">
-            <div className="text-[10px] uppercase tracking-wider text-gray-400 mb-1">
+            <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
               Today
             </div>
             <ul className="space-y-1">
@@ -3435,14 +3435,14 @@ function StateLogStrip({
                       <span className="font-semibold">{formatClockTime(e.loggedAt)}</span>
                       {dirGlyph && <span className="leading-none">{dirGlyph}</span>}
                     </span>
-                    <span className="flex-1 min-w-0 truncate text-[12px] text-gray-700">
+                    <span className="flex-1 min-w-0 truncate text-[12px] text-gray-700 dark:text-gray-300">
                       {e.reasons.length > 0 ? e.reasons.join(' · ') : (e.note || '—')}
                     </span>
                     <button
                       onClick={() => {
                         if (confirm('Delete this state entry?')) onDelete(e.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 text-[14px] leading-none text-gray-300 hover:text-red-500 transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 text-[14px] leading-none text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400 transition-opacity"
                       title="Delete"
                     >
                       &times;

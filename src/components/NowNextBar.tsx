@@ -113,10 +113,10 @@ export default function NowNextBar({ blocks, onJumpToToday }: NowNextBarProps) {
     return (
       <button
         onClick={onJumpToToday}
-        className="w-full px-4 py-1.5 bg-emerald-50 border-b border-emerald-200 text-[11px] font-medium text-emerald-800 hover:bg-emerald-100 transition-colors flex items-center justify-between"
+        className="w-full px-4 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-200 dark:border-emerald-800 text-[11px] font-medium text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 dark:hover:bg-emerald-800 dark:bg-emerald-900/40 transition-colors flex items-center justify-between"
       >
         <span>All today's blocks are wrapped — you're good.</span>
-        <span className="text-[10px] uppercase tracking-wider text-emerald-700">Today ›</span>
+        <span className="text-[10px] uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Today ›</span>
       </button>
     );
   }
@@ -135,27 +135,27 @@ export default function NowNextBar({ blocks, onJumpToToday }: NowNextBarProps) {
       className={`w-full px-4 py-1.5 border-b transition-colors flex items-center gap-3 text-left ${
         isCurrent
           ? 'bg-indigo-600 border-indigo-700 text-white hover:bg-indigo-700'
-          : 'bg-amber-50 border-amber-200 text-amber-900 hover:bg-amber-100'
+          : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100 hover:bg-amber-100 dark:hover:bg-amber-800 dark:bg-amber-900/40'
       }`}
       title="Tap to open Today"
     >
       <span
         className={`flex-shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-sm ${
-          isCurrent ? 'bg-white/15 text-white' : 'bg-amber-200 text-amber-900'
+          isCurrent ? 'bg-white/15 text-white' : 'bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100'
         }`}
       >
         {isCurrent ? 'Now' : 'Next'}
       </span>
       <span className="flex-1 min-w-0 truncate text-[12px] font-semibold">
         {block.mainTask}
-        <span className={`ml-2 text-[10px] font-mono font-normal ${isCurrent ? 'text-white/70' : 'text-amber-700'}`}>
+        <span className={`ml-2 text-[10px] font-mono font-normal ${isCurrent ? 'text-white/70' : 'text-amber-700 dark:text-amber-300'}`}>
           {formatTime24to12(block.mainTime)}
         </span>
       </span>
       {nextSub && (
-        <span className={`flex-shrink-0 max-w-[40%] truncate text-[11px] font-mono ${isCurrent ? 'text-white/85' : 'text-amber-800'}`}>
+        <span className={`flex-shrink-0 max-w-[40%] truncate text-[11px] font-mono ${isCurrent ? 'text-white/85' : 'text-amber-800 dark:text-amber-200'}`}>
           → {nextSub.label}
-          <span className={`ml-1.5 ${isCurrent ? 'text-white/60' : 'text-amber-600'}`}>
+          <span className={`ml-1.5 ${isCurrent ? 'text-white/60' : 'text-amber-600 dark:text-amber-400'}`}>
             {(() => {
               const m = minsTo(nextSub);
               if (m <= 0) return 'now';
@@ -167,7 +167,7 @@ export default function NowNextBar({ blocks, onJumpToToday }: NowNextBarProps) {
           </span>
         </span>
       )}
-      <span className={`hidden sm:inline-block flex-shrink-0 text-[9px] uppercase tracking-wider ${isCurrent ? 'text-white/60' : 'text-amber-600'}`}>
+      <span className={`hidden sm:inline-block flex-shrink-0 text-[9px] uppercase tracking-wider ${isCurrent ? 'text-white/60' : 'text-amber-600 dark:text-amber-400'}`}>
         Today ›
       </span>
     </button>

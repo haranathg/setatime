@@ -40,7 +40,7 @@ export default function TaskBlockCard({ rendered, colorIndex, onToggleSubTask, o
                     checked={sub.completed}
                     onClick={(e) => e.stopPropagation()}
                     onChange={() => onToggleSubTask(block.id, sub.id)}
-                    className="w-3 h-3 rounded border-gray-300 shrink-0"
+                    className="w-3 h-3 rounded border-gray-300 dark:border-gray-700 shrink-0"
                   />
                   <span
                     className={`text-[10px] leading-tight ${colors.sub} ${

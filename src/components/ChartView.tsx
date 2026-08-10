@@ -80,17 +80,17 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
   };
 
   return (
-    <div className="flex-1 flex flex-col bg-[#fbfaf7] overflow-hidden">
+    <div className="flex-1 flex flex-col bg-[#fbfaf7] dark:bg-[#171614] overflow-hidden">
       <div className="flex-1 flex overflow-hidden">
         {/* Encounter list sidebar */}
-        <aside className="w-72 flex-shrink-0 bg-white border-r border-gray-200 flex flex-col">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-baseline justify-between">
-            <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Encounters</h2>
-            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+        <aside className="w-72 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
+          <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-baseline justify-between">
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 tracking-tight">Encounters</h2>
+            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
               {notes.length}
             </span>
           </div>
-          <div className="px-3 py-2.5 border-b border-gray-100 space-y-1.5">
+          <div className="px-3 py-2.5 border-b border-gray-100 dark:border-gray-800 space-y-1.5">
             <div className="flex gap-1.5">
               <button
                 onClick={() => handleNew('daily')}
@@ -100,7 +100,7 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
               </button>
               <button
                 onClick={() => handleNew('weekly')}
-                className="flex-1 px-2 py-1.5 text-[11px] font-semibold text-indigo-700 bg-white border border-indigo-200 hover:bg-indigo-50 rounded-lg transition-colors"
+                className="flex-1 px-2 py-1.5 text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 bg-white dark:bg-gray-900 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 dark:bg-indigo-950/40 rounded-lg transition-colors"
               >
                 + Weekly
               </button>
@@ -108,7 +108,7 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
             <button
               onClick={handleCopyForward}
               disabled={!hasPrior}
-              className="w-full px-2 py-1.5 text-[11px] font-semibold text-amber-700 bg-white border border-amber-200 hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
+              className="w-full px-2 py-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-900/40 dark:bg-amber-950/40 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
               title={hasPrior ? 'Start a new note pre-filled with open problems and incomplete plan tasks from the most recent encounter' : 'Need a prior encounter to copy forward from'}
             >
               ↻ Copy forward
@@ -117,7 +117,7 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
 
           <div className="flex-1 overflow-y-auto">
             {sortedNotes.length === 0 ? (
-              <div className="p-4 text-xs text-gray-500 text-center">
+              <div className="p-4 text-xs text-gray-500 dark:text-gray-400 text-center">
                 No encounters on file. Click <span className="font-semibold">+ Daily</span> or <span className="font-semibold">+ Weekly</span> to start a new note.
               </div>
             ) : (
@@ -129,24 +129,24 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
                     <li key={n.id}>
                       <button
                         onClick={() => setSelectedId(n.id)}
-                        className={`w-full text-left px-3 py-2.5 border-b border-gray-50 transition-colors ${
+                        className={`w-full text-left px-3 py-2.5 border-b border-gray-50 dark:border-gray-900 transition-colors ${
                           isSelected
                             ? 'bg-indigo-50/70 border-l-2 border-l-indigo-500'
-                            : 'hover:bg-gray-50'
+                            : 'hover:bg-gray-50 dark:hover:bg-gray-800 dark:bg-gray-950'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-0.5">
-                          <span className="text-[11px] font-semibold text-gray-900 font-mono">
+                          <span className="text-[11px] font-semibold text-gray-900 dark:text-gray-100 font-mono">
                             {formatLongDate(n.date)}
                           </span>
-                          <span className="text-[9px] uppercase tracking-wider font-bold text-indigo-700 bg-indigo-100 rounded-full px-1.5 py-0.5">
+                          <span className="text-[9px] uppercase tracking-wider font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/40 rounded-full px-1.5 py-0.5">
                             {n.encounterType === 'daily' ? 'D' : n.encounterType === 'weekly' ? 'W' : 'O'}
                           </span>
                         </div>
-                        <div className="text-[10px] text-gray-500 mb-1">
+                        <div className="text-[10px] text-gray-500 dark:text-gray-400 mb-1">
                           {ENCOUNTER_LABELS[n.encounterType]} · {formatTime(n.createdAt)}
                         </div>
-                        <div className="text-[11px] text-gray-700 line-clamp-2">{preview}</div>
+                        <div className="text-[11px] text-gray-700 dark:text-gray-300 line-clamp-2">{preview}</div>
                       </button>
                     </li>
                   );
@@ -160,7 +160,7 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
         </aside>
 
         {/* Main note workspace */}
-        <main className="flex-1 overflow-y-auto bg-[#fbfaf7]">
+        <main className="flex-1 overflow-y-auto bg-[#fbfaf7] dark:bg-[#171614]">
           {selected ? (
             <NoteEditor
               key={selected.id}
@@ -173,12 +173,12 @@ export default function ChartView({ notes, onCreateNote, onUpdateNote, onDeleteN
             />
           ) : (
             <div className="h-full flex items-center justify-center">
-              <div className="text-center max-w-md p-8 bg-white border border-gray-200 rounded-2xl shadow-sm">
-                <div className="text-[11px] uppercase tracking-wider text-gray-500 font-semibold mb-2">
+              <div className="text-center max-w-md p-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm">
+                <div className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-2">
                   No Encounter Selected
                 </div>
-                <h2 className="text-lg font-semibold text-gray-800 mb-2">Open a chart note</h2>
-                <p className="text-sm text-gray-600 mb-4">
+                <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Open a chart note</h2>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
                   Select an existing encounter from the sidebar, or start a new one to begin documenting.
                 </p>
                 <button
@@ -232,15 +232,15 @@ function NoteEditor({
   return (
     <div className="max-w-4xl mx-auto p-5 space-y-4">
       {/* Note header — softer, app-consistent look */}
-      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-100 flex items-baseline justify-between">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-baseline justify-between">
           <div className="flex items-baseline gap-3">
-            <h2 className="text-sm font-semibold text-gray-900 tracking-tight">Progress note</h2>
-            <span className="text-[10px] text-gray-400 font-mono">#{note.id.slice(0, 6).toUpperCase()}</span>
+            <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 tracking-tight">Progress note</h2>
+            <span className="text-[10px] text-gray-400 dark:text-gray-500 font-mono">#{note.id.slice(0, 6).toUpperCase()}</span>
           </div>
           <button
             onClick={onDelete}
-            className="text-[10px] uppercase tracking-wider font-semibold text-gray-400 hover:text-red-500 transition-colors"
+            className="text-[10px] uppercase tracking-wider font-semibold text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400 transition-colors"
             title="Delete note"
           >
             Delete
@@ -252,14 +252,14 @@ function NoteEditor({
               type="date"
               value={note.date}
               onChange={(e) => onUpdate(note.id, { date: e.target.value })}
-              className="w-full px-2 py-1.5 text-[12px] border border-gray-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400"
+              className="w-full px-2 py-1.5 text-[12px] border border-gray-200 dark:border-gray-800 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400"
             />
           </FieldRow>
           <FieldRow label="Type">
             <select
               value={note.encounterType}
               onChange={(e) => onUpdate(note.id, { encounterType: e.target.value as ChartNote['encounterType'] })}
-              className="w-full px-2 py-1.5 text-[12px] border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400"
+              className="w-full px-2 py-1.5 text-[12px] border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400"
             >
               <option value="daily">Daily Check-In</option>
               <option value="weekly">Weekly Review</option>
@@ -267,16 +267,16 @@ function NoteEditor({
             </select>
           </FieldRow>
           <FieldRow label="Provider">
-            <div className="px-2 py-1.5 text-[12px] text-gray-600 font-mono bg-gray-50 border border-gray-100 rounded-lg">Self</div>
+            <div className="px-2 py-1.5 text-[12px] text-gray-600 dark:text-gray-400 font-mono bg-gray-50 dark:bg-gray-950 border border-gray-100 dark:border-gray-800 rounded-lg">Self</div>
           </FieldRow>
           <FieldRow label="Status">
             {note.signedAt ? (
-              <div className="px-2 py-1.5 text-[12px] text-emerald-700 font-semibold bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-1.5">
+              <div className="px-2 py-1.5 text-[12px] text-emerald-700 dark:text-emerald-300 font-semibold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                 Signed · {formatTime(note.signedAt)}
               </div>
             ) : (
-              <div className="px-2 py-1.5 text-[12px] text-amber-700 font-semibold bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-1.5">
+              <div className="px-2 py-1.5 text-[12px] text-amber-700 dark:text-amber-300 font-semibold bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                 Draft
               </div>
@@ -324,7 +324,7 @@ function NoteEditor({
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="text-[9px] uppercase tracking-wider text-gray-500 font-semibold mb-1">{label}</div>
+      <div className="text-[9px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold mb-1">{label}</div>
       {children}
     </div>
   );
@@ -348,29 +348,29 @@ function SoapSection({
   // Derived live from the text so the chips track every keystroke.
   const tagCounts = useMemo(() => countTags(extractActivityTags(value)), [value]);
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-      <header className="flex items-stretch border-b border-gray-100">
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden">
+      <header className="flex items-stretch border-b border-gray-100 dark:border-gray-800">
         <div className="w-10 flex-shrink-0 bg-indigo-500 text-white flex items-center justify-center text-lg font-bold font-mono">
           {letter}
         </div>
         <div className="flex-1 px-3 py-2 bg-gray-50/60">
-          <div className="text-[12px] font-bold uppercase tracking-wider text-gray-800">{label}</div>
-          <div className="text-[10px] text-gray-500 leading-tight mt-0.5">{hint}</div>
+          <div className="text-[12px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">{label}</div>
+          <div className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5">{hint}</div>
         </div>
       </header>
       {tagCounts.size > 0 && (
-        <div className="px-3 py-1.5 bg-emerald-50 border-b border-emerald-100 flex flex-wrap items-center gap-1.5">
-          <span className="text-[9px] uppercase tracking-wider font-bold text-emerald-700 mr-1">Logged</span>
+        <div className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900 flex flex-wrap items-center gap-1.5">
+          <span className="text-[9px] uppercase tracking-wider font-bold text-emerald-700 dark:text-emerald-300 mr-1">Logged</span>
           {[...tagCounts.entries()]
             .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
             .map(([name, count]) => (
               <span
                 key={name}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-mono text-emerald-800 bg-white border border-emerald-200 rounded-md"
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-mono text-emerald-800 dark:text-emerald-200 bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 rounded-md"
               >
                 +{name}
                 {count > 1 && (
-                  <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-100 px-1 rounded-md">
+                  <span className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-1 rounded-md">
                     ×{count}
                   </span>
                 )}
@@ -383,7 +383,7 @@ function SoapSection({
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
         placeholder={`Enter ${label.toLowerCase()}… (tip: type +water, +coffee, etc. to log activities)`}
-        className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 resize-y focus:outline-none focus:bg-indigo-50/30 placeholder:text-gray-300"
+        className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 dark:text-gray-100 resize-y focus:outline-none focus:bg-indigo-50/30 placeholder:text-gray-300 dark:text-gray-600"
       />
     </section>
   );
@@ -418,26 +418,26 @@ function SignatureBlock({
 
   if (note.signedAt) {
     return (
-      <div className="bg-white border border-emerald-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="px-3 py-1.5 bg-green-50 border-b border-green-200 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-green-800">
+      <div className="bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 rounded-2xl shadow-sm overflow-hidden">
+        <div className="px-3 py-1.5 bg-green-50 dark:bg-green-950/40 border-b border-green-200 dark:border-green-800 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-green-800 dark:text-green-200">
             <span className="w-2 h-2 rounded-full bg-green-500" />
             Signed
           </div>
           <button
             onClick={unsign}
-            className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 hover:text-red-600 transition-colors"
+            className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 dark:text-gray-400 hover:text-red-600 dark:text-red-400 transition-colors"
             title="Clear the signature so you can re-sign after editing"
           >
             Unsign
           </button>
         </div>
         <div className="px-4 py-3 flex items-center justify-between text-[11px]">
-          <div className="font-mono text-gray-800">
-            <span className="text-gray-400 uppercase tracking-wider text-[9px] mr-2">Signed by</span>
+          <div className="font-mono text-gray-800 dark:text-gray-200">
+            <span className="text-gray-400 dark:text-gray-500 uppercase tracking-wider text-[9px] mr-2">Signed by</span>
             /s/ Self · {formatSignedStamp(note.signedAt)}
           </div>
-          <div className="text-gray-400 text-[10px] font-mono">
+          <div className="text-gray-400 dark:text-gray-500 text-[10px] font-mono">
             Created {formatTime(note.createdAt)} · Modified {formatTime(note.updatedAt)}
           </div>
         </div>
@@ -446,13 +446,13 @@ function SignatureBlock({
   }
 
   return (
-    <div className="bg-white border border-amber-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="px-3 py-1.5 bg-amber-50 border-b border-amber-200 flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-amber-800">
+    <div className="bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-800 rounded-2xl shadow-sm overflow-hidden">
+      <div className="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-200 dark:border-amber-800 flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-amber-800 dark:text-amber-200">
         <span className="w-2 h-2 rounded-full bg-amber-500" />
         Draft · not yet signed
       </div>
       <div className="px-4 py-3 flex items-center justify-between gap-3 text-[11px]">
-        <div className="font-mono text-gray-500 italic">
+        <div className="font-mono text-gray-500 dark:text-gray-400 italic">
           Sign off when you're done reflecting. The timestamp records exactly when you closed this encounter.
         </div>
         <button
@@ -463,7 +463,7 @@ function SignatureBlock({
           ✓ Sign Note
         </button>
       </div>
-      <div className="px-4 py-2 border-t border-gray-100 text-[10px] text-gray-400 font-mono">
+      <div className="px-4 py-2 border-t border-gray-100 dark:border-gray-800 text-[10px] text-gray-400 dark:text-gray-500 font-mono">
         Created {formatTime(note.createdAt)} · Modified {formatTime(note.updatedAt)}
       </div>
     </div>
@@ -501,26 +501,26 @@ function ProblemsList({
   const openCount = problems.filter((p) => !p.resolved).length;
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-      <header className="flex items-stretch border-b border-gray-200">
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden">
+      <header className="flex items-stretch border-b border-gray-200 dark:border-gray-800">
         <div className="w-10 flex-shrink-0 bg-amber-500 text-white flex items-center justify-center text-lg font-bold font-mono">
           #
         </div>
-        <div className="flex-1 px-3 py-2 bg-gray-50 flex items-center justify-between">
+        <div className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-950 flex items-center justify-between">
           <div>
-            <div className="text-[12px] font-bold uppercase tracking-wider text-gray-800">Problem List</div>
-            <div className="text-[10px] text-gray-500 leading-tight mt-0.5">
+            <div className="text-[12px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">Problem List</div>
+            <div className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5">
               Active issues you're working on. Shows up in Plan so you can write tasks against each.
             </div>
           </div>
-          <span className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">
+          <span className="text-[10px] font-mono text-gray-500 dark:text-gray-400 uppercase tracking-wider">
             {openCount} open · {problems.length} total
           </span>
         </div>
       </header>
       <div className="divide-y divide-gray-100">
         {problems.length === 0 ? (
-          <div className="px-3 py-3 text-[12px] text-gray-400 italic">
+          <div className="px-3 py-3 text-[12px] text-gray-400 dark:text-gray-500 italic">
             No active problems. Click <span className="font-semibold not-italic">+ Problem</span> to add one.
           </div>
         ) : (
@@ -539,8 +539,8 @@ function ProblemsList({
                   value={p.label}
                   onChange={(e) => updateProblem(p.id, { label: e.target.value })}
                   placeholder="Short label, e.g. Sleep debt"
-                  className={`w-full px-2 py-1 text-[13px] font-mono border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-500 ${
-                    p.resolved ? 'line-through text-gray-400' : 'text-gray-900'
+                  className={`w-full px-2 py-1 text-[13px] font-mono border border-gray-200 dark:border-gray-800 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-500 ${
+                    p.resolved ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'
                   }`}
                 />
                 <input
@@ -548,12 +548,12 @@ function ProblemsList({
                   value={p.detail || ''}
                   onChange={(e) => updateProblem(p.id, { detail: e.target.value })}
                   placeholder="Optional detail or context…"
-                  className="mt-1 w-full px-2 py-1 text-[11px] text-gray-600 border border-transparent rounded-md focus:outline-none focus:border-gray-200 focus:bg-gray-50"
+                  className="mt-1 w-full px-2 py-1 text-[11px] text-gray-600 dark:text-gray-400 border border-transparent rounded-md focus:outline-none focus:border-gray-200 dark:border-gray-800 focus:bg-gray-50 dark:bg-gray-950"
                 />
               </div>
               <button
                 onClick={() => removeProblem(p.id)}
-                className="mt-1 text-[14px] leading-none text-gray-300 hover:text-red-500 px-1.5 py-1"
+                className="mt-1 text-[14px] leading-none text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400 px-1.5 py-1"
                 title="Delete problem"
               >
                 ×
@@ -562,10 +562,10 @@ function ProblemsList({
           ))
         )}
       </div>
-      <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
+      <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950">
         <button
           onClick={addProblem}
-          className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700 hover:text-indigo-800 transition-colors"
+          className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 hover:text-indigo-800 dark:hover:text-indigo-200 dark:text-indigo-200 transition-colors"
         >
           + Problem
         </button>
@@ -619,14 +619,14 @@ function PlanSection({
   };
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-      <header className="flex items-stretch border-b border-gray-200">
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden">
+      <header className="flex items-stretch border-b border-gray-200 dark:border-gray-800">
         <div className="w-10 flex-shrink-0 bg-indigo-600 text-white flex items-center justify-center text-lg font-bold font-mono">
           P
         </div>
-        <div className="flex-1 px-3 py-2 bg-gray-50">
-          <div className="text-[12px] font-bold uppercase tracking-wider text-gray-800">Plan</div>
-          <div className="text-[10px] text-gray-500 leading-tight mt-0.5">
+        <div className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-950">
+          <div className="text-[12px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">Plan</div>
+          <div className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5">
             Concrete next steps. Add tasks here and stow them in the Hold to schedule later.
           </div>
         </div>
@@ -634,12 +634,12 @@ function PlanSection({
 
       {/* Problem list mirror — passive, so you can see what you're planning against */}
       {openProblems.length > 0 && (
-        <div className="px-3 py-2 bg-amber-50 border-b border-amber-100 text-[11px] text-gray-700">
-          <span className="text-[9px] uppercase tracking-wider text-indigo-700 font-bold mr-2">Planning against</span>
+        <div className="px-3 py-2 bg-amber-50 dark:bg-amber-950/40 border-b border-amber-100 dark:border-amber-900 text-[11px] text-gray-700 dark:text-gray-300">
+          <span className="text-[9px] uppercase tracking-wider text-indigo-700 dark:text-indigo-300 font-bold mr-2">Planning against</span>
           {openProblems.map((p) => (
             <span
               key={p.id}
-              className="inline-block mr-1.5 mb-0.5 px-1.5 py-0.5 bg-white border border-gray-200 rounded-md font-mono"
+              className="inline-block mr-1.5 mb-0.5 px-1.5 py-0.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md font-mono"
             >
               {p.label || '(unnamed)'}
             </span>
@@ -650,7 +650,7 @@ function PlanSection({
       {/* Task list */}
       <div className="divide-y divide-gray-100">
         {tasks.length === 0 ? (
-          <div className="px-3 py-3 text-[12px] text-gray-400 italic">
+          <div className="px-3 py-3 text-[12px] text-gray-400 dark:text-gray-500 italic">
             No plan tasks yet. Click <span className="font-semibold not-italic">+ Task</span> to add one — you can stow it in the Hold to schedule later.
           </div>
         ) : (
@@ -668,8 +668,8 @@ function PlanSection({
                 value={t.text}
                 onChange={(e) => updateTask(t.id, { text: e.target.value })}
                 placeholder="What will you do?"
-                className={`flex-1 min-w-0 px-2 py-1 text-[13px] font-mono border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-500 ${
-                  t.done ? 'line-through text-gray-400' : 'text-gray-900'
+                className={`flex-1 min-w-0 px-2 py-1 text-[13px] font-mono border border-gray-200 dark:border-gray-800 rounded-md focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-500 ${
+                  t.done ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-900 dark:text-gray-100'
                 }`}
               />
               <button
@@ -678,14 +678,14 @@ function PlanSection({
                   if (label) onScheduleThis({ taskName: label });
                 }}
                 disabled={!t.text.trim()}
-                className="flex-shrink-0 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-700 bg-white border border-sky-700 hover:bg-sky-50 disabled:opacity-30 disabled:cursor-not-allowed rounded-md transition-colors"
+                className="flex-shrink-0 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-sky-700 dark:text-sky-300 bg-white dark:bg-gray-900 border border-sky-700 hover:bg-sky-50 dark:hover:bg-sky-900/40 dark:bg-sky-950/40 disabled:opacity-30 disabled:cursor-not-allowed rounded-md transition-colors"
                 title="Jump to the calendar with this task pre-filled"
               >
                 ↳ Schedule
               </button>
               {t.dumpTaskId ? (
                 <span
-                  className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-green-700 bg-green-50 border border-green-200 rounded-md"
+                  className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-md"
                   title="Already stowed in the Hold"
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
@@ -695,7 +695,7 @@ function PlanSection({
                 <button
                   onClick={() => pushToDump(t.id)}
                   disabled={!t.text.trim()}
-                  className="flex-shrink-0 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-indigo-700 bg-white border border-indigo-500 hover:bg-indigo-50 disabled:opacity-30 disabled:cursor-not-allowed rounded-md transition-colors"
+                  className="flex-shrink-0 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 bg-white dark:bg-gray-900 border border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/40 dark:bg-indigo-950/40 disabled:opacity-30 disabled:cursor-not-allowed rounded-md transition-colors"
                   title="Stow this task in the Hold so you can schedule it later"
                 >
                   ↗ Send to Hold
@@ -703,7 +703,7 @@ function PlanSection({
               )}
               <button
                 onClick={() => removeTask(t.id)}
-                className="flex-shrink-0 text-[14px] leading-none text-gray-300 hover:text-red-500 px-1.5 py-1"
+                className="flex-shrink-0 text-[14px] leading-none text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400 px-1.5 py-1"
                 title="Delete task"
               >
                 ×
@@ -712,18 +712,18 @@ function PlanSection({
           ))
         )}
       </div>
-      <div className="px-3 py-2 border-t border-gray-200 bg-gray-50">
+      <div className="px-3 py-2 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950">
         <button
           onClick={addTask}
-          className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700 hover:text-indigo-800 transition-colors"
+          className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 hover:text-indigo-800 dark:hover:text-indigo-200 dark:text-indigo-200 transition-colors"
         >
           + Task
         </button>
       </div>
 
       {/* Free-text plan — narrative context */}
-      <div className="border-t border-gray-200">
-        <div className="px-3 py-1.5 bg-gray-50 text-[10px] uppercase tracking-wider text-gray-500 font-semibold border-b border-gray-200">
+      <div className="border-t border-gray-200 dark:border-gray-800">
+        <div className="px-3 py-1.5 bg-gray-50 dark:bg-gray-950 text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold border-b border-gray-200 dark:border-gray-800">
           Narrative · goals, experiments, things to monitor
         </div>
         <PlanNarrativeTextarea value={note.plan} onChange={(v) => onUpdate(note.id, { plan: v })} />
@@ -738,18 +738,18 @@ function PlanNarrativeTextarea({ value, onChange }: { value: string; onChange: (
   return (
     <>
       {tagCounts.size > 0 && (
-        <div className="px-3 py-1.5 bg-emerald-50 border-b border-emerald-100 flex flex-wrap items-center gap-1.5">
-          <span className="text-[9px] uppercase tracking-wider font-bold text-emerald-700 mr-1">Logged</span>
+        <div className="px-3 py-1.5 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900 flex flex-wrap items-center gap-1.5">
+          <span className="text-[9px] uppercase tracking-wider font-bold text-emerald-700 dark:text-emerald-300 mr-1">Logged</span>
           {[...tagCounts.entries()]
             .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
             .map(([name, count]) => (
               <span
                 key={name}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-mono text-emerald-800 bg-white border border-emerald-200 rounded-md"
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[11px] font-mono text-emerald-800 dark:text-emerald-200 bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 rounded-md"
               >
                 +{name}
                 {count > 1 && (
-                  <span className="text-[9px] font-semibold text-emerald-600 bg-emerald-100 px-1 rounded-md">
+                  <span className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40 px-1 rounded-md">
                     ×{count}
                   </span>
                 )}
@@ -762,7 +762,7 @@ function PlanNarrativeTextarea({ value, onChange }: { value: string; onChange: (
         onChange={(e) => onChange(e.target.value)}
         rows={5}
         placeholder="Enter plan narrative… (tip: type +water, +coffee, etc. to log activities)"
-        className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 resize-y focus:outline-none focus:bg-indigo-50/30 placeholder:text-gray-300"
+        className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 dark:text-gray-100 resize-y focus:outline-none focus:bg-indigo-50/30 placeholder:text-gray-300 dark:text-gray-600"
       />
     </>
   );
@@ -781,16 +781,16 @@ function ActivityLogPanel({ log, notes }: { log: ActivityLogEntry[]; notes: Char
   }, [log]);
 
   return (
-    <div className="border-t border-gray-100 flex flex-col" style={{ maxHeight: '40%' }}>
+    <div className="border-t border-gray-100 dark:border-gray-800 flex flex-col" style={{ maxHeight: '40%' }}>
       <div className="px-3 py-2 bg-indigo-600 text-white text-[11px] font-semibold uppercase tracking-wider flex items-center justify-between flex-shrink-0">
         <span>Activity Log</span>
-        <span className="text-[10px] font-normal text-gray-300">{totals.length} tag{totals.length === 1 ? '' : 's'}</span>
+        <span className="text-[10px] font-normal text-gray-300 dark:text-gray-600">{totals.length} tag{totals.length === 1 ? '' : 's'}</span>
       </div>
       <div className="flex-1 overflow-y-auto">
         {totals.length === 0 ? (
-          <div className="p-3 text-[11px] text-gray-500 leading-snug">
-            Type <span className="font-mono text-emerald-700">+water</span>,{' '}
-            <span className="font-mono text-emerald-700">+coffee</span>, etc. inside any S/O/A/P box to log activities. They'll roll up here.
+          <div className="p-3 text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
+            Type <span className="font-mono text-emerald-700 dark:text-emerald-300">+water</span>,{' '}
+            <span className="font-mono text-emerald-700 dark:text-emerald-300">+coffee</span>, etc. inside any S/O/A/P box to log activities. They'll roll up here.
           </div>
         ) : (
           <ul className="divide-y divide-gray-100">
@@ -798,10 +798,10 @@ function ActivityLogPanel({ log, notes }: { log: ActivityLogEntry[]; notes: Char
               <li key={name}>
                 <button
                   onClick={() => setOpenTag(name)}
-                  className="w-full text-left px-3 py-1.5 flex items-center justify-between hover:bg-emerald-50 transition-colors"
+                  className="w-full text-left px-3 py-1.5 flex items-center justify-between hover:bg-emerald-50 dark:hover:bg-emerald-900/40 dark:bg-emerald-950/40 transition-colors"
                 >
-                  <span className="text-[12px] font-mono text-emerald-800">+{name}</span>
-                  <span className="text-[11px] font-semibold text-gray-600 bg-emerald-50 border border-emerald-200 rounded-md px-1.5">
+                  <span className="text-[12px] font-mono text-emerald-800 dark:text-emerald-200">+{name}</span>
+                  <span className="text-[11px] font-semibold text-gray-600 dark:text-gray-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-md px-1.5">
                     {total}
                   </span>
                 </button>
@@ -853,7 +853,7 @@ function ActivityHistoryModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="bg-white border border-gray-200 rounded-md shadow-xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-md shadow-xl w-full max-w-md max-h-[80vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-4 py-2 bg-indigo-600 text-white flex items-center justify-between">
@@ -865,36 +865,36 @@ function ActivityHistoryModal({
             &times;
           </button>
         </div>
-        <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-200 flex items-center justify-between text-[11px] font-mono text-emerald-900">
+        <div className="px-4 py-2 bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-200 dark:border-emerald-800 flex items-center justify-between text-[11px] font-mono text-emerald-900 dark:text-emerald-100">
           <div>
-            <span className="text-emerald-700 uppercase tracking-wider text-[9px] mr-1">Total</span>
+            <span className="text-emerald-700 dark:text-emerald-300 uppercase tracking-wider text-[9px] mr-1">Total</span>
             {total}
           </div>
           <div>
-            <span className="text-emerald-700 uppercase tracking-wider text-[9px] mr-1">Across</span>
+            <span className="text-emerald-700 dark:text-emerald-300 uppercase tracking-wider text-[9px] mr-1">Across</span>
             {dayCount} day{dayCount === 1 ? '' : 's'}
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
           {entries.length === 0 ? (
-            <div className="p-4 text-[12px] text-gray-500 italic">No entries.</div>
+            <div className="p-4 text-[12px] text-gray-500 dark:text-gray-400 italic">No entries.</div>
           ) : (
             <ul className="divide-y divide-gray-100">
               {entries.map((e) => {
                 const n = noteById.get(e.noteId);
                 return (
                   <li key={e.id} className="px-4 py-2 flex items-center justify-between text-[12px]">
-                    <div className="font-mono text-gray-800">
+                    <div className="font-mono text-gray-800 dark:text-gray-200">
                       {formatLongDate(e.noteDate)}
-                      <span className="ml-2 text-[10px] uppercase tracking-wider text-gray-500">
+                      <span className="ml-2 text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         {n ? ENCOUNTER_LABELS[n.encounterType] : 'Encounter removed'}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] uppercase tracking-wider text-indigo-700 font-bold">
+                      <span className="text-[10px] uppercase tracking-wider text-indigo-700 dark:text-indigo-300 font-bold">
                         {SECTION_LETTER[e.section]}
                       </span>
-                      <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-1.5">
+                      <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-md px-1.5">
                         ×{e.count}
                       </span>
                     </div>

@@ -61,19 +61,19 @@ export default function HorizonView({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#fbfaf7]">
+    <div className="flex-1 overflow-y-auto bg-[#fbfaf7] dark:bg-[#171614]">
       <div className="max-w-4xl mx-auto px-5 py-6 space-y-5">
         <header className="flex items-end justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold tracking-tight text-gray-900">Horizon</h1>
-            <p className="text-sm text-gray-500 mt-1 leading-snug">
+            <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Horizon</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-snug">
               The whole arc, at a glance. Each dot is a week of your life. Every one of them is the
               only one you'll have.
             </p>
           </div>
           <button
             onClick={() => setSettingsOpen(true)}
-            className="flex-shrink-0 text-[10px] uppercase tracking-wider text-gray-400 hover:text-gray-700"
+            className="flex-shrink-0 text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300"
             title="Settings"
           >
             ⚙
@@ -157,28 +157,28 @@ function HorizonOnboarding({
   const [date, setDate] = useState('');
   const [span, setSpan] = useState(lifespanYears);
   return (
-    <div className="flex-1 overflow-y-auto bg-[#fbfaf7]">
+    <div className="flex-1 overflow-y-auto bg-[#fbfaf7] dark:bg-[#171614]">
       <div className="max-w-lg mx-auto px-5 py-16">
-        <h1 className="text-2xl font-semibold tracking-tight text-gray-900 mb-2">Horizon</h1>
-        <p className="text-sm text-gray-600 leading-relaxed mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100 mb-2">Horizon</h1>
+        <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed mb-6">
           Zoom out on the whole arc — not to feel small, but to get perspective on when things are.
           The grid you'll see maps each week of your life as a single dot. Eras (school, career
           phase, family life) give the arc structure.
         </p>
-        <div className="bg-white border border-gray-200 rounded-2xl p-5 space-y-4">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 space-y-4">
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1 block">
+            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1 block">
               Your date of birth
             </label>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3 py-2 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 font-mono"
+              className="w-full px-3 py-2 text-base border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 font-mono"
             />
           </div>
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1 block">
+            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1 block">
               Assumed lifespan · {span} years
             </label>
             <input
@@ -187,9 +187,9 @@ function HorizonOnboarding({
               max={120}
               value={span}
               onChange={(e) => setSpan(Number(e.target.value) || 90)}
-              className="w-full px-3 py-2 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 font-mono"
+              className="w-full px-3 py-2 text-base border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 font-mono"
             />
-            <p className="text-[10px] text-gray-400 mt-1.5 leading-snug">
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 leading-snug">
               Pick a number that feels honest but generous. Not a countdown — a canvas. You can
               change it anytime.
             </p>
@@ -201,7 +201,7 @@ function HorizonOnboarding({
               onSetBirthDate(date);
             }}
             disabled={!date}
-            className="w-full px-4 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:cursor-not-allowed rounded-xl transition-colors"
+            className="w-full px-4 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 dark:bg-gray-800 disabled:cursor-not-allowed rounded-xl transition-colors"
           >
             See my horizon
           </button>
@@ -215,10 +215,10 @@ function HorizonOnboarding({
 
 function KPICard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3">
-      <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-gray-900 leading-none font-mono">{value}</div>
-      {sub && <div className="mt-1 text-[10px] text-gray-400">{sub}</div>}
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3">
+      <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">{label}</div>
+      <div className="mt-1 text-2xl font-semibold text-gray-900 dark:text-gray-100 leading-none font-mono">{value}</div>
+      {sub && <div className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">{sub}</div>}
     </div>
   );
 }
@@ -300,10 +300,10 @@ function LifeWeeksGrid({
   const rowYears = Array.from({ length: lifespanYears + 1 }, (_, i) => i);
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl p-4">
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4">
       <header className="flex items-center justify-between mb-3">
-        <h2 className="text-[13px] font-semibold text-gray-800">Life calendar</h2>
-        <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400">
+        <h2 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Life calendar</h2>
+        <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
           {lifespanYears} years · month by month
         </span>
       </header>
@@ -314,7 +314,7 @@ function LifeWeeksGrid({
           {MONTH_LABELS.map((m, i) => (
             <div
               key={i}
-              className="text-[9px] font-mono text-gray-400 text-center"
+              className="text-[9px] font-mono text-gray-400 dark:text-gray-500 text-center"
               style={{
                 width: CELLS_PER_MONTH * CELL_PX + (CELLS_PER_MONTH - 1) * CELL_GAP_PX,
                 marginRight: i < MONTHS_PER_YEAR - 1 ? MONTH_GAP_PX : 0,
@@ -339,7 +339,7 @@ function LifeWeeksGrid({
             return (
               <div key={yr} className="flex items-center gap-2" style={{ height: rowHeightPx }}>
                 <div
-                  className="w-9 text-right text-[9px] font-mono text-gray-500 flex-shrink-0 leading-none"
+                  className="w-9 text-right text-[9px] font-mono text-gray-500 dark:text-gray-400 flex-shrink-0 leading-none"
                   style={{ lineHeight: `${rowHeightPx}px` }}
                 >
                   {showLabel ? actualYear : ''}
@@ -384,9 +384,9 @@ function LifeWeeksGrid({
                             style.backgroundColor = c.hex;
                           }
                         } else if (isFuture) {
-                          className += 'bg-gray-100';
+                          className += 'bg-gray-100 dark:bg-gray-800';
                         } else {
-                          className += 'bg-gray-300';
+                          className += 'bg-gray-300 dark:bg-gray-700';
                         }
 
                         if (isNow) {
@@ -421,16 +421,16 @@ function LifeWeeksGrid({
 
       {/* Hover info */}
       {hoverInfo && (
-        <div className="mt-3 flex items-center gap-2 text-[11px] text-gray-600 leading-tight">
-          <span className="font-mono text-gray-800">
+        <div className="mt-3 flex items-center gap-2 text-[11px] text-gray-600 dark:text-gray-400 leading-tight">
+          <span className="font-mono text-gray-800 dark:text-gray-200">
             {hoverInfo.date.toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}
             {!hoverInfo.isPreBirth && ` · age ${hoverInfo.age}`}
           </span>
           {hoverInfo.isPreBirth && (
-            <span className="text-[10px] uppercase tracking-wider text-gray-400">Before birth</span>
+            <span className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500">Before birth</span>
           )}
           {hoverInfo.isFuture && !hoverInfo.isPreBirth && (
-            <span className="text-[10px] uppercase tracking-wider text-gray-400">Future</span>
+            <span className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500">Future</span>
           )}
           {hoverInfo.span && (
             <span
@@ -463,18 +463,18 @@ function ErasSection({
 }) {
   const sorted = [...eras].sort((a, b) => a.startDate.localeCompare(b.startDate));
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-      <header className="px-4 py-2 border-b border-gray-100 flex items-baseline justify-between">
-        <h2 className="text-[13px] font-semibold text-gray-800">Eras</h2>
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex items-baseline justify-between">
+        <h2 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Eras</h2>
         <button
           onClick={onAdd}
-          className="text-[11px] uppercase tracking-wider font-semibold text-indigo-600 hover:text-indigo-700"
+          className="text-[11px] uppercase tracking-wider font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300"
         >
           + Add era
         </button>
       </header>
       {sorted.length === 0 ? (
-        <div className="px-4 py-6 text-center text-[12px] text-gray-500 leading-relaxed">
+        <div className="px-4 py-6 text-center text-[12px] text-gray-500 dark:text-gray-400 leading-relaxed">
           Add named periods — School, Med school, Residency, Family life — to give the arc
           structure. Past eras color the grid; future estimated eras render lighter.
         </div>
@@ -498,8 +498,8 @@ function ErasSection({
                   onClick={() => onEdit(e.id)}
                   className="flex-1 min-w-0 text-left"
                 >
-                  <div className="text-sm font-medium text-gray-900 truncate">{e.name}</div>
-                  <div className="text-[10px] text-gray-500 font-mono">
+                  <div className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{e.name}</div>
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400 font-mono">
                     {startYear} – {endLabel}
                     {e.isEstimated && ' · estimated'}
                   </div>
@@ -508,7 +508,7 @@ function ErasSection({
                   onClick={() => {
                     if (confirm(`Delete "${e.name}"?`)) onDelete(e.id);
                   }}
-                  className="text-[14px] leading-none text-gray-300 hover:text-red-500 px-1.5"
+                  className="text-[14px] leading-none text-gray-300 dark:text-gray-600 hover:text-red-500 dark:text-red-400 px-1.5"
                 >
                   &times;
                 </button>
@@ -541,8 +541,8 @@ function ContemplationPrompt({
   };
 
   return (
-    <section className="bg-white border border-gray-200 rounded-2xl p-4">
-      <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-2">
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4">
+      <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-2">
         What does this perspective mean for today?
       </div>
       <textarea
@@ -550,10 +550,10 @@ function ContemplationPrompt({
         onChange={(e) => setText(e.target.value)}
         rows={3}
         placeholder='One thought. Anything. e.g. "Call Mom." "Stop delaying the residency application." "Enjoy this specific Tuesday."'
-        className="w-full px-3 py-2 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 leading-relaxed"
+        className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-400 leading-relaxed"
       />
       <div className="mt-2 flex items-center justify-between">
-        <p className="text-[10px] text-gray-400 leading-snug">
+        <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug">
           Saves to your state log with the tag <span className="font-mono">horizon</span>.
         </p>
         <button
@@ -562,7 +562,7 @@ function ContemplationPrompt({
           className={`px-3 py-1.5 text-sm font-semibold rounded-lg transition-colors ${
             flash
               ? 'bg-emerald-500 text-white'
-              : 'bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-200 disabled:cursor-not-allowed'
+              : 'bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-200 dark:bg-gray-800 disabled:cursor-not-allowed'
           }`}
         >
           {flash ? 'Logged' : 'Log thought'}
@@ -626,18 +626,18 @@ function EraEditor({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onCancel}>
       <div
-        className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">{existing ? 'Edit era' : 'New era'}</h3>
-          <button onClick={onCancel} className="text-xl leading-none text-gray-400 hover:text-gray-700">
+        <header className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{existing ? 'Edit era' : 'New era'}</h3>
+          <button onClick={onCancel} className="text-xl leading-none text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300">
             &times;
           </button>
         </header>
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1 block">
+            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1 block">
               Name
             </label>
             <input
@@ -646,11 +646,11 @@ function EraEditor({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder='e.g. "Med school"'
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
           </div>
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1 block">
+            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1 block">
               Color
             </label>
             <div className="flex flex-wrap gap-2">
@@ -672,18 +672,18 @@ function EraEditor({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1 block">
+              <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1 block">
                 Start
               </label>
               <input
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-800 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-indigo-400"
               />
             </div>
             <div>
-              <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1 block">
+              <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1 block">
                 End
               </label>
               {endMode !== 'ongoing' && (
@@ -691,18 +691,18 @@ function EraEditor({
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-2 py-1.5 text-sm border border-gray-200 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-200 dark:border-gray-800 rounded-lg font-mono focus:outline-none focus:ring-1 focus:ring-indigo-400"
                 />
               )}
               {endMode === 'ongoing' && (
-                <div className="px-2 py-1.5 text-sm text-gray-500 italic border border-gray-100 rounded-lg bg-gray-50">
+                <div className="px-2 py-1.5 text-sm text-gray-500 dark:text-gray-400 italic border border-gray-100 dark:border-gray-800 rounded-lg bg-gray-50 dark:bg-gray-950">
                   ongoing
                 </div>
               )}
             </div>
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
               End mode
             </div>
             <div className="flex flex-wrap gap-1.5">
@@ -718,8 +718,8 @@ function EraEditor({
                   onClick={() => setEndMode(opt.value)}
                   className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors ${
                     endMode === opt.value
-                      ? 'bg-indigo-50 border-indigo-400 text-indigo-700'
-                      : 'bg-white border-gray-200 text-gray-700 hover:border-indigo-200'
+                      ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-400 text-indigo-700 dark:text-indigo-300'
+                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-200 dark:border-indigo-800'
                   }`}
                 >
                   {opt.label}
@@ -727,14 +727,14 @@ function EraEditor({
               ))}
             </div>
             {endMode === 'estimated' && (
-              <p className="text-[10px] text-gray-400 mt-1.5 leading-snug">
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 leading-snug">
                 Future-estimated eras render lighter on the grid so projected periods look
                 distinct from known ones.
               </p>
             )}
           </div>
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1 block">
+            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1 block">
               Description (optional)
             </label>
             <textarea
@@ -742,18 +742,18 @@ function EraEditor({
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
               placeholder="Anything you want to remember about this era"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
           </div>
         </div>
-        <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-end gap-2">
-          <button onClick={onCancel} className="text-sm text-gray-500 hover:text-gray-800">
+        <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-2">
+          <button onClick={onCancel} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200">
             Cancel
           </button>
           <button
             onClick={submit}
             disabled={!name.trim() || !startDate}
-            className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 disabled:cursor-not-allowed rounded-xl transition-colors"
+            className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 dark:bg-gray-800 disabled:cursor-not-allowed rounded-xl transition-colors"
           >
             {existing ? 'Save' : 'Add era'}
           </button>
@@ -783,29 +783,29 @@ function SettingsModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div
-        className="bg-white border border-gray-200 rounded-2xl shadow-xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden"
+        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-xl w-full max-w-sm max-h-[85vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">Horizon settings</h3>
-          <button onClick={onClose} className="text-xl leading-none text-gray-400 hover:text-gray-700">
+        <header className="px-4 py-3 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Horizon settings</h3>
+          <button onClick={onClose} className="text-xl leading-none text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300">
             &times;
           </button>
         </header>
         <div className="px-4 py-4 space-y-4">
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1 block">
+            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1 block">
               Date of birth
             </label>
             <input
               type="date"
               value={dob}
               onChange={(e) => setDob(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
           </div>
           <div>
-            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1 block">
+            <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1 block">
               Assumed lifespan · {span} years
             </label>
             <input
@@ -814,15 +814,15 @@ function SettingsModal({
               max={120}
               value={span}
               onChange={(e) => setSpan(Number(e.target.value) || 90)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className="w-full px-3 py-2 text-sm border border-gray-200 dark:border-gray-800 rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
-            <p className="text-[10px] text-gray-400 mt-1.5 leading-snug">
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 leading-snug">
               A canvas number, not a countdown. Adjust if it feels wrong.
             </p>
           </div>
         </div>
-        <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-end gap-2">
-          <button onClick={onClose} className="text-sm text-gray-500 hover:text-gray-800">
+        <div className="px-4 py-3 border-t border-gray-100 dark:border-gray-800 flex items-center justify-end gap-2">
+          <button onClick={onClose} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200">
             Cancel
           </button>
           <button

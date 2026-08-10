@@ -6,10 +6,10 @@ interface StatsViewProps {
 
 function StatCard({ label, value, subtitle }: { label: string; value: string | number; subtitle?: string }) {
   return (
-    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-      <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
-      {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
+    <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 border border-gray-100 dark:border-gray-800 shadow-sm">
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</p>
+      <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mt-1">{value}</p>
+      {subtitle && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{subtitle}</p>}
     </div>
   );
 }
@@ -20,12 +20,12 @@ export default function StatsView({ stats }: StatsViewProps) {
 
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Stats</h2>
+      <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Your Stats</h2>
 
       {stats.totalTasks === 0 ? (
         <div className="text-center py-16">
           <p className="text-4xl mb-3">0</p>
-          <p className="text-sm text-gray-500">No tasks yet. Start planning to see your stats!</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">No tasks yet. Start planning to see your stats!</p>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

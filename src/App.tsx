@@ -57,12 +57,12 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
   };
 
   return (
-    <div className="h-full flex items-center justify-center bg-gray-50 font-sans px-4">
-      <div className="w-full max-w-sm bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
-        <h1 className="text-2xl font-semibold tracking-tight text-gray-900 text-center mb-1">
-          Set<span className="text-indigo-600">A</span>Time
+    <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-950 font-sans px-4">
+      <div className="w-full max-w-sm bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 p-6">
+        <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100 text-center mb-1">
+          Set<span className="text-indigo-600 dark:text-indigo-400">A</span>Time
         </h1>
-        <p className="text-sm text-gray-500 text-center mb-6">
+        <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-6">
           Enter your secret key to continue
         </p>
         <input
@@ -71,10 +71,10 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
           onChange={(e) => { setKey(e.target.value); setError(''); }}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
           placeholder="Secret key"
-          className="w-full px-4 py-3 text-base border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-3"
+          className="w-full px-4 py-3 text-base border border-gray-200 dark:border-gray-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent mb-3"
           autoFocus
         />
-        {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+        {error && <p className="text-xs text-red-500 dark:text-red-400 mb-2">{error}</p>}
         <button
           onClick={handleSubmit}
           disabled={key.trim().length < 4}
@@ -82,7 +82,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
         >
           Unlock
         </button>
-        <p className="text-[11px] text-gray-400 text-center mt-3">
+        <p className="text-[11px] text-gray-400 dark:text-gray-500 text-center mt-3">
           This key syncs your data and authorizes AI features
         </p>
       </div>
@@ -386,7 +386,7 @@ function AppMain({
   };
 
   return (
-    <div className="h-full flex flex-col bg-gray-50 font-sans">
+    <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-950 font-sans">
       <Header
         activeView={activeView}
         onViewChange={handleViewChange}
