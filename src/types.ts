@@ -565,6 +565,10 @@ export interface DailyPlanTask {
   addedAt: string;               // ISO
   completedAt?: string;          // ISO if done
   sourceDumpId?: string;         // present when added from the dump picker
+  // Optional prep for the task — set once when the plan is being made,
+  // then visible on the row from then on.
+  helpByTime?: string;           // "HH:MM" 24h local; the "get help by" commitment
+  resources?: string[];          // free-form lines; URLs auto-linkify
 }
 
 export interface DailyPlanState {

@@ -100,6 +100,7 @@ interface TodayViewProps {
   onAddToPlan: (size: DailyPlanSize, label: string, sourceDumpId?: string) => DailyPlanTask | null;
   onCompletePlanTask: (id: string) => void;
   onRemovePlanTask: (id: string) => void;
+  onUpdatePlanTask: (id: string, updates: Partial<Pick<DailyPlanTask, 'helpByTime' | 'resources'>>) => void;
   onStartPlanTask: (task: DailyPlanTask) => void;  // launches Underway with this task
   // Week board — loose weekly dump. Items get promoted into today's
   // 1/3/5 (with a size) or dropped intentionally.
@@ -183,6 +184,7 @@ export default function TodayView({
   onAddToPlan,
   onCompletePlanTask,
   onRemovePlanTask,
+  onUpdatePlanTask,
   onStartPlanTask,
   weekBoardItems,
   weekBoardDropsThisWeek,
@@ -308,6 +310,7 @@ export default function TodayView({
             onAddToPlan={onAddToPlan}
             onComplete={onCompletePlanTask}
             onRemove={onRemovePlanTask}
+            onUpdate={onUpdatePlanTask}
             onStart={onStartPlanTask}
           />
           <WeekBoardStrip
@@ -416,6 +419,7 @@ export default function TodayView({
           onAddToPlan={onAddToPlan}
           onComplete={onCompletePlanTask}
           onRemove={onRemovePlanTask}
+          onUpdate={onUpdatePlanTask}
           onStart={onStartPlanTask}
         />
 
@@ -2007,6 +2011,7 @@ function TodaysPlanStrip({
   onAddToPlan,
   onComplete,
   onRemove,
+  onUpdate,
   onStart,
 }: {
   plan: DailyPlanTask[];
@@ -2015,6 +2020,7 @@ function TodaysPlanStrip({
   onAddToPlan: (size: DailyPlanSize, label: string, sourceDumpId?: string) => DailyPlanTask | null;
   onComplete: (id: string) => void;
   onRemove: (id: string) => void;
+  onUpdate: (id: string, updates: Partial<Pick<DailyPlanTask, 'helpByTime' | 'resources'>>) => void;
   onStart: (task: DailyPlanTask) => void;
 }) {
   // Which slot is currently in "add" mode. Only one add form open at
@@ -2068,6 +2074,7 @@ function TodaysPlanStrip({
           onCloseAdd={() => setAdding(null)}
           onComplete={onComplete}
           onRemove={onRemove}
+          onUpdate={onUpdate}
           onStart={onStart}
           onAdd={(label, dumpId) => {
             const r = onAddToPlan('big', label, dumpId);
@@ -2086,6 +2093,7 @@ function TodaysPlanStrip({
           onCloseAdd={() => setAdding(null)}
           onComplete={onComplete}
           onRemove={onRemove}
+          onUpdate={onUpdate}
           onStart={onStart}
           onAdd={(label, dumpId) => {
             const r = onAddToPlan('medium', label, dumpId);
@@ -2104,6 +2112,7 @@ function TodaysPlanStrip({
           onCloseAdd={() => setAdding(null)}
           onComplete={onComplete}
           onRemove={onRemove}
+          onUpdate={onUpdate}
           onStart={onStart}
           onAdd={(label, dumpId) => {
             const r = onAddToPlan('small', label, dumpId);
@@ -2120,7 +2129,7 @@ function TodaysPlanStrip({
 function PlanSection({
   size, tasks, cap, count, isAdding,
   onOpenAdd, onCloseAdd, onAdd,
-  onComplete, onRemove, onStart,
+  onComplete, onRemove, onUpdate, onStart,
   dumpTasks, atCap,
 }: {
   size: DailyPlanSize;
@@ -2133,6 +2142,7 @@ function PlanSection({
   onAdd: (label: string, dumpId?: string) => void;
   onComplete: (id: string) => void;
   onRemove: (id: string) => void;
+  onUpdate: (id: string, updates: Partial<Pick<DailyPlanTask, 'helpByTime' | 'resources'>>) => void;
   onStart: (task: DailyPlanTask) => void;
   dumpTasks: BrainDumpTask[];
   atCap: boolean;
@@ -2156,6 +2166,7 @@ function PlanSection({
             task={t}
             onComplete={onComplete}
             onRemove={onRemove}
+            onUpdate={onUpdate}
             onStart={onStart}
           />
         ))}
@@ -2185,59 +2196,251 @@ function PlanSection({
   );
 }
 
+// Format "HH:MM" 24h → "3:00 PM" 12h for display. Cheaper than pulling
+// a full date library — the input is always a valid HH:MM string.
+function fmtHelpBy(hhmm: string): string {
+  const [hStr, mStr] = hhmm.split(':');
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (isNaN(h) || isNaN(m)) return hhmm;
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  const ampm = h < 12 ? 'AM' : 'PM';
+  return `${hour12}:${m.toString().padStart(2, '0')} ${ampm}`;
+}
+
+// True when the help-by time has already passed (based on local wall
+// clock). Used to shift the chip amber so you notice.
+function helpByPassed(hhmm: string): boolean {
+  const [hStr, mStr] = hhmm.split(':');
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  if (isNaN(h) || isNaN(m)) return false;
+  const now = new Date();
+  return now.getHours() > h || (now.getHours() === h && now.getMinutes() >= m);
+}
+
+// Auto-linkify simple http(s) URLs in a free-form resource line. Kept
+// intentionally narrow — no bare-domain autolink.
+function LinkifiedResource({ text }: { text: string }) {
+  const URL_RE = /(https?:\/\/[^\s]+)/g;
+  const parts = text.split(URL_RE);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (URL_RE.test(part)) {
+          return (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-indigo-700 underline underline-offset-2 hover:text-indigo-900 break-all"
+            >
+              {part}
+            </a>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 function PlanRow({
   task,
   onComplete,
   onRemove,
+  onUpdate,
   onStart,
 }: {
   task: DailyPlanTask;
   onComplete: (id: string) => void;
   onRemove: (id: string) => void;
+  onUpdate: (id: string, updates: Partial<Pick<DailyPlanTask, 'helpByTime' | 'resources'>>) => void;
   onStart: (task: DailyPlanTask) => void;
 }) {
   const done = !!task.completedAt;
+  const [expanded, setExpanded] = useState(false);
+  const [helpDraft, setHelpDraft] = useState(task.helpByTime || '');
+  const [resDraft, setResDraft] = useState((task.resources || []).join('\n'));
+
+  const hasHelp = !!task.helpByTime;
+  const hasRes  = !!(task.resources && task.resources.length > 0);
+  const helpLate = hasHelp && !done && helpByPassed(task.helpByTime!);
+
+  // Reset drafts when the task's persisted values change externally
+  // (e.g. cloud sync, or when this row's expand toggles).
+  useEffect(() => {
+    setHelpDraft(task.helpByTime || '');
+    setResDraft((task.resources || []).join('\n'));
+  }, [task.helpByTime, task.resources]);
+
+  const saveDetails = () => {
+    onUpdate(task.id, {
+      helpByTime: helpDraft || undefined,
+      resources: resDraft
+        .split('\n')
+        .map((r) => r.trim())
+        .filter((r) => r.length > 0),
+    });
+    setExpanded(false);
+  };
+  const clearHelp = () => {
+    setHelpDraft('');
+    onUpdate(task.id, { helpByTime: undefined });
+  };
+
   return (
-    <li className="group flex items-center gap-2 bg-white/80 rounded-lg px-2 py-1.5 border border-gray-100">
-      <button
-        onClick={() => onComplete(task.id)}
-        className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-          done
-            ? 'bg-emerald-500 border-emerald-500 text-white'
-            : 'border-gray-300 hover:border-emerald-400'
-        }`}
-        aria-label={done ? 'Uncomplete' : 'Complete'}
-      >
-        {done && (
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        )}
-      </button>
-      <span
-        className={`flex-1 min-w-0 truncate text-[13px] ${
-          done ? 'text-gray-400 line-through' : 'text-gray-900'
-        }`}
-        title={task.label}
-      >
-        {task.label}
-      </span>
-      {!done && (
+    <li className="bg-white/80 rounded-lg border border-gray-100">
+      <div className="group flex items-center gap-2 px-2 py-1.5">
         <button
-          onClick={() => onStart(task)}
-          className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Start a session for this"
+          onClick={() => onComplete(task.id)}
+          className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+            done
+              ? 'bg-emerald-500 border-emerald-500 text-white'
+              : 'border-gray-300 hover:border-emerald-400'
+          }`}
+          aria-label={done ? 'Uncomplete' : 'Complete'}
         >
-          → Do
+          {done && (
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+          )}
         </button>
+        <span
+          className={`flex-1 min-w-0 truncate text-[13px] ${
+            done ? 'text-gray-400 line-through' : 'text-gray-900'
+          }`}
+          title={task.label}
+        >
+          {task.label}
+        </span>
+
+        {/* Chips: help-by + resources count. Always visible when set. */}
+        {hasHelp && (
+          <span
+            className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border tabular-nums whitespace-nowrap ${
+              helpLate
+                ? 'bg-amber-100 border-amber-300 text-amber-900'
+                : 'bg-rose-50 border-rose-200 text-rose-700'
+            }`}
+            title={helpLate ? 'Help-by time passed' : 'Get help by this time if stuck'}
+          >
+            🆘 {fmtHelpBy(task.helpByTime!)}
+          </span>
+        )}
+        {hasRes && (
+          <span
+            className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border bg-indigo-50 border-indigo-200 text-indigo-800 tabular-nums whitespace-nowrap"
+            title={`${task.resources!.length} resource${task.resources!.length === 1 ? '' : 's'}`}
+          >
+            🔗 {task.resources!.length}
+          </span>
+        )}
+
+        {!done && (
+          <button
+            onClick={() => onStart(task)}
+            className="text-[10px] font-semibold text-indigo-600 hover:text-indigo-800 opacity-0 group-hover:opacity-100 transition-opacity"
+            title="Start a session for this"
+          >
+            → Do
+          </button>
+        )}
+        <button
+          onClick={() => setExpanded((v) => !v)}
+          className={`text-[10px] font-semibold transition-opacity ${
+            expanded || hasHelp || hasRes
+              ? 'text-gray-500 hover:text-gray-800'
+              : 'text-gray-400 hover:text-gray-800 opacity-0 group-hover:opacity-100'
+          }`}
+          title="Details: help-by + resources"
+          aria-expanded={expanded}
+        >
+          {expanded ? '▴' : '▾'}
+        </button>
+        <button
+          onClick={() => onRemove(task.id)}
+          className="text-gray-300 hover:text-red-500 text-sm leading-none opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Remove"
+        >
+          ×
+        </button>
+      </div>
+
+      {/* Details panel — collapsed by default; shows what's set (read-only)
+          plus the edit form. */}
+      {expanded && (
+        <div className="border-t border-gray-100 px-3 py-2 space-y-2">
+          {/* Read-only quick view of what's already set */}
+          {(hasRes) && (
+            <ul className="space-y-0.5 text-[12px] text-gray-700 pl-3">
+              {task.resources!.map((r, i) => (
+                <li key={i} className="leading-relaxed">
+                  · <LinkifiedResource text={r} />
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* Edit form */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] uppercase tracking-wider font-bold text-gray-500 flex-shrink-0">
+                🆘 Get help by
+              </label>
+              <input
+                type="time"
+                value={helpDraft}
+                onChange={(e) => setHelpDraft(e.target.value)}
+                className="px-2 py-1 text-[12px] border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400 tabular-nums"
+              />
+              {helpDraft && (
+                <button
+                  onClick={clearHelp}
+                  className="text-[10px] text-gray-500 hover:text-red-500"
+                  title="Clear"
+                >
+                  clear
+                </button>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-[10px] uppercase tracking-wider font-bold text-gray-500 mb-1">
+                🔗 Resources
+              </label>
+              <textarea
+                value={resDraft}
+                onChange={(e) => setResDraft(e.target.value)}
+                placeholder="One per line — links, docs, phone numbers, anything you'll need."
+                rows={3}
+                className="w-full px-2 py-1.5 text-[12px] border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none font-mono"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => {
+                  setHelpDraft(task.helpByTime || '');
+                  setResDraft((task.resources || []).join('\n'));
+                  setExpanded(false);
+                }}
+                className="text-[11px] text-gray-500 hover:text-gray-800"
+              >
+                cancel
+              </button>
+              <button
+                onClick={saveDetails}
+                className="px-2 py-1 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded"
+              >
+                save
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-      <button
-        onClick={() => onRemove(task.id)}
-        className="text-gray-300 hover:text-red-500 text-sm leading-none opacity-0 group-hover:opacity-100 transition-opacity"
-        title="Remove"
-      >
-        ×
-      </button>
     </li>
   );
 }

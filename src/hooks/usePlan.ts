@@ -128,6 +128,37 @@ export function usePlan() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days]);
 
+  // Update the prep fields (helpByTime / resources) on a plan task.
+  // Kept narrow so callers can't accidentally overwrite core fields
+  // like size or completion state.
+  const updatePlanTask = useCallback((
+    id: string,
+    updates: Partial<Pick<DailyPlanTask, 'helpByTime' | 'resources'>>,
+  ) => {
+    setDays((prev) => {
+      const out: Record<string, DailyPlanTask[]> = { ...prev };
+      for (const [k, list] of Object.entries(prev)) {
+        if (list.some((t) => t.id === id)) {
+          out[k] = list.map((t) => {
+            if (t.id !== id) return t;
+            const next: DailyPlanTask = { ...t };
+            if ('helpByTime' in updates) {
+              next.helpByTime = updates.helpByTime?.trim() || undefined;
+            }
+            if ('resources' in updates) {
+              const cleaned = (updates.resources || [])
+                .map((r) => r.trim())
+                .filter((r) => r.length > 0);
+              next.resources = cleaned.length > 0 ? cleaned : undefined;
+            }
+            return next;
+          });
+        }
+      }
+      return out;
+    });
+  }, []);
+
   const completeTask = useCallback((id: string) => {
     setDays((prev) => {
       const out: Record<string, DailyPlanTask[]> = { ...prev };
@@ -180,5 +211,6 @@ export function usePlan() {
     completeTask,
     removeTask,
     markPlanTaskDone,
+    updatePlanTask,
   };
 }
