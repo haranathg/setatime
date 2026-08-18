@@ -90,6 +90,7 @@ interface TodayViewProps {
   onGoKnockOne: () => void;      // → Underway, auto-picks a small dump task
   onGoTriage: () => void;        // → Triage session (batch cards)
   onGoPredict: () => void;       // → Predictions
+  onGoReflect: () => void;       // → Chart notes (SOAP weekly reflection)
   onGoSort: () => void;          // → Compass
   onGoBreathe: () => void;       // → Grounding
   // Count of active (non-someday) dump tasks — surfaced as a badge on
@@ -185,6 +186,7 @@ export default function TodayView({
   onGoKnockOne,
   onGoTriage,
   onGoPredict,
+  onGoReflect,
   onGoSort,
   onGoBreathe,
   activeDumpCount,
@@ -313,6 +315,7 @@ export default function TodayView({
             onKnockOne={onGoKnockOne}
             onTriage={onGoTriage}
             onPredict={onGoPredict}
+            onReflect={onGoReflect}
             onSort={onGoSort}
             onBreathe={onGoBreathe}
             activeDumpCount={activeDumpCount}
@@ -426,6 +429,7 @@ export default function TodayView({
           onKnockOne={onGoKnockOne}
           onTriage={onGoTriage}
           onPredict={onGoPredict}
+          onReflect={onGoReflect}
           onSort={onGoSort}
           onBreathe={onGoBreathe}
           activeDumpCount={activeDumpCount}
@@ -1816,7 +1820,7 @@ function IndicatorSettingsModal({
 // the Stuck screen — pulled through so it's visible every time they
 // open the app, not just when they specifically go looking.
 
-type ActivateKey = 'stuck' | 'start' | 'knockOne' | 'triage' | 'predict' | 'sort' | 'breathe';
+type ActivateKey = 'stuck' | 'start' | 'knockOne' | 'triage' | 'predict' | 'reflect' | 'sort' | 'breathe';
 
 const ACTIVATE_OPTIONS: {
   key: ActivateKey;
@@ -1846,6 +1850,11 @@ const ACTIVATE_OPTIONS: {
     tone: 'bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-800 dark:bg-amber-900/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100',
   },
   {
+    key: 'reflect', emoji: '🩺', label: 'Weekly reflection',
+    sub: 'SOAP chart note · Subjective / Objective / Assessment / Plan',
+    tone: 'bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-800 dark:bg-rose-900/40 border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-100',
+  },
+  {
     key: 'predict', emoji: '🔮', label: 'Make a prediction',
     sub: 'small bet · prove yourself right · Lab',
     tone: 'bg-violet-50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-800 dark:bg-violet-900/40 border-violet-200 dark:border-violet-800 text-violet-900 dark:text-violet-100',
@@ -1869,6 +1878,7 @@ function ActivateNowStrip({
   onKnockOne,
   onTriage,
   onPredict,
+  onReflect,
   onSort,
   onBreathe,
   activeDumpCount,
@@ -1879,20 +1889,21 @@ function ActivateNowStrip({
   onKnockOne: () => void;
   onTriage: () => void;
   onPredict: () => void;
+  onReflect: () => void;
   onSort: () => void;
   onBreathe: () => void;
   activeDumpCount: number;
 }) {
   const handlers: Record<ActivateKey, () => void> = {
     stuck: onStuck, start: onStart, knockOne: onKnockOne, triage: onTriage,
-    predict: onPredict, sort: onSort, breathe: onBreathe,
+    predict: onPredict, reflect: onReflect, sort: onSort, breathe: onBreathe,
   };
 
   // Split the menu into primary (default-visible) and secondary
   // (behind "+ more strategies"). Keeps the daily surface calm without
   // hiding anything — one tap reveals the rest. Ordered by
   // frequency-of-use from the conversation with the user.
-  const PRIMARY_KEYS: ActivateKey[] = ['stuck', 'start', 'predict', 'triage'];
+  const PRIMARY_KEYS: ActivateKey[] = ['stuck', 'start', 'predict', 'triage', 'reflect'];
   const [showMoreStrategies, setShowMoreStrategies] = useState(false);
   const visibleOptions = showMoreStrategies
     ? ACTIVATE_OPTIONS

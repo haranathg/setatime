@@ -596,6 +596,7 @@ function AppMain({
           }}
           onGoTriage={() => setActiveView('triage')}
           onGoPredict={() => setActiveView('predictions')}
+          onGoReflect={() => setActiveView('chart')}
           onGoSort={() => setActiveView('compass')}
           onGoBreathe={() => setActiveView('grounding')}
           activeDumpCount={activeDumpTasks.length}
