@@ -75,7 +75,7 @@ export function useWeekBoard() {
     }
   }, [items, drops, loaded]);
 
-  const addItem = useCallback((label: string, day?: string): WeekBoardItem | null => {
+  const addItem = useCallback((label: string, day?: string, projectId?: string): WeekBoardItem | null => {
     const clean = label.trim();
     if (!clean) return null;
     const item: WeekBoardItem = {
@@ -83,9 +83,15 @@ export function useWeekBoard() {
       label: clean,
       addedAt: new Date().toISOString(),
       day,
+      projectId,
     };
     setItems((prev) => [...prev, item]);
     return item;
+  }, []);
+
+  // Assign / clear the project on a week-board item.
+  const setItemProject = useCallback((id: string, projectId: string | undefined) => {
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, projectId } : i)));
   }, []);
 
   // Reassign an item's day (or clear it → unsorted). Used by the
@@ -121,5 +127,6 @@ export function useWeekBoard() {
     removeItem,
     dropItem,
     setItemDay,
+    setItemProject,
   };
 }

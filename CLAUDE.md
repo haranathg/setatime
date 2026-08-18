@@ -79,5 +79,8 @@ Before every `git add` / `commit` / `push`:
 - `lambda/sync/index.mjs` — single-file Lambda, same constraint.
 - `DEPLOYMENT.md` — full runbook, including manual CLI fallback if GitHub
   Actions is unavailable.
+- `MEDSCHOOL.md` — how the app is meant to be used day to day: the
+  Stars → Projects → Week board → Today's plan → Underway ladder, and the
+  weekly/daily rhythm that moves work down it.
 - `.github/workflows/deploy.yml` — the deploy workflow. Treat changes to
   this file with extra care; they ship on merge like any other change.

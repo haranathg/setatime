@@ -108,6 +108,7 @@ export function usePlan() {
     size: DailyPlanSize,
     label: string,
     sourceDumpId?: string,
+    projectId?: string,
   ): DailyPlanTask | null => {
     const cleanLabel = label.trim();
     if (!cleanLabel) return null;
@@ -121,6 +122,7 @@ export function usePlan() {
       size,
       addedAt: new Date().toISOString(),
       sourceDumpId,
+      projectId,
     };
     setDays((prev) => ({ ...prev, [key]: [...(prev[key] || []), task] }));
     return task;
@@ -133,7 +135,7 @@ export function usePlan() {
   // like size or completion state.
   const updatePlanTask = useCallback((
     id: string,
-    updates: Partial<Pick<DailyPlanTask, 'helpByTime' | 'resources'>>,
+    updates: Partial<Pick<DailyPlanTask, 'helpByTime' | 'resources' | 'projectId'>>,
   ) => {
     setDays((prev) => {
       const out: Record<string, DailyPlanTask[]> = { ...prev };
@@ -150,6 +152,9 @@ export function usePlan() {
                 .map((r) => r.trim())
                 .filter((r) => r.length > 0);
               next.resources = cleaned.length > 0 ? cleaned : undefined;
+            }
+            if ('projectId' in updates) {
+              next.projectId = updates.projectId || undefined;
             }
             return next;
           });

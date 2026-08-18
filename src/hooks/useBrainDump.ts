@@ -87,14 +87,23 @@ export function useBrainDump() {
     }
   }, []);
 
-  const addManualTask = useCallback((label: string): string => {
+  const addManualTask = useCallback((label: string, projectId?: string): string => {
     const task: BrainDumpTask = {
       id: uuidv4(),
       label: label.trim(),
       extractedAt: new Date().toISOString(),
+      projectId,
     };
     setUnscheduledTasks((prev) => [...prev, task]);
     return task.id;
+  }, []);
+
+  // Assign / clear the project on a held task. Separate from updateTask
+  // so the project chip can't accidentally clobber other fields.
+  const setTaskProject = useCallback((taskId: string, projectId: string | undefined) => {
+    setUnscheduledTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, projectId } : t))
+    );
   }, []);
 
   const removeScheduledTask = useCallback((taskId: string) => {
@@ -141,6 +150,7 @@ export function useBrainDump() {
     cancelScheduling,
     updateTask,
     setTaskTriage,
+    setTaskProject,
     deleteTask,
   };
 }

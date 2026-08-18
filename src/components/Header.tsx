@@ -18,14 +18,16 @@ export type ActiveView =
   | 'compass'
   | 'triage'
   | 'notes'
-  | 'principles';
+  | 'principles'
+  | 'projects';
 
-export type Hub = 'today' | 'log' | 'charts' | 'sail';
+export type Hub = 'today' | 'projects' | 'log' | 'charts' | 'sail';
 
 // Which hub does an existing view belong to? Drives the outer tab highlight
 // and the sub-tab strip visibility.
 export function hubForView(view: ActiveView): Hub {
   if (view === 'today' || view === 'triage') return 'today'; // Triage is an activation move launched from Today
+  if (view === 'projects') return 'projects';
   if (view === 'inbox' || view === 'braindump') return 'log'; // Hold merged into Log
   if (view === 'chart' || view === 'notes' || view === 'principles' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats' || view === 'horizon') {
     return 'charts';
@@ -37,6 +39,7 @@ export function hubForView(view: ActiveView): Hub {
 // remember the last visited sub-view per hub; keeping it simple for v1.
 export function defaultViewForHub(hub: Hub): ActiveView {
   if (hub === 'today') return 'today';
+  if (hub === 'projects') return 'projects';
   if (hub === 'log') return 'inbox';
   if (hub === 'charts') return 'chart';
   return 'calendar';
@@ -52,9 +55,12 @@ interface HeaderProps {
   unscheduledCount?: number;
   inboxTriageCount?: number;
   blockCount?: number;
+  // Active projects with no next action and no deadline in reach. Shown
+  // as a badge so a stalled project is visible without opening the tab.
+  stalledProjectCount?: number;
 }
 
-export default function Header({ activeView, onViewChange, syncing, syncError, onRefreshFromCloud, onExportICal, inboxTriageCount = 0, blockCount = 0 }: HeaderProps) {
+export default function Header({ activeView, onViewChange, syncing, syncError, onRefreshFromCloud, onExportICal, inboxTriageCount = 0, blockCount = 0, stalledProjectCount = 0 }: HeaderProps) {
   const [showSync, setShowSync] = useState(false);
   const [key, setKey] = useState(getSecretKey());
   const [saved, setSaved] = useState(false);
@@ -190,6 +196,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
         {(
           [
             { hub: 'today' as const, label: 'Today', title: 'Deck: what\'s happening right now' },
+            { hub: 'projects' as const, label: 'Projects', title: 'The fleet: every outcome you are steering, and its next move' },
             { hub: 'log' as const, label: 'Log', title: 'Ship\'s log: capture thoughts and inbox triage' },
             { hub: 'charts' as const, label: 'Charts', title: 'Consult your charts: notes, predictions, stars, books, habits, stats' },
             { hub: 'sail' as const, label: 'Sail', title: 'Set course: calendar and hold' },
@@ -199,6 +206,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           // Log hub carries a badge that sums the triage-needed count. Held
           // tasks are the pool, not "behind" — they don't inflate the badge.
           const showLogBadge = hub === 'log' && inboxTriageCount > 0;
+          const showProjectsBadge = hub === 'projects' && stalledProjectCount > 0;
           return (
             <button
               key={hub}
@@ -214,6 +222,14 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
               {showLogBadge && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 text-[10px] font-bold bg-amber-500 text-white rounded-full flex items-center justify-center tabular-nums">
                   {inboxTriageCount}
+                </span>
+              )}
+              {showProjectsBadge && (
+                <span
+                  className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 text-[10px] font-bold bg-amber-500 text-white rounded-full flex items-center justify-center tabular-nums"
+                  title={`${stalledProjectCount} stalled ${stalledProjectCount === 1 ? 'project' : 'projects'}`}
+                >
+                  {stalledProjectCount}
                 </span>
               )}
             </button>

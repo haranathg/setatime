@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Header from './components/Header';
+import type { ActiveView } from './components/Header';
 import NowNextBar from './components/NowNextBar';
 import QuickCaptureBar from './components/QuickCaptureBar';
 import WeeklyCalendar from './components/WeeklyCalendar';
@@ -19,6 +20,7 @@ import LogView from './components/LogView';
 import NorthStarsView from './components/NorthStarsView';
 import PredictionLabView from './components/PredictionLabView';
 import TodayView from './components/TodayView';
+import ProjectsView from './components/ProjectsView';
 import { useAppState } from './hooks/useAppState';
 import { useBooks } from './hooks/useBooks';
 import { useActivities } from './hooks/useActivities';
@@ -39,6 +41,7 @@ import { usePlan } from './hooks/usePlan';
 import { useWeekBoard } from './hooks/useWeekBoard';
 import { useNotes } from './hooks/useNotes';
 import { usePrinciples } from './hooks/usePrinciples';
+import { useProjects, isStalled } from './hooks/useProjects';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -92,7 +95,7 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes' | 'principles'>('today');
+  const [activeView, setActiveView] = useState<ActiveView>('today');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -109,8 +112,8 @@ function AppMain({
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeView: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes' | 'principles';
-  setActiveView: (v: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes' | 'principles') => void;
+  activeView: ActiveView;
+  setActiveView: (v: ActiveView) => void;
   sidebarOpen: boolean;
   setSidebarOpen: (v: boolean) => void;
 }) {
@@ -140,6 +143,7 @@ function AppMain({
     startScheduling,
     cancelScheduling,
     setTaskTriage,
+    setTaskProject,
     deleteTask,
   } = useBrainDump();
 
@@ -226,6 +230,7 @@ function AppMain({
     removeItem: removeWeekBoardItem,
     dropItem: dropWeekBoardItem,
     setItemDay: setWeekBoardItemDay,
+    setItemProject: setWeekBoardItemProject,
   } = useWeekBoard();
 
   const {
@@ -241,6 +246,23 @@ function AppMain({
     updatePrinciple,
     deletePrinciple,
   } = usePrinciples();
+
+  const {
+    projects,
+    active: activeProjects,
+    addProject,
+    addProjects,
+    updateProject,
+    setStatus: setProjectStatus,
+    deleteProject,
+    addMilestone: addProjectMilestone,
+    toggleMilestone: toggleProjectMilestone,
+    deleteMilestone: deleteProjectMilestone,
+  } = useProjects();
+
+  // Stalled = active, no next action, no deadline within reach. Badged on
+  // the Projects hub so it's visible without opening the tab.
+  const stalledProjectCount = projects.filter((p) => isStalled(p)).length;
 
   const {
     state: horizonState,
@@ -371,7 +393,7 @@ function AppMain({
     inboxMigratedRef.current = true;
   }, [inboxLoaded, inboxThoughts, addManualTask, triageThought]);
 
-  const handleViewChange = (view: 'calendar' | 'habits' | 'books' | 'stats' | 'braindump' | 'chart' | 'inbox' | 'today' | 'predictions' | 'stars' | 'horizon' | 'grounding' | 'underway' | 'compass' | 'triage' | 'notes' | 'principles') => {
+  const handleViewChange = (view: ActiveView) => {
     setActiveView(view);
     if (view !== 'calendar' && schedulingTask) {
       cancelScheduling();
@@ -397,6 +419,7 @@ function AppMain({
         unscheduledCount={unscheduledTasks.length}
         inboxTriageCount={inboxTriageCount}
         blockCount={blocks.length}
+        stalledProjectCount={stalledProjectCount}
       />
 
       <NowNextBar blocks={blocks} onJumpToToday={() => setActiveView('today')} />
@@ -453,6 +476,8 @@ function AppMain({
           }}
           onDeleteHeldTask={deleteTask}
           onOpenBatchTriage={() => setActiveView('triage')}
+          projects={activeProjects}
+          onSetHeldTaskProject={setTaskProject}
         />
       ) : activeView === 'chart' ? (
         <ChartView
@@ -500,6 +525,8 @@ function AppMain({
           }}
           onDeleteHeldTask={deleteTask}
           onOpenBatchTriage={() => setActiveView('triage')}
+          projects={activeProjects}
+          onSetHeldTaskProject={setTaskProject}
         />
       ) : activeView === 'today' ? (
         <TodayView
@@ -600,6 +627,10 @@ function AppMain({
             if (added) removeWeekBoardItem(id);
           }}
           onSetWeekBoardItemDay={setWeekBoardItemDay}
+          projects={activeProjects}
+          onSetPlanTaskProject={(id, projectId) => updatePlanTask(id, { projectId })}
+          onSetWeekBoardItemProject={setWeekBoardItemProject}
+          onOpenProjects={() => setActiveView('projects')}
         />
       ) : activeView === 'predictions' ? (
         <PredictionLabView
@@ -685,6 +716,26 @@ function AppMain({
           onSetSomeday={(id) => setTaskTriage(id, 'someday')}
           onDelete={deleteTask}
           onDone={() => setActiveView('today')}
+        />
+      ) : activeView === 'projects' ? (
+        <ProjectsView
+          projects={projects}
+          northStars={activeStars}
+          dumpTasks={unscheduledTasks}
+          planTasks={todaysPlan}
+          weekBoardItems={weekBoardItems}
+          onAddProject={addProject}
+          onAddProjects={addProjects}
+          onUpdateProject={updateProject}
+          onSetStatus={setProjectStatus}
+          onDeleteProject={deleteProject}
+          onAddMilestone={addProjectMilestone}
+          onToggleMilestone={toggleProjectMilestone}
+          onDeleteMilestone={deleteProjectMilestone}
+          onSendToHold={(label, projectId) => addManualTask(label, projectId)}
+          onScheduleThis={scheduleThis}
+          onAddToPlan={(size, label, projectId) => addToPlan(size, label, undefined, projectId)}
+          onAddToWeek={(label, projectId) => addWeekBoardItem(label, undefined, projectId)}
         />
       ) : activeView === 'notes' ? (
         <NotesView
