@@ -672,7 +672,7 @@ function BlockCard({
   return (
     <div className={`rounded-2xl overflow-hidden transition-all ${containerClass}`}>
       {/* Header row */}
-      <div className={`px-4 pt-4 pb-3 ${variant === 'now' ? 'bg-indigo-50/40' : ''}`}>
+      <div className={`px-4 pt-4 pb-3 ${variant === 'now' ? 'bg-indigo-50/40 dark:bg-indigo-950/30' : ''}`}>
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           {variant === 'now' && (
             <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold text-white bg-indigo-600 rounded-full flex items-center gap-1">
@@ -975,7 +975,7 @@ function PinsStrip({
           })}
         </ul>
       )}
-      <div className="px-3 py-2 border-t border-amber-100 dark:border-amber-900 bg-amber-50/40 flex items-center gap-2">
+      <div className="px-3 py-2 border-t border-amber-100 dark:border-amber-900 bg-amber-50/40 dark:bg-amber-950/30 flex items-center gap-2">
         <input
           type="text"
           value={draft}
@@ -1513,7 +1513,7 @@ function IndicatorTile({
       {todayCount > 0 && (
         <button
           onClick={onUndoLast}
-          className="absolute top-1 left-1 text-[10px] leading-none w-5 h-5 rounded-full bg-white/80 backdrop-blur ring-1 ring-gray-200 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400 transition-colors"
+          className="absolute top-1 left-1 text-[10px] leading-none w-5 h-5 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur ring-1 ring-gray-200 dark:ring-gray-700 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400 transition-colors"
           title="Undo last log"
         >
           ↩
@@ -1969,7 +1969,7 @@ function ActivateNowStrip({
                 </div>
                 {showDumpBadge && activeDumpCount > 0 && (
                   <span
-                    className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 bg-white/70 border border-gray-200 dark:border-gray-800 rounded-full px-1.5 py-0.5 tabular-nums"
+                    className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 bg-white/70 dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-full px-1.5 py-0.5 tabular-nums"
                     title={`${activeDumpCount} in your hold`}
                   >
                     {activeDumpCount}
@@ -2023,19 +2023,19 @@ const PLAN_SIZE_META: Record<DailyPlanSize, {
   big: {
     label: 'Big',
     glyph: '★',
-    tone: 'bg-amber-50/40 border-amber-100 dark:border-amber-900',
+    tone: 'bg-amber-50/40 dark:bg-amber-950/30 border-amber-100 dark:border-amber-900',
     headerTone: 'text-amber-800 dark:text-amber-200',
   },
   medium: {
     label: 'Medium',
     glyph: '●',
-    tone: 'bg-indigo-50/40 border-indigo-100 dark:border-indigo-900',
+    tone: 'bg-indigo-50/40 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-900',
     headerTone: 'text-indigo-800 dark:text-indigo-200',
   },
   small: {
     label: 'Small',
     glyph: '●',
-    tone: 'bg-teal-50/40 border-teal-100 dark:border-teal-900',
+    tone: 'bg-teal-50/40 dark:bg-teal-950/30 border-teal-100 dark:border-teal-900',
     headerTone: 'text-teal-800 dark:text-teal-200',
   },
 };
@@ -2345,7 +2345,7 @@ function PlanRow({
   };
 
   return (
-    <li className="bg-white/80 rounded-lg border border-gray-100 dark:border-gray-800">
+    <li className="bg-white/80 dark:bg-gray-800/60 rounded-lg border border-gray-100 dark:border-gray-800">
       <div className="group flex items-center gap-2 px-2 py-1.5">
         <button
           onClick={() => onComplete(task.id)}
@@ -2533,7 +2533,7 @@ function PlanAddForm({
   };
 
   return (
-    <div className="mt-2 space-y-1.5 bg-white/80 border border-gray-200 dark:border-gray-800 rounded-lg p-2">
+    <div className="mt-2 space-y-1.5 bg-white/80 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-800 rounded-lg p-2">
       <div className="flex gap-1.5">
         <input
           autoFocus
@@ -2576,7 +2576,7 @@ function PlanAddForm({
               <button
                 key={t.id}
                 onClick={() => onSubmit(t.label, t.id)}
-                className="px-2 py-0.5 text-[11px] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/40 max-w-[15rem] truncate"
+                className="px-2 py-0.5 text-[11px] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/40 max-w-[15rem] truncate"
                 title={t.label}
               >
                 {t.label}
@@ -2929,7 +2929,7 @@ function WeekBoardSection({
     : 'text-gray-700 dark:text-gray-300';
 
   return (
-    <div className={`rounded-xl border ${isToday ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/30' : 'border-gray-100 dark:border-gray-800 bg-gray-50/40'} px-2 py-1.5`}>
+    <div className={`rounded-xl border ${isToday ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/30' : 'border-gray-100 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-800/40'} px-2 py-1.5`}>
       <div className="flex items-baseline justify-between mb-1">
         <div className={`text-[11px] uppercase tracking-wider font-bold ${headerTone} flex items-baseline gap-1.5`}>
           <span>{label}</span>
@@ -3037,7 +3037,7 @@ function WeekBoardAddInput({
             <button
               key={t.id}
               onClick={() => onSubmit(t.label)}
-              className="px-2 py-0.5 text-[10px] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/40 max-w-[15rem] truncate"
+              className="px-2 py-0.5 text-[10px] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/40 max-w-[15rem] truncate"
               title={t.label}
             >
               {t.label}

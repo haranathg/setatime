@@ -105,7 +105,7 @@ export default function LogView({
           >
             🎴 Triage
             {heldSorted.length > 0 && (
-              <span className="text-[10px] font-bold bg-white/70 border border-amber-200 dark:border-amber-800 rounded-full px-1.5 py-0.5 tabular-nums">
+              <span className="text-[10px] font-bold bg-white/70 dark:bg-amber-900/60 border border-amber-200 dark:border-amber-800 rounded-full px-1.5 py-0.5 tabular-nums">
                 {heldSorted.length}
               </span>
             )}
