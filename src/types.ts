@@ -32,6 +32,7 @@ export interface TaskBlock {
   // time. Callers must NOT pass virtual blocks back through addBlock/updateBlock.
   virtualSpiral?: { spiralId: string; dateKey: string };
   durationMinutes?: number; // optional; used by virtual spirals + future block editing
+  projectId?: string; // optional Project this block belongs to
 }
 
 export type EisenhowerPriority = 'do-first' | 'schedule' | 'delegate' | 'drop';
@@ -46,6 +47,7 @@ export interface BrainDumpTask {
   // the default dump surfaces so the active list stays short. undefined
   // means active (default behavior; no data migration needed).
   triage?: 'someday';
+  projectId?: string; // optional Project this task belongs to
 }
 
 export interface BrainDumpState {
@@ -397,6 +399,7 @@ export interface AppState {
   weekBoard?: WeekBoardState;
   notes?: NotesState;
   principles?: PrinciplesState;
+  projects?: ProjectsState;
 }
 
 // ---------- Horizon (life-scale perspective) ----------
@@ -569,6 +572,7 @@ export interface DailyPlanTask {
   // then visible on the row from then on.
   helpByTime?: string;           // "HH:MM" 24h local; the "get help by" commitment
   resources?: string[];          // free-form lines; URLs auto-linkify
+  projectId?: string;            // optional Project this task advances
 }
 
 export interface DailyPlanState {
@@ -604,6 +608,7 @@ export interface WeekBoardItem {
   // (waiting for a day). Past days fold into today automatically
   // in the UI so nothing silently disappears.
   day?: string;
+  projectId?: string; // optional Project this item belongs to
 }
 
 export interface WeekBoardState {
@@ -716,4 +721,80 @@ export interface RenderedBlock {
   left: string;
   width: string;
   isCrossDay?: boolean;
+}
+
+// ---------- Projects ----------
+//
+// The container layer the app was missing. Everything else is either a
+// single action (dump task, plan task, week-board item, calendar block)
+// or a values-level anchor (North Star). A Project is the rung between:
+// a named outcome that takes more than one action and more than one day.
+//
+// Med school is the motivating case — a course block, board prep, a
+// scholarly project, a student-org role, and a pile of compliance
+// modules are five completely different *shapes* of work that all
+// compete for the same evenings. Making them first-class means the
+// question "what am I dropping this week?" has an answer you can see
+// instead of one you feel.
+//
+// Every project links *down* to actions (via optional `projectId` on
+// dump tasks, plan tasks, week-board items, and calendar blocks) and
+// *up* to North Stars (via `northStarIds`). Both links are optional in
+// both directions — nothing about existing data changes, and an
+// untagged task behaves exactly as it did before.
+
+// The five shapes of work, each with a different failure mode:
+//   course     — fixed external calendar; failure = falling behind
+//   exam       — long-running, always-on; failure = never starting
+//   research   — long gaps between steps; failure = stalling silently
+//   clinical   — scattered obligations; failure = double-booking
+//   compliance — hard deadlines, small effort; failure = forgetting
+//   personal   — everything else
+export type ProjectKind =
+  | 'course'
+  | 'exam'
+  | 'research'
+  | 'clinical'
+  | 'compliance'
+  | 'personal';
+
+// 'active'  — in play this term; counts toward the active load
+// 'backburner' — real, but deliberately not now. Stays visible, doesn't
+//               nag. The honest alternative to a fake-active project.
+// 'done'    — finished; kept for the record
+// 'archived' — hidden from every surface
+export type ProjectStatus = 'active' | 'backburner' | 'done' | 'archived';
+
+// A dated checkpoint inside a project. Exam dates, IRB submission,
+// abstract deadline, module due date. Distinct from a task: a milestone
+// is a date you're accountable to, not an action you perform.
+export interface ProjectMilestone {
+  id: string;
+  label: string;
+  dueDate?: string;      // "YYYY-MM-DD"
+  done?: boolean;
+  completedAt?: string;  // ISO
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  kind: ProjectKind;
+  status: ProjectStatus;
+  color: string;              // STAR_COLORS palette id
+  // The single next physical action. This is the field that makes a
+  // project list usable rather than decorative — a project with no
+  // next action is stalled by definition, and the view says so.
+  nextAction?: string;
+  outcome?: string;           // one line: what "done" actually looks like
+  dueDate?: string;           // "YYYY-MM-DD" overall deadline, if any
+  milestones?: ProjectMilestone[];
+  northStarIds?: string[];    // which North Stars this serves
+  createdAt: string;          // ISO
+  updatedAt: string;          // ISO
+  archivedAt?: string;        // ISO
+}
+
+export interface ProjectsState {
+  projects: Project[];
 }

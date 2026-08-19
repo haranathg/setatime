@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import type { Thought, ThoughtStatus, BrainDumpTask } from '../types';
+import type { Thought, ThoughtStatus, BrainDumpTask, Project } from '../types';
+import { ProjectPicker } from './ProjectChip';
 
 // Log surface — Hold is the pile, Triage is the mode for clearing it.
 //
@@ -25,6 +26,10 @@ interface LogViewProps {
   onDeleteHeldTask: (id: string) => void;
   // Launches the batch Triage view (card-based clearing)
   onOpenBatchTriage: () => void;
+  // Active projects, so a held task can be filed under one without
+  // leaving the pile. Empty list hides the picker entirely.
+  projects: Project[];
+  onSetHeldTaskProject: (taskId: string, projectId: string | undefined) => void;
 }
 
 const FUTURE_PRESETS: { label: string; days: number }[] = [
@@ -57,6 +62,8 @@ export default function LogView({
   onDeleteThought,
   onSendThoughtToHold,
   heldTasks,
+  projects,
+  onSetHeldTaskProject,
   onScheduleHeldTask,
   onDeleteHeldTask,
   onOpenBatchTriage,
@@ -98,7 +105,7 @@ export default function LogView({
           >
             🎴 Triage
             {heldSorted.length > 0 && (
-              <span className="text-[10px] font-bold bg-white/70 border border-amber-200 dark:border-amber-800 rounded-full px-1.5 py-0.5 tabular-nums">
+              <span className="text-[10px] font-bold bg-white/70 dark:bg-amber-900/60 border border-amber-200 dark:border-amber-800 rounded-full px-1.5 py-0.5 tabular-nums">
                 {heldSorted.length}
               </span>
             )}
@@ -120,6 +127,8 @@ export default function LogView({
           tasks={heldSorted}
           onSchedule={onScheduleHeldTask}
           onDelete={onDeleteHeldTask}
+          projects={projects}
+          onSetProject={onSetHeldTaskProject}
         />
       </div>
     </div>
@@ -281,10 +290,14 @@ function HeldSection({
   tasks,
   onSchedule,
   onDelete,
+  projects,
+  onSetProject,
 }: {
   tasks: BrainDumpTask[];
   onSchedule: (task: BrainDumpTask) => void;
   onDelete: (id: string) => void;
+  projects: Project[];
+  onSetProject: (taskId: string, projectId: string | undefined) => void;
 }) {
   return (
     <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
@@ -302,7 +315,14 @@ function HeldSection({
       ) : (
         <ul className="divide-y divide-gray-50">
           {tasks.map((t) => (
-            <HeldRow key={t.id} task={t} onSchedule={onSchedule} onDelete={onDelete} />
+            <HeldRow
+              key={t.id}
+              task={t}
+              onSchedule={onSchedule}
+              onDelete={onDelete}
+              projects={projects}
+              onSetProject={onSetProject}
+            />
           ))}
         </ul>
       )}
@@ -314,10 +334,14 @@ function HeldRow({
   task,
   onSchedule,
   onDelete,
+  projects,
+  onSetProject,
 }: {
   task: BrainDumpTask;
   onSchedule: (task: BrainDumpTask) => void;
   onDelete: (id: string) => void;
+  projects: Project[];
+  onSetProject: (taskId: string, projectId: string | undefined) => void;
 }) {
   return (
     <li className="px-4 py-2.5 flex items-center gap-2">
@@ -330,6 +354,11 @@ function HeldRow({
           {task.priority.replace('-', ' ')}
         </span>
       )}
+      <ProjectPicker
+        projects={projects}
+        value={task.projectId}
+        onChange={(projectId) => onSetProject(task.id, projectId)}
+      />
       <button
         onClick={() => onSchedule(task)}
         className="flex-shrink-0 px-2.5 py-1 text-[11px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-md transition-colors"

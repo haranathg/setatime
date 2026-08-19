@@ -466,7 +466,7 @@ function ActPhase({
             </div>
             <ul className="space-y-2">
               {controlItems.map((it) => (
-                <li key={it.id} className="bg-white/80 rounded-xl p-3 space-y-2 border border-indigo-100 dark:border-indigo-900">
+                <li key={it.id} className="bg-white/80 dark:bg-gray-800/60 rounded-xl p-3 space-y-2 border border-indigo-100 dark:border-indigo-900">
                   <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{it.text}</div>
                   <input
                     type="text"
@@ -504,7 +504,7 @@ function ActPhase({
             </div>
             <ul className="space-y-2">
               {influenceItems.map((it) => (
-                <li key={it.id} className="bg-white/80 rounded-xl p-3 space-y-2 border border-sky-100 dark:border-sky-900">
+                <li key={it.id} className="bg-white/80 dark:bg-gray-800/60 rounded-xl p-3 space-y-2 border border-sky-100 dark:border-sky-900">
                   <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{it.text}</div>
                   <input
                     type="text"
@@ -534,7 +534,7 @@ function ActPhase({
             </div>
             <ul className="space-y-2">
               {concernItems.map((it) => (
-                <li key={it.id} className="bg-white/80 rounded-xl p-3 flex items-center gap-2 border border-slate-200 dark:border-slate-800">
+                <li key={it.id} className="bg-white/80 dark:bg-gray-800/60 rounded-xl p-3 flex items-center gap-2 border border-slate-200 dark:border-slate-800">
                   <span className={`flex-1 text-sm ${it.released ? 'text-slate-400 line-through' : 'text-gray-900 dark:text-gray-100'}`}>
                     {it.text}
                   </span>

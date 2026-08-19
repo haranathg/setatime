@@ -480,7 +480,7 @@ export default function BrainDumpFullPage({
                     {taskTags.length > 0 && (
                       <div className="flex flex-wrap gap-1 px-4 pb-2 -mt-1">
                         {taskTags.map((tag) => (
-                          <span key={tag} className="px-1.5 py-0 text-[10px] rounded-full bg-white/70 border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
+                          <span key={tag} className="px-1.5 py-0 text-[10px] rounded-full bg-white/70 dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400">
                             {tag}
                           </span>
                         ))}

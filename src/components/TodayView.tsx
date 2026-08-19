@@ -17,6 +17,7 @@ import type {
   DailyPlanTask,
   DailyPlanSize,
   WeekBoardItem,
+  Project,
 } from '../types';
 import { effectiveEnergy, DAILY_PLAN_CAPS } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
@@ -24,6 +25,8 @@ import { isCheckedToday } from '../hooks/usePins';
 import type { IndicatorView } from '../hooks/useDashboard';
 import { colorFor } from '../hooks/useNorthStars';
 import { IndicatorIcon } from './IndicatorIcons';
+import { ProjectChip, ProjectPicker } from './ProjectChip';
+import { formatDaysUntil, isStalled, nextDeadline } from '../hooks/useProjects';
 
 interface TodayViewProps {
   todaysBlocks: TaskBlock[];
@@ -87,6 +90,7 @@ interface TodayViewProps {
   onGoKnockOne: () => void;      // → Underway, auto-picks a small dump task
   onGoTriage: () => void;        // → Triage session (batch cards)
   onGoPredict: () => void;       // → Predictions
+  onGoReflect: () => void;       // → Chart notes (SOAP weekly reflection)
   onGoSort: () => void;          // → Compass
   onGoBreathe: () => void;       // → Grounding
   // Count of active (non-someday) dump tasks — surfaced as a badge on
@@ -110,6 +114,13 @@ interface TodayViewProps {
   onDropWeekBoardItem: (id: string) => void;
   onPromoteWeekBoardItem: (id: string, size: DailyPlanSize) => void;
   onSetWeekBoardItemDay: (id: string, day: string | undefined) => void;
+  // Projects — the container layer. Plan rows and week-board rows can be
+  // filed under one, and anything due soon or stalled surfaces as a strip
+  // above the plan so deadlines inform what gets committed today.
+  projects: Project[];
+  onSetPlanTaskProject: (id: string, projectId: string | undefined) => void;
+  onSetWeekBoardItemProject: (id: string, projectId: string | undefined) => void;
+  onOpenProjects: () => void;
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -175,6 +186,7 @@ export default function TodayView({
   onGoKnockOne,
   onGoTriage,
   onGoPredict,
+  onGoReflect,
   onGoSort,
   onGoBreathe,
   activeDumpCount,
@@ -192,6 +204,10 @@ export default function TodayView({
   onDropWeekBoardItem,
   onPromoteWeekBoardItem,
   onSetWeekBoardItemDay,
+  projects,
+  onSetPlanTaskProject,
+  onSetWeekBoardItemProject,
+  onOpenProjects,
 }: TodayViewProps) {
   // "Show more on today" — collapses the secondary widgets (State log,
   // Basics, Overdue predictions, Aged dump, Pins, North Stars) below a
@@ -299,10 +315,12 @@ export default function TodayView({
             onKnockOne={onGoKnockOne}
             onTriage={onGoTriage}
             onPredict={onGoPredict}
+            onReflect={onGoReflect}
             onSort={onGoSort}
             onBreathe={onGoBreathe}
             activeDumpCount={activeDumpCount}
           />
+          <ProjectsDueStrip projects={projects} onOpenProjects={onOpenProjects} />
           <TodaysPlanStrip
             plan={todaysPlan}
             counts={planCounts}
@@ -312,6 +330,8 @@ export default function TodayView({
             onRemove={onRemovePlanTask}
             onUpdate={onUpdatePlanTask}
             onStart={onStartPlanTask}
+            projects={projects}
+            onSetProject={onSetPlanTaskProject}
           />
           <WeekBoardStrip
             items={weekBoardItems}
@@ -322,6 +342,8 @@ export default function TodayView({
             onDrop={onDropWeekBoardItem}
             onPromote={onPromoteWeekBoardItem}
             onSetDay={onSetWeekBoardItemDay}
+            projects={projects}
+            onSetProject={onSetWeekBoardItemProject}
           />
           <button
             onClick={() => setShowMoreToday((v) => !v)}
@@ -407,10 +429,13 @@ export default function TodayView({
           onKnockOne={onGoKnockOne}
           onTriage={onGoTriage}
           onPredict={onGoPredict}
+          onReflect={onGoReflect}
           onSort={onGoSort}
           onBreathe={onGoBreathe}
           activeDumpCount={activeDumpCount}
         />
+
+        <ProjectsDueStrip projects={projects} onOpenProjects={onOpenProjects} />
 
         <TodaysPlanStrip
           plan={todaysPlan}
@@ -421,6 +446,8 @@ export default function TodayView({
           onRemove={onRemovePlanTask}
           onUpdate={onUpdatePlanTask}
           onStart={onStartPlanTask}
+          projects={projects}
+          onSetProject={onSetPlanTaskProject}
         />
 
         <WeekBoardStrip
@@ -432,6 +459,8 @@ export default function TodayView({
           onDrop={onDropWeekBoardItem}
           onPromote={onPromoteWeekBoardItem}
           onSetDay={onSetWeekBoardItemDay}
+          projects={projects}
+          onSetProject={onSetWeekBoardItemProject}
         />
 
         {/* Show more on today — the 6 secondary widgets. Hidden by
@@ -643,7 +672,7 @@ function BlockCard({
   return (
     <div className={`rounded-2xl overflow-hidden transition-all ${containerClass}`}>
       {/* Header row */}
-      <div className={`px-4 pt-4 pb-3 ${variant === 'now' ? 'bg-indigo-50/40' : ''}`}>
+      <div className={`px-4 pt-4 pb-3 ${variant === 'now' ? 'bg-indigo-50/40 dark:bg-indigo-950/30' : ''}`}>
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           {variant === 'now' && (
             <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold text-white bg-indigo-600 rounded-full flex items-center gap-1">
@@ -946,7 +975,7 @@ function PinsStrip({
           })}
         </ul>
       )}
-      <div className="px-3 py-2 border-t border-amber-100 dark:border-amber-900 bg-amber-50/40 flex items-center gap-2">
+      <div className="px-3 py-2 border-t border-amber-100 dark:border-amber-900 bg-amber-50/40 dark:bg-amber-950/30 flex items-center gap-2">
         <input
           type="text"
           value={draft}
@@ -1484,7 +1513,7 @@ function IndicatorTile({
       {todayCount > 0 && (
         <button
           onClick={onUndoLast}
-          className="absolute top-1 left-1 text-[10px] leading-none w-5 h-5 rounded-full bg-white/80 backdrop-blur ring-1 ring-gray-200 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400 transition-colors"
+          className="absolute top-1 left-1 text-[10px] leading-none w-5 h-5 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur ring-1 ring-gray-200 dark:ring-gray-700 text-gray-400 dark:text-gray-500 hover:text-red-500 dark:text-red-400 transition-colors"
           title="Undo last log"
         >
           ↩
@@ -1791,7 +1820,7 @@ function IndicatorSettingsModal({
 // the Stuck screen — pulled through so it's visible every time they
 // open the app, not just when they specifically go looking.
 
-type ActivateKey = 'stuck' | 'start' | 'knockOne' | 'triage' | 'predict' | 'sort' | 'breathe';
+type ActivateKey = 'stuck' | 'start' | 'knockOne' | 'triage' | 'predict' | 'reflect' | 'sort' | 'breathe';
 
 const ACTIVATE_OPTIONS: {
   key: ActivateKey;
@@ -1821,6 +1850,11 @@ const ACTIVATE_OPTIONS: {
     tone: 'bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-800 dark:bg-amber-900/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-100',
   },
   {
+    key: 'reflect', emoji: '🩺', label: 'Weekly reflection',
+    sub: 'SOAP chart note · Subjective / Objective / Assessment / Plan',
+    tone: 'bg-rose-50 dark:bg-rose-950/40 hover:bg-rose-100 dark:hover:bg-rose-800 dark:bg-rose-900/40 border-rose-200 dark:border-rose-800 text-rose-900 dark:text-rose-100',
+  },
+  {
     key: 'predict', emoji: '🔮', label: 'Make a prediction',
     sub: 'small bet · prove yourself right · Lab',
     tone: 'bg-violet-50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-800 dark:bg-violet-900/40 border-violet-200 dark:border-violet-800 text-violet-900 dark:text-violet-100',
@@ -1844,6 +1878,7 @@ function ActivateNowStrip({
   onKnockOne,
   onTriage,
   onPredict,
+  onReflect,
   onSort,
   onBreathe,
   activeDumpCount,
@@ -1854,20 +1889,21 @@ function ActivateNowStrip({
   onKnockOne: () => void;
   onTriage: () => void;
   onPredict: () => void;
+  onReflect: () => void;
   onSort: () => void;
   onBreathe: () => void;
   activeDumpCount: number;
 }) {
   const handlers: Record<ActivateKey, () => void> = {
     stuck: onStuck, start: onStart, knockOne: onKnockOne, triage: onTriage,
-    predict: onPredict, sort: onSort, breathe: onBreathe,
+    predict: onPredict, reflect: onReflect, sort: onSort, breathe: onBreathe,
   };
 
   // Split the menu into primary (default-visible) and secondary
   // (behind "+ more strategies"). Keeps the daily surface calm without
   // hiding anything — one tap reveals the rest. Ordered by
   // frequency-of-use from the conversation with the user.
-  const PRIMARY_KEYS: ActivateKey[] = ['stuck', 'start', 'predict', 'triage'];
+  const PRIMARY_KEYS: ActivateKey[] = ['stuck', 'start', 'predict', 'triage', 'reflect'];
   const [showMoreStrategies, setShowMoreStrategies] = useState(false);
   const visibleOptions = showMoreStrategies
     ? ACTIVATE_OPTIONS
@@ -1933,7 +1969,7 @@ function ActivateNowStrip({
                 </div>
                 {showDumpBadge && activeDumpCount > 0 && (
                   <span
-                    className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 bg-white/70 border border-gray-200 dark:border-gray-800 rounded-full px-1.5 py-0.5 tabular-nums"
+                    className="text-[10px] font-semibold text-gray-700 dark:text-gray-300 bg-white/70 dark:bg-gray-900/70 border border-gray-200 dark:border-gray-800 rounded-full px-1.5 py-0.5 tabular-nums"
                     title={`${activeDumpCount} in your hold`}
                   >
                     {activeDumpCount}
@@ -1987,19 +2023,19 @@ const PLAN_SIZE_META: Record<DailyPlanSize, {
   big: {
     label: 'Big',
     glyph: '★',
-    tone: 'bg-amber-50/40 border-amber-100 dark:border-amber-900',
+    tone: 'bg-amber-50/40 dark:bg-amber-950/30 border-amber-100 dark:border-amber-900',
     headerTone: 'text-amber-800 dark:text-amber-200',
   },
   medium: {
     label: 'Medium',
     glyph: '●',
-    tone: 'bg-indigo-50/40 border-indigo-100 dark:border-indigo-900',
+    tone: 'bg-indigo-50/40 dark:bg-indigo-950/30 border-indigo-100 dark:border-indigo-900',
     headerTone: 'text-indigo-800 dark:text-indigo-200',
   },
   small: {
     label: 'Small',
     glyph: '●',
-    tone: 'bg-teal-50/40 border-teal-100 dark:border-teal-900',
+    tone: 'bg-teal-50/40 dark:bg-teal-950/30 border-teal-100 dark:border-teal-900',
     headerTone: 'text-teal-800 dark:text-teal-200',
   },
 };
@@ -2013,6 +2049,8 @@ function TodaysPlanStrip({
   onRemove,
   onUpdate,
   onStart,
+  projects,
+  onSetProject,
 }: {
   plan: DailyPlanTask[];
   counts: { total: Record<DailyPlanSize, number>; done: Record<DailyPlanSize, number> };
@@ -2022,6 +2060,8 @@ function TodaysPlanStrip({
   onRemove: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Pick<DailyPlanTask, 'helpByTime' | 'resources'>>) => void;
   onStart: (task: DailyPlanTask) => void;
+  projects: Project[];
+  onSetProject: (id: string, projectId: string | undefined) => void;
 }) {
   // Which slot is currently in "add" mode. Only one add form open at
   // a time so the card doesn't sprawl.
@@ -2082,6 +2122,8 @@ function TodaysPlanStrip({
           }}
           dumpTasks={dumpTasks}
           atCap={atCap('big')}
+          projects={projects}
+          onSetProject={onSetProject}
         />
         <PlanSection
           size="medium"
@@ -2101,6 +2143,8 @@ function TodaysPlanStrip({
           }}
           dumpTasks={dumpTasks}
           atCap={atCap('medium')}
+          projects={projects}
+          onSetProject={onSetProject}
         />
         <PlanSection
           size="small"
@@ -2120,6 +2164,8 @@ function TodaysPlanStrip({
           }}
           dumpTasks={dumpTasks}
           atCap={atCap('small')}
+          projects={projects}
+          onSetProject={onSetProject}
         />
       </div>
     </section>
@@ -2130,7 +2176,7 @@ function PlanSection({
   size, tasks, cap, count, isAdding,
   onOpenAdd, onCloseAdd, onAdd,
   onComplete, onRemove, onUpdate, onStart,
-  dumpTasks, atCap,
+  dumpTasks, atCap, projects, onSetProject,
 }: {
   size: DailyPlanSize;
   tasks: DailyPlanTask[];
@@ -2146,6 +2192,8 @@ function PlanSection({
   onStart: (task: DailyPlanTask) => void;
   dumpTasks: BrainDumpTask[];
   atCap: boolean;
+  projects: Project[];
+  onSetProject: (id: string, projectId: string | undefined) => void;
 }) {
   const meta = PLAN_SIZE_META[size];
   return (
@@ -2168,6 +2216,8 @@ function PlanSection({
             onRemove={onRemove}
             onUpdate={onUpdate}
             onStart={onStart}
+            projects={projects}
+            onSetProject={onSetProject}
           />
         ))}
       </ul>
@@ -2252,12 +2302,16 @@ function PlanRow({
   onRemove,
   onUpdate,
   onStart,
+  projects,
+  onSetProject,
 }: {
   task: DailyPlanTask;
   onComplete: (id: string) => void;
   onRemove: (id: string) => void;
   onUpdate: (id: string, updates: Partial<Pick<DailyPlanTask, 'helpByTime' | 'resources'>>) => void;
   onStart: (task: DailyPlanTask) => void;
+  projects: Project[];
+  onSetProject: (id: string, projectId: string | undefined) => void;
 }) {
   const done = !!task.completedAt;
   const [expanded, setExpanded] = useState(false);
@@ -2291,7 +2345,7 @@ function PlanRow({
   };
 
   return (
-    <li className="bg-white/80 rounded-lg border border-gray-100 dark:border-gray-800">
+    <li className="bg-white/80 dark:bg-gray-800/60 rounded-lg border border-gray-100 dark:border-gray-800">
       <div className="group flex items-center gap-2 px-2 py-1.5">
         <button
           onClick={() => onComplete(task.id)}
@@ -2309,7 +2363,7 @@ function PlanRow({
           )}
         </button>
         <span
-          className={`flex-1 min-w-0 truncate text-[13px] ${
+          className={`flex-1 min-w-[6rem] truncate text-[13px] ${
             done ? 'text-gray-400 dark:text-gray-500 line-through' : 'text-gray-900 dark:text-gray-100'
           }`}
           title={task.label}
@@ -2338,6 +2392,14 @@ function PlanRow({
             🔗 {task.resources!.length}
           </span>
         )}
+
+        <span className={task.projectId ? '' : 'opacity-0 group-hover:opacity-100 transition-opacity'}>
+          <ProjectPicker
+            projects={projects}
+            value={task.projectId}
+            onChange={(projectId) => onSetProject(task.id, projectId)}
+          />
+        </span>
 
         {!done && (
           <button
@@ -2471,7 +2533,7 @@ function PlanAddForm({
   };
 
   return (
-    <div className="mt-2 space-y-1.5 bg-white/80 border border-gray-200 dark:border-gray-800 rounded-lg p-2">
+    <div className="mt-2 space-y-1.5 bg-white/80 dark:bg-gray-800/60 border border-gray-200 dark:border-gray-800 rounded-lg p-2">
       <div className="flex gap-1.5">
         <input
           autoFocus
@@ -2514,7 +2576,7 @@ function PlanAddForm({
               <button
                 key={t.id}
                 onClick={() => onSubmit(t.label, t.id)}
-                className="px-2 py-0.5 text-[11px] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/40 max-w-[15rem] truncate"
+                className="px-2 py-0.5 text-[11px] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/40 max-w-[15rem] truncate"
                 title={t.label}
               >
                 {t.label}
@@ -2524,6 +2586,93 @@ function PlanAddForm({
         </div>
       )}
     </div>
+  );
+}
+
+// ---------- Projects due strip ----------
+//
+// Sits above Today's plan because deadlines should inform what you
+// commit to, not be discovered after you've already picked. Renders
+// only when something is actually pressing — a quiet strip that never
+// appears is better than a permanent one you learn to ignore.
+//
+// Two kinds of pressing: a deadline within a week, and a stalled
+// project (active, no next action, no deadline in reach). The second
+// is the one people miss, because nothing about a stalled project
+// generates a reminder on its own.
+
+function ProjectsDueStrip({
+  projects,
+  onOpenProjects,
+}: {
+  projects: Project[];
+  onOpenProjects: () => void;
+}) {
+  const rows = useMemo(() => {
+    const out: { project: Project; label: string; days: number | null }[] = [];
+    for (const p of projects) {
+      if (p.status !== 'active') continue;
+      const dl = nextDeadline(p);
+      if (dl && dl.days <= 7) {
+        out.push({ project: p, label: dl.label, days: dl.days });
+      } else if (isStalled(p)) {
+        out.push({ project: p, label: 'no next step', days: null });
+      }
+    }
+    // Soonest first; stalled projects (no date) sink to the bottom.
+    return out.sort((a, b) => {
+      if (a.days === null && b.days === null) return 0;
+      if (a.days === null) return 1;
+      if (b.days === null) return -1;
+      return a.days - b.days;
+    });
+  }, [projects]);
+
+  if (rows.length === 0) return null;
+
+  return (
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
+      <header className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex items-baseline justify-between">
+        <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Coming due</h3>
+        <button
+          onClick={onOpenProjects}
+          className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+        >
+          All projects →
+        </button>
+      </header>
+      <ul className="divide-y divide-gray-50 dark:divide-gray-800">
+        {rows.map(({ project, label, days }) => (
+          <li key={project.id} className="px-3 py-1.5 flex items-center gap-2">
+            <ProjectChip project={project} />
+            <span className="flex-1 min-w-0 truncate text-[12px] text-gray-600 dark:text-gray-400" title={label}>
+              {label}
+            </span>
+            {days === null ? (
+              <button
+                onClick={onOpenProjects}
+                className="flex-shrink-0 text-[10px] font-semibold text-amber-700 dark:text-amber-400 hover:underline"
+                title="Give it a next step, or move it to the backburner"
+              >
+                stalled
+              </button>
+            ) : (
+              <span
+                className={`flex-shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${
+                  days < 0
+                    ? 'bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300'
+                    : days <= 3
+                      ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300'
+                      : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                }`}
+              >
+                {formatDaysUntil(days)}
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -2558,6 +2707,8 @@ function WeekBoardStrip({
   onDrop,
   onPromote,
   onSetDay,
+  projects,
+  onSetProject,
 }: {
   items: WeekBoardItem[];
   dropsThisWeek: number;
@@ -2567,6 +2718,8 @@ function WeekBoardStrip({
   onDrop: (id: string) => void;
   onPromote: (id: string, size: DailyPlanSize) => void;
   onSetDay: (id: string, day: string | undefined) => void;
+  projects: Project[];
+  onSetProject: (id: string, projectId: string | undefined) => void;
 }) {
   // Which section is currently in add-mode. Only one open at a time so
   // the card doesn't sprawl. `null` = closed; `''` = adding to Unsorted;
@@ -2693,6 +2846,8 @@ function WeekBoardStrip({
           capBig={capBig}
           capMed={capMed}
           capSm={capSm}
+          projects={projects}
+          onSetProject={onSetProject}
         />
 
         {daySections.map((s) => (
@@ -2717,6 +2872,8 @@ function WeekBoardStrip({
             capBig={capBig}
             capMed={capMed}
             capSm={capSm}
+            projects={projects}
+            onSetProject={onSetProject}
           />
         ))}
       </div>
@@ -2741,6 +2898,8 @@ function WeekBoardSection({
   capBig,
   capMed,
   capSm,
+  projects,
+  onSetProject,
 }: {
   sectionKey: string;
   label: string;
@@ -2758,6 +2917,8 @@ function WeekBoardSection({
   capBig: boolean;
   capMed: boolean;
   capSm: boolean;
+  projects: Project[];
+  onSetProject: (id: string, projectId: string | undefined) => void;
 }) {
   const isUnsorted = sectionKey === '';
   const isToday = !isUnsorted && sectionKey === daySections[0]?.key;
@@ -2768,7 +2929,7 @@ function WeekBoardSection({
     : 'text-gray-700 dark:text-gray-300';
 
   return (
-    <div className={`rounded-xl border ${isToday ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/30' : 'border-gray-100 dark:border-gray-800 bg-gray-50/40'} px-2 py-1.5`}>
+    <div className={`rounded-xl border ${isToday ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/30' : 'border-gray-100 dark:border-gray-800 bg-gray-50/40 dark:bg-gray-800/40'} px-2 py-1.5`}>
       <div className="flex items-baseline justify-between mb-1">
         <div className={`text-[11px] uppercase tracking-wider font-bold ${headerTone} flex items-baseline gap-1.5`}>
           <span>{label}</span>
@@ -2792,6 +2953,8 @@ function WeekBoardSection({
             onPromote={onPromote}
             onDrop={onDrop}
             onSetDay={onSetDay}
+            projects={projects}
+            onSetProject={onSetProject}
           />
         ))}
       </ul>
@@ -2874,7 +3037,7 @@ function WeekBoardAddInput({
             <button
               key={t.id}
               onClick={() => onSubmit(t.label)}
-              className="px-2 py-0.5 text-[10px] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/40 max-w-[15rem] truncate"
+              className="px-2 py-0.5 text-[10px] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/40 max-w-[15rem] truncate"
               title={t.label}
             >
               {t.label}
@@ -2895,6 +3058,8 @@ function WeekBoardRow({
   onPromote,
   onDrop,
   onSetDay,
+  projects,
+  onSetProject,
 }: {
   item: WeekBoardItem;
   daySections: { key: string; label: string; sub?: string }[];
@@ -2904,11 +3069,21 @@ function WeekBoardRow({
   onPromote: (id: string, size: DailyPlanSize) => void;
   onDrop: (id: string) => void;
   onSetDay: (id: string, day: string | undefined) => void;
+  projects: Project[];
+  onSetProject: (id: string, projectId: string | undefined) => void;
 }) {
   return (
     <li className="group flex items-center gap-1 bg-white dark:bg-gray-900 hover:shadow-sm rounded-lg px-2 py-1.5 border border-gray-100 dark:border-gray-800">
-      <span className="flex-1 min-w-0 truncate text-[13px] text-gray-900 dark:text-gray-100" title={item.label}>
+      <span className="flex-1 min-w-[6rem] truncate text-[13px] text-gray-900 dark:text-gray-100" title={item.label}>
         {item.label}
+      </span>
+      <span className={item.projectId ? '' : 'opacity-0 group-hover:opacity-100 transition-opacity'}>
+        <ProjectPicker
+          projects={projects}
+          value={item.projectId}
+          onChange={(projectId) => onSetProject(item.id, projectId)}
+          variant="dot"
+        />
       </span>
       <select
         value={item.day || ''}
