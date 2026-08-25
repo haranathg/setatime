@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { UnderwaySession, UnderwayPinnedResource } from '../types';
+import type { UnderwaySession, UnderwayPinnedResource, StuckPreset } from '../types';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
 
@@ -25,6 +25,18 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const DEFAULT_MANTRA =
   'Action precedes motivation. When stuck, start ridiculously small — 2 minutes counts.';
 
+// The starting set of Stuck chips. Ids are fixed strings rather than
+// uuids so two devices seeding independently converge on the same six
+// rows instead of ending up with twelve.
+export const DEFAULT_STUCK_PRESETS: StuckPreset[] = [
+  { id: 'preset-just-start',  emoji: '⚡', label: 'Just start it',   task: 'just start what I was doing' },
+  { id: 'preset-walk',        emoji: '🚶', label: 'Walk 2 min',      task: 'take a 2-minute walk' },
+  { id: 'preset-water',       emoji: '💧', label: 'Water + stretch', task: 'drink water and stretch' },
+  { id: 'preset-text',        emoji: '📩', label: 'Text one person', task: 'text one person I care about' },
+  { id: 'preset-tiny-task',   emoji: '🧹', label: 'One tiny task',   task: "do one 2-minute task that's bugging me" },
+  { id: 'preset-read',        emoji: '📖', label: 'Read one page',   task: 'read one page of something I care about' },
+];
+
 // Auto-pick an emoji for a pinned resource based on URL/label hints.
 // Kept dumb — hosts that clearly imply a medium get a matching glyph,
 // everything else falls back to a generic link icon.
@@ -44,6 +56,7 @@ export function useUnderway() {
   const [sessions, setSessions] = useState<UnderwaySession[]>([]);
   const [mantra, setMantraState] = useState<string>(DEFAULT_MANTRA);
   const [pinnedResources, setPinnedResources] = useState<UnderwayPinnedResource[]>([]);
+  const [stuckPresets, setStuckPresets] = useState<StuckPreset[]>(DEFAULT_STUCK_PRESETS);
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -53,6 +66,7 @@ export function useUnderway() {
       setSessions(local.underway?.sessions || []);
       if (local.underway?.mantra) setMantraState(local.underway.mantra);
       if (local.underway?.pinnedResources) setPinnedResources(local.underway.pinnedResources);
+      if (local.underway?.stuckPresets) setStuckPresets(local.underway.stuckPresets);
       setLoaded(true);
 
       const key = getSecretKey();
@@ -80,6 +94,14 @@ export function useUnderway() {
             }
             setPinnedResources(Array.from(merged.values()));
           }
+          // Whole-list last-writer-wins rather than a union merge. A
+          // union would resurrect presets deleted on another device,
+          // which is precisely the edit people make most here. The list
+          // is small and rarely edited, so losing a concurrent tweak is
+          // the cheaper failure.
+          if (cloud.underway?.stuckPresets) {
+            setStuckPresets(cloud.underway.stuckPresets);
+          }
         } catch {
           // sync errors handled elsewhere
         }
@@ -91,7 +113,7 @@ export function useUnderway() {
   useEffect(() => {
     if (!loaded) return;
     const state = loadState();
-    const updated = { ...state, underway: { sessions, mantra, pinnedResources } };
+    const updated = { ...state, underway: { sessions, mantra, pinnedResources, stuckPresets } };
     saveState(updated);
 
     const key = getSecretKey();
@@ -105,7 +127,7 @@ export function useUnderway() {
         }
       }, 1500);
     }
-  }, [sessions, mantra, pinnedResources, loaded]);
+  }, [sessions, mantra, pinnedResources, stuckPresets, loaded]);
 
   // Setter for the user's BA mantra. Passing an empty string reverts to
   // the default so the surface never shows a blank card.
@@ -130,6 +152,46 @@ export function useUnderway() {
 
   const deletePinnedResource = useCallback((id: string) => {
     setPinnedResources((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
+  // ---- Stuck presets ----
+
+  const addStuckPreset = useCallback((input: { emoji?: string; label: string }): StuckPreset | null => {
+    const label = input.label.trim();
+    if (!label) return null;
+    const preset: StuckPreset = {
+      id: uuidv4(),
+      emoji: input.emoji?.trim() || '•',
+      label,
+    };
+    setStuckPresets((prev) => [...prev, preset]);
+    return preset;
+  }, []);
+
+  // Editing a preset rewrites `task` to match the new label, so a chip
+  // never silently starts a session named something else. The seeded
+  // defaults keep their original phrasing until they're edited.
+  const updateStuckPreset = useCallback((id: string, updates: { emoji?: string; label?: string }) => {
+    setStuckPresets((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        const label = updates.label?.trim() || p.label;
+        return {
+          ...p,
+          emoji: updates.emoji?.trim() || p.emoji,
+          label,
+          task: label,
+        };
+      })
+    );
+  }, []);
+
+  const deleteStuckPreset = useCallback((id: string) => {
+    setStuckPresets((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const resetStuckPresets = useCallback(() => {
+    setStuckPresets(DEFAULT_STUCK_PRESETS);
   }, []);
 
   const addSession = useCallback(
@@ -188,5 +250,10 @@ export function useUnderway() {
     setMantra,
     addPinnedResource,
     deletePinnedResource,
+    stuckPresets,
+    addStuckPreset,
+    updateStuckPreset,
+    deleteStuckPreset,
+    resetStuckPresets,
   };
 }
