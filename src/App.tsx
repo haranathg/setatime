@@ -205,6 +205,11 @@ function AppMain({
     setMantra: setUnderwayMantra,
     addPinnedResource: addUnderwayPinnedResource,
     deletePinnedResource: deleteUnderwayPinnedResource,
+    stuckPresets: underwayStuckPresets,
+    addStuckPreset: addUnderwayStuckPreset,
+    updateStuckPreset: updateUnderwayStuckPreset,
+    deleteStuckPreset: deleteUnderwayStuckPreset,
+    resetStuckPresets: resetUnderwayStuckPresets,
   } = useUnderway();
 
   const {
@@ -690,6 +695,11 @@ function AppMain({
           onSetMantra={setUnderwayMantra}
           onAddPinnedResource={addUnderwayPinnedResource}
           onDeletePinnedResource={deleteUnderwayPinnedResource}
+          stuckPresets={underwayStuckPresets}
+          onAddStuckPreset={addUnderwayStuckPreset}
+          onUpdateStuckPreset={updateUnderwayStuckPreset}
+          onDeleteStuckPreset={deleteUnderwayStuckPreset}
+          onResetStuckPresets={resetUnderwayStuckPresets}
         />
       ) : activeView === 'compass' ? (
         <CompassView

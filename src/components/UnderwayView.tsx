@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { BrainDumpTask, UnderwaySession, UnderwayOutcome, UnderwayJournalEntry, UnderwayPinnedResource } from '../types';
+import type { BrainDumpTask, UnderwaySession, UnderwayOutcome, UnderwayJournalEntry, UnderwayPinnedResource, StuckPreset } from '../types';
 
 // Underway — synthetic body-doubling.
 //
@@ -182,6 +182,11 @@ interface UnderwayViewProps {
   onSetMantra: (m: string) => void;
   onAddPinnedResource: (input: { label: string; url: string; emoji?: string }) => UnderwayPinnedResource | null;
   onDeletePinnedResource: (id: string) => void;
+  stuckPresets: StuckPreset[];
+  onAddStuckPreset: (input: { emoji?: string; label: string }) => StuckPreset | null;
+  onUpdateStuckPreset: (id: string, updates: { emoji?: string; label?: string }) => void;
+  onDeleteStuckPreset: (id: string) => void;
+  onResetStuckPresets: () => void;
 }
 
 export default function UnderwayView({
@@ -205,6 +210,11 @@ export default function UnderwayView({
   onSetMantra,
   onAddPinnedResource,
   onDeletePinnedResource,
+  stuckPresets,
+  onAddStuckPreset,
+  onUpdateStuckPreset,
+  onDeleteStuckPreset,
+  onResetStuckPresets,
 }: UnderwayViewProps) {
   const [phase, setPhase] = useState<Phase>('home');
 
@@ -560,6 +570,11 @@ export default function UnderwayView({
         pinnedResources={pinnedResources}
         onAddPinnedResource={onAddPinnedResource}
         onDeletePinnedResource={onDeletePinnedResource}
+        stuckPresets={stuckPresets}
+        onAddStuckPreset={onAddStuckPreset}
+        onUpdateStuckPreset={onUpdateStuckPreset}
+        onDeleteStuckPreset={onDeleteStuckPreset}
+        onResetStuckPresets={onResetStuckPresets}
         onBack={() => setPhase('home')}
         onGo={(label, sizeMin) => startQuickstart(label, sizeMin)}
       />
@@ -1082,21 +1097,17 @@ function QuickstartPhase({
 // Copy is deliberately warm and non-shaming. Overwhelm is not a moral
 // failure; noticing you're overwhelmed is the first BA action.
 
-const STUCK_PRESETS: { emoji: string; label: string; task: string }[] = [
-  { emoji: '⚡', label: 'Just start it',       task: 'just start what I was doing' },
-  { emoji: '🚶', label: 'Walk 2 min',          task: 'take a 2-minute walk' },
-  { emoji: '💧', label: 'Water + stretch',     task: 'drink water and stretch' },
-  { emoji: '📩', label: 'Text one person',     task: 'text one person I care about' },
-  { emoji: '🧹', label: 'One tiny task',       task: 'do one 2-minute task that\'s bugging me' },
-  { emoji: '📖', label: 'Read one page',       task: 'read one page of something I care about' },
-];
-
 function StuckPhase({
   mantra,
   onSetMantra,
   pinnedResources,
   onAddPinnedResource,
   onDeletePinnedResource,
+  stuckPresets,
+  onAddStuckPreset,
+  onUpdateStuckPreset,
+  onDeleteStuckPreset,
+  onResetStuckPresets,
   onBack,
   onGo,
 }: {
@@ -1105,6 +1116,11 @@ function StuckPhase({
   pinnedResources: UnderwayPinnedResource[];
   onAddPinnedResource: (input: { label: string; url: string; emoji?: string }) => UnderwayPinnedResource | null;
   onDeletePinnedResource: (id: string) => void;
+  stuckPresets: StuckPreset[];
+  onAddStuckPreset: (input: { emoji?: string; label: string }) => StuckPreset | null;
+  onUpdateStuckPreset: (id: string, updates: { emoji?: string; label?: string }) => void;
+  onDeleteStuckPreset: (id: string) => void;
+  onResetStuckPresets: () => void;
   onBack: () => void;
   onGo: (label: string, sizeMin: 2 | 15 | 60) => void;
 }) {
@@ -1130,6 +1146,13 @@ function StuckPhase({
     setPinUrl('');
     setAddingResource(false);
   };
+
+  // Preset editing — mirrors the pinned-resources pattern: an edit
+  // toggle reveals per-chip delete, and tapping a chip while editing
+  // opens it for rename instead of selecting it.
+  const [presetsEditMode, setPresetsEditMode] = useState(false);
+  const [editingPresetId, setEditingPresetId] = useState<string | null>(null);
+  const [addingPreset, setAddingPreset] = useState(false);
 
   const canGo = label.trim().length > 0;
   const go = () => {
@@ -1336,25 +1359,107 @@ function StuckPhase({
         </div>
 
         <div>
-          <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1.5">
-            Or pick one
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
+              Or pick one
+            </div>
+            <button
+              onClick={() => {
+                setPresetsEditMode((v) => !v);
+                setEditingPresetId(null);
+                setAddingPreset(false);
+              }}
+              className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+            >
+              {presetsEditMode ? 'done' : 'edit'}
+            </button>
           </div>
+
           <div className="grid grid-cols-2 gap-1.5">
-            {STUCK_PRESETS.map((p) => (
+            {stuckPresets.map((p) => {
+              const taskText = p.task || p.label;
+              if (presetsEditMode && editingPresetId === p.id) {
+                return (
+                  <StuckPresetForm
+                    key={p.id}
+                    initial={p}
+                    onCancel={() => setEditingPresetId(null)}
+                    onSave={(emoji, newLabel) => {
+                      onUpdateStuckPreset(p.id, { emoji, label: newLabel });
+                      setEditingPresetId(null);
+                    }}
+                  />
+                );
+              }
+              return (
+                <span key={p.id} className="relative inline-flex">
+                  <button
+                    onClick={() => {
+                      if (presetsEditMode) setEditingPresetId(p.id);
+                      else setLabel(taskText);
+                    }}
+                    className={`w-full flex items-center gap-1.5 px-3 py-2 text-[12px] rounded-xl border transition-colors ${
+                      !presetsEditMode && label === taskText
+                        ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-100 font-semibold'
+                        : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/30 dark:hover:bg-emerald-950/30'
+                    }`}
+                    title={presetsEditMode ? `Rename "${p.label}"` : taskText}
+                  >
+                    <span className="text-sm leading-none">{p.emoji}</span>
+                    <span className="text-left truncate">{p.label}</span>
+                    {presetsEditMode && (
+                      <span className="ml-auto text-[10px] text-gray-400 dark:text-gray-500">✏️</span>
+                    )}
+                  </button>
+                  {presetsEditMode && (
+                    <button
+                      onClick={() => onDeleteStuckPreset(p.id)}
+                      className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] leading-none flex items-center justify-center hover:bg-red-600"
+                      title="Remove"
+                      aria-label={`Remove ${p.label}`}
+                    >
+                      ×
+                    </button>
+                  )}
+                </span>
+              );
+            })}
+
+            {addingPreset && (
+              <StuckPresetForm
+                onCancel={() => setAddingPreset(false)}
+                onSave={(emoji, newLabel) => {
+                  onAddStuckPreset({ emoji, label: newLabel });
+                  setAddingPreset(false);
+                }}
+              />
+            )}
+
+            {!addingPreset && (
               <button
-                key={p.label}
-                onClick={() => setLabel(p.task)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-[12px] rounded-xl border transition-colors ${
-                  label === p.task
-                    ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-900 dark:text-emerald-100 font-semibold'
-                    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-emerald-300 dark:hover:border-emerald-700 dark:border-emerald-700 hover:bg-emerald-50/30'
-                }`}
+                onClick={() => { setAddingPreset(true); setEditingPresetId(null); }}
+                className="flex items-center justify-center gap-1 px-3 py-2 text-[12px] font-semibold rounded-xl border border-dashed border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-emerald-400 dark:hover:border-emerald-600 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors"
               >
-                <span className="text-sm leading-none">{p.emoji}</span>
-                <span className="text-left">{p.label}</span>
+                + add your own
               </button>
-            ))}
+            )}
           </div>
+
+          {presetsEditMode && (
+            <button
+              onClick={onResetStuckPresets}
+              className="mt-1.5 text-[10px] font-semibold text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+              title="Restore the six starting chips"
+            >
+              ↺ reset to defaults
+            </button>
+          )}
+
+          {stuckPresets.length === 0 && !addingPreset && (
+            <p className="mt-1.5 text-[11px] text-gray-400 dark:text-gray-500">
+              No chips left. Add your own above, or reset to the defaults.
+            </p>
+          )}
         </div>
 
         <div>
@@ -1390,6 +1495,71 @@ function StuckPhase({
           className="w-full py-5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 dark:bg-gray-700 disabled:cursor-not-allowed text-white text-2xl font-bold tracking-tight transition-colors"
         >
           Go
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Inline add/rename form for a Stuck chip. Occupies one grid cell so
+// the layout doesn't jump when it opens. Two fields only — an emoji and
+// the label — because anything longer is friction on a surface whose
+// whole job is to be frictionless.
+function StuckPresetForm({
+  initial,
+  onCancel,
+  onSave,
+}: {
+  initial?: StuckPreset;
+  onCancel: () => void;
+  onSave: (emoji: string, label: string) => void;
+}) {
+  const [emoji, setEmoji] = useState(initial?.emoji || '');
+  const [label, setLabel] = useState(initial?.label || '');
+  const canSave = label.trim().length > 0;
+  const save = () => {
+    if (!canSave) return;
+    onSave(emoji.trim(), label.trim());
+  };
+  return (
+    <div className="col-span-2 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-white dark:bg-gray-900 p-2 space-y-1.5">
+      <div className="flex gap-1.5">
+        <input
+          type="text"
+          value={emoji}
+          onChange={(e) => setEmoji(e.target.value)}
+          placeholder="🎧"
+          aria-label="Emoji"
+          maxLength={4}
+          className="w-12 flex-shrink-0 px-2 py-1.5 text-center text-[14px] border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+        />
+        <input
+          autoFocus
+          type="text"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); save(); }
+            else if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+          }}
+          placeholder="Turn on my lecture video"
+          aria-label="Chip label"
+          className="flex-1 min-w-0 px-2 py-1.5 text-[13px] border border-gray-200 dark:border-gray-800 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-400"
+        />
+      </div>
+      <div className="flex items-center justify-end gap-2">
+        <button
+          onClick={onCancel}
+          className="px-2 py-1 text-[11px] text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={save}
+          disabled={!canSave}
+          className="px-3 py-1 text-[11px] font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg disabled:opacity-40"
+        >
+          {initial ? 'Save' : 'Add'}
         </button>
       </div>
     </div>

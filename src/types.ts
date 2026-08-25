@@ -502,6 +502,21 @@ export interface UnderwayPinnedResource {
   emoji?: string;  // auto-detected from URL when created
 }
 
+// One chip in the "Or pick one" grid on the Stuck screen. Seeded with a
+// default set, then fully editable — the whole point of the surface is
+// that it offers *your* smallest steps, and a generic list can't know
+// that "turn on my lecture video" is the move that unsticks you.
+export interface StuckPreset {
+  id: string;
+  emoji: string;
+  label: string;   // chip text
+  // What actually becomes the session label. Optional: the seeded
+  // defaults phrase this as a sentence ("take a 2-minute walk") while
+  // their chip stays short ("Walk 2 min"). User-made presets just use
+  // the label, so the editor stays a two-field form.
+  task?: string;
+}
+
 export interface UnderwayState {
   sessions: UnderwaySession[];
   // A one-line behavioral-activation reminder the user writes for
@@ -511,6 +526,10 @@ export interface UnderwayState {
   // Curated resources shown on the Stuck surface. Small in count on
   // purpose — the point is quick access, not a bookmarks manager.
   pinnedResources?: UnderwayPinnedResource[];
+  // The Stuck screen's one-tap chips. Undefined means "never touched" —
+  // the hook seeds the defaults on first load so editing is plain CRUD
+  // from then on.
+  stuckPresets?: StuckPreset[];
 }
 
 // ---------- Compass (Circle of Control worksheet) ----------
