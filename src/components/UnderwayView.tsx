@@ -1735,6 +1735,28 @@ function UnderwayPhase({
   // chips remain visible so quick capture is still one tap.
   const [showStream, setShowStream] = useState(false);
 
+  // Hide the timer ring. A visible countdown is the point for time
+  // blindness, but it works against you in a split-screen setup where
+  // it sits in your peripheral vision all session. Hiding is purely
+  // visual — the session keeps running, check-ins still fire, and the
+  // time's-up prompt still appears — so nothing is lost by looking away.
+  // Persisted per device: this is a property of how you work, not of
+  // one session.
+  const [timerHidden, setTimerHidden] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('setatime.underway.hideTimer') === 'true';
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('setatime.underway.hideTimer', String(timerHidden));
+    } catch {
+      // storage unavailable — non-fatal
+    }
+  }, [timerHidden]);
+
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-md mx-auto px-4 py-5 space-y-4">
@@ -1748,19 +1770,43 @@ function UnderwayPhase({
               {taskLabel}
             </h2>
           </div>
-          <button
-            onClick={doCopy}
-            className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 dark:text-indigo-200 whitespace-nowrap"
-            title="Copy session log as markdown"
-          >
-            {copied ? '✓ copied' : '⧉ copy log'}
-          </button>
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <button
+              onClick={() => setTimerHidden((v) => !v)}
+              className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-indigo-700 dark:hover:text-indigo-300 whitespace-nowrap"
+              title={
+                timerHidden
+                  ? 'Show the timer — the session has been running either way'
+                  : 'Hide the timer — useful in split screen; the session keeps running'
+              }
+              aria-pressed={timerHidden}
+            >
+              {timerHidden ? '👁 show timer' : '🙈 hide timer'}
+            </button>
+            <button
+              onClick={doCopy}
+              className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 dark:text-indigo-200 whitespace-nowrap"
+              title="Copy session log as markdown"
+            >
+              {copied ? '✓ copied' : '⧉ copy log'}
+            </button>
+          </div>
         </div>
 
         {/* Timer ring — big and visceral. Time blindness needs BIG.
             In overtime the ring stays full and re-tints sky; the center
             number switches to +MM:SS overtime with an "over N min"
             subtitle so the state change is obvious. */}
+        {timerHidden ? (
+          <button
+            onClick={() => setTimerHidden(false)}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 text-[12px] font-semibold text-gray-500 dark:text-gray-400 hover:border-indigo-400 dark:hover:border-indigo-600 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors"
+            title="Show the timer"
+          >
+            <span aria-hidden="true">🙈</span>
+            <span>Timer hidden · session running · tap to show</span>
+          </button>
+        ) : (
         <div className="relative w-56 h-56 sm:w-64 sm:h-64 mx-auto">
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
             <circle
@@ -1785,6 +1831,7 @@ function UnderwayPhase({
             </div>
           </div>
         </div>
+        )}
 
         {/* End-of-time prompt — one-shot when the committed clock hits 0.
             Uses emerald not red so the tone stays affirming: hitting your
