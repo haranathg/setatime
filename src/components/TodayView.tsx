@@ -299,6 +299,9 @@ export default function TodayView({
   const upcoming = states.filter((s) => s.status === 'upcoming');
   const past = states.filter((s) => s.status === 'past');
   const nextUp = upcoming[0] || null;
+  // When there's no current block, nextUp is promoted into the prominent
+  // slot — so it must not also appear in the list below it.
+  const restUpcoming = current ? upcoming : upcoming.slice(1);
 
   const totalSubTasks = states.reduce((sum, s) => sum + s.todaySubTasks.length, 0);
   const doneSubTasks = states.reduce((sum, s) => sum + s.doneCount, 0);
@@ -437,6 +440,61 @@ export default function TodayView({
 
         <ProjectsDueStrip projects={projects} onOpenProjects={onOpenProjects} />
 
+        {/* The working checklist comes first. Directly below Activate now
+            sits the block you're actually in — its sub-tasks and their
+            steps — because that's the list you tick through during the
+            day. Coming due / Plan / Week are decisions already made this
+            morning, so they sit underneath it. */}
+        {/* All-day banner — reserved-day events surface here as compact chips */}
+        {allDayToday.length > 0 && (
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-2">
+              All-day today
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {allDayToday.map((b) => (
+                <span
+                  key={b.id}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold text-gray-900 dark:text-gray-100"
+                  style={{ backgroundColor: b.color }}
+                >
+                  {b.mainTask}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* The working checklist. A full BlockCard either way: when a block
+            is running it's the "now" card, and when none is it's the next
+            one up — still with real checkboxes, because a card that only
+            says "3 subtasks planned" is not something you can tick. */}
+        {current ? (
+          <BlockCard
+            state={current}
+            variant="now"
+            now={now}
+            onToggleSubTask={onToggleSubTask}
+            onToggleSubStep={onToggleSubStep}
+          />
+        ) : nextUp ? (
+          <BlockCard
+            state={nextUp}
+            variant="upcoming"
+            now={now}
+            onToggleSubTask={onToggleSubTask}
+            onToggleSubStep={onToggleSubStep}
+            relativeLabel={relativeStartLabel(nextUp, now)}
+            emphasize
+          />
+        ) : (
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 text-center">
+            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">You're done for the day ✓</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">No upcoming blocks left.</p>
+          </div>
+        )}
+
+
         <TodaysPlanStrip
           plan={todaysPlan}
           counts={planCounts}
@@ -528,48 +586,10 @@ export default function TodayView({
           </>
         )}
 
-        {/* All-day banner — reserved-day events surface here as compact chips */}
-        {allDayToday.length > 0 && (
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3">
-            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-2">
-              All-day today
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {allDayToday.map((b) => (
-                <span
-                  key={b.id}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold text-gray-900 dark:text-gray-100"
-                  style={{ backgroundColor: b.color }}
-                >
-                  {b.mainTask}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Now pin */}
-        {current ? (
-          <BlockCard
-            state={current}
-            variant="now"
-            now={now}
-            onToggleSubTask={onToggleSubTask}
-            onToggleSubStep={onToggleSubStep}
-          />
-        ) : nextUp ? (
-          <UpNextCard state={nextUp} now={now} />
-        ) : (
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 text-center">
-            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">You're done for the day ✓</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">No upcoming blocks left.</p>
-          </div>
-        )}
-
-        {/* Upcoming */}
-        {upcoming.length > 0 && (
+        {/* Upcoming — excluding whatever is already filling the slot above */}
+        {restUpcoming.length > 0 && (
           <Section title="Up next">
-            {upcoming.map((s) => (
+            {restUpcoming.map((s) => (
               <BlockCard
                 key={s.block.id}
                 state={s}
@@ -649,12 +669,20 @@ function BlockCard({
   now,
   onToggleSubTask,
   onToggleSubStep,
+  relativeLabel,
+  emphasize = false,
 }: {
   state: BlockState;
   variant: 'now' | 'upcoming' | 'past';
   now: number;
   onToggleSubTask: (blockId: string, subTaskId: string) => void;
   onToggleSubStep: (blockId: string, subTaskId: string, stepId: string) => void;
+  // "in 23 min" — shown beside the clock time when this card is filling
+  // the up-next slot, so promoting it doesn't lose the countdown.
+  relativeLabel?: string;
+  // Give the card the same visual weight as the "now" card when it's
+  // sitting in the prominent slot without a block actually running.
+  emphasize?: boolean;
 }) {
   const { block, todaySubTasks, doneCount } = state;
   const total = todaySubTasks.length;
@@ -662,7 +690,9 @@ function BlockCard({
 
   const containerClass =
     variant === 'now'
-      ? 'bg-white dark:bg-gray-900 border-2 border-indigo-500 ring-4 ring-indigo-100 shadow-lg'
+      ? 'bg-white dark:bg-gray-900 border-2 border-indigo-500 ring-4 ring-indigo-100 dark:ring-indigo-950/60 shadow-lg'
+      : emphasize
+      ? 'bg-white dark:bg-gray-900 border-2 border-dashed border-indigo-300 dark:border-indigo-700 shadow-sm'
       : variant === 'past'
       ? 'bg-gray-50 dark:bg-gray-950 border border-gray-200 dark:border-gray-800 opacity-70'
       : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 shadow-sm';
@@ -672,7 +702,7 @@ function BlockCard({
   return (
     <div className={`rounded-2xl overflow-hidden transition-all ${containerClass}`}>
       {/* Header row */}
-      <div className={`px-4 pt-4 pb-3 ${variant === 'now' ? 'bg-indigo-50/40 dark:bg-indigo-950/30' : ''}`}>
+      <div className={`px-4 pt-4 pb-3 ${variant === 'now' || emphasize ? 'bg-indigo-50/40 dark:bg-indigo-950/30' : ''}`}>
         <div className="flex items-center gap-2 mb-2 flex-wrap">
           {variant === 'now' && (
             <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold text-white bg-indigo-600 rounded-full flex items-center gap-1">
@@ -684,8 +714,14 @@ function BlockCard({
               Earlier
             </span>
           )}
-          <span className={`text-xs font-mono ${variant === 'now' ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}>
+          {emphasize && (
+            <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/40 rounded-full">
+              Up next
+            </span>
+          )}
+          <span className={`text-xs font-mono ${variant === 'now' || emphasize ? 'text-indigo-700 dark:text-indigo-300' : 'text-gray-500 dark:text-gray-400'}`}>
             {formatTime24to12(block.mainTime)}
+            {relativeLabel ? ` · ${relativeLabel}` : ''}
           </span>
           {total > 0 && (
             <span className="ml-auto text-xs text-gray-500 dark:text-gray-400 font-mono tabular-nums">
@@ -842,32 +878,13 @@ function StepRow({
 
 // ---------- Up next card (when nothing is currently active) ----------
 
-function UpNextCard({ state, now }: { state: BlockState; now: number }) {
+// "in 23 min" / "in 2h 10m" / "Starting now" for the block filling the
+// prominent slot when nothing is currently running.
+function relativeStartLabel(state: BlockState, now: number): string {
   const minsAway = state.startMin - now;
-  const label =
-    minsAway <= 0
-      ? 'Starting now'
-      : minsAway < 60
-      ? `in ${minsAway} min`
-      : `in ${Math.floor(minsAway / 60)}h ${minsAway % 60}m`;
-  return (
-    <div className="bg-white dark:bg-gray-900 border-2 border-dashed border-indigo-300 dark:border-indigo-700 rounded-2xl p-5">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/40 rounded-full">
-          Up next
-        </span>
-        <span className="text-xs font-mono text-indigo-700 dark:text-indigo-300">
-          {formatTime24to12(state.block.mainTime)} · {label}
-        </span>
-      </div>
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-tight">{state.block.mainTask}</h3>
-      {state.todaySubTasks.length > 0 && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-          {state.todaySubTasks.length} subtask{state.todaySubTasks.length === 1 ? '' : 's'} planned
-        </p>
-      )}
-    </div>
-  );
+  if (minsAway <= 0) return 'Starting now';
+  if (minsAway < 60) return `in ${minsAway} min`;
+  return `in ${Math.floor(minsAway / 60)}h ${minsAway % 60}m`;
 }
 
 // "Don't forget" pinned strip. Friction-free todos with daily reset — a sticky
