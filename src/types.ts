@@ -479,10 +479,29 @@ export interface UnderwayJournalEntry {
   emotion?: string;     // optional mood glyph
 }
 
+// One row in the pre-flight ritual. Editable for the same reason the
+// Stuck chips are: the steps that actually get someone moving are
+// personal ("laptop in one-tab mode" beats any generic advice).
+//
+// Note on evidence: the *ritual* is the weak half. A randomised trial of
+// pre-performance routines found no performance benefit (Wergin et al.,
+// PLoS ONE 2020, doi:10.1371/journal.pone.0228012). What carries the
+// effect is specificity — naming exactly what/where/when, and an if-then
+// for the likely derailer (Gollwitzer & Sheeran, Annu Rev Psychol 2025,
+// doi:10.1146/annurev-psych-021524-110536; Achtziger et al., Pers Soc
+// Psychol Bull 2008, doi:10.1177/0146167207311201). Hence SessionPlan's
+// fields sit above the checklist in the UI, and nothing here blocks Start.
+export interface PreflightItem {
+  id: string;
+  emoji: string;
+  label: string;
+  hint?: string;
+}
+
 export interface UnderwaySession {
   id: string;
   taskLabel: string;
-  sizeMin: number;                    // committed size (2 / 15 / 60)
+  sizeMin: number;                    // committed size in minutes; any value
   outcome: UnderwayOutcome;
   startedAt: string;                  // ISO
   durationSec: number;                // actual time spent underway
@@ -490,6 +509,11 @@ export interface UnderwaySession {
   nextMicrostep?: string;             // hand-off to future you
   source: 'dump' | 'freeform' | 'plan';
   entries?: UnderwayJournalEntry[];   // interstitial journal stream
+  // ---- Pre-flight plan, captured before the session starts ----
+  place?: string;        // where the work happened ("Library 3rd floor")
+  leaveBy?: string;      // "HH:MM" — the commute commitment
+  ifThen?: string;       // "If I open Instagram, then I put the phone in my bag"
+  preflightDone?: string[]; // labels of ritual steps actually ticked
 }
 
 // A resource the user has pinned to the Stuck surface — a pep-talk
@@ -530,6 +554,8 @@ export interface UnderwayState {
   // the hook seeds the defaults on first load so editing is plain CRUD
   // from then on.
   stuckPresets?: StuckPreset[];
+  // The pre-flight ritual checklist. Same seeding story as stuckPresets.
+  preflightItems?: PreflightItem[];
 }
 
 // ---------- Compass (Circle of Control worksheet) ----------

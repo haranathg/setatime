@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { UnderwaySession, UnderwayPinnedResource, StuckPreset } from '../types';
+import type { UnderwaySession, UnderwayPinnedResource, StuckPreset, PreflightItem } from '../types';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
 
@@ -37,6 +37,27 @@ export const DEFAULT_STUCK_PRESETS: StuckPreset[] = [
   { id: 'preset-read',        emoji: '📖', label: 'Read one page',   task: 'read one page of something I care about' },
 ];
 
+// The starting pre-flight ritual. Fixed ids for the same convergence
+// reason as the Stuck chips.
+//
+// Ordering is deliberate: the two steps with the best evidence behind
+// them (naming the one task, and the if-then for your usual derailer)
+// live in the plan fields above this list, so what's left here is the
+// environment work. Phone-away is included because it is cheap and the
+// user asked for it — not because it is settled: one study found no
+// cognitive cost from a phone on the desk (Hartmann et al., Conscious
+// Cogn 2020, doi:10.1016/j.concog.2020.103033) and another found
+// interference only in people high in emotion-related impulsivity
+// (Canale et al., Sci Rep 2019, doi:10.1038/s41598-019-54911-7).
+export const DEFAULT_PREFLIGHT_ITEMS: PreflightItem[] = [
+  { id: 'pf-phone',    emoji: '📵', label: 'Phone away',        hint: 'Another room beats face-down on the desk' },
+  { id: 'pf-tabs',     emoji: '💻', label: 'Laptop locked down', hint: 'Close every tab that is not this task' },
+  { id: 'pf-water',    emoji: '🥤', label: 'Water within reach', hint: 'So leaving the chair is not the excuse' },
+  { id: 'pf-breathe',  emoji: '🌬️', label: 'Two minutes of breathing', hint: 'Worth it on the wound-up days; skip it on the calm ones' },
+  { id: 'pf-fed',      emoji: '🍎', label: 'Fed',                hint: 'Not hungry, not stuffed' },
+  { id: 'pf-rested',   emoji: '😴', label: 'Rested',             hint: 'Good sleep or a nap counts' },
+];
+
 // Auto-pick an emoji for a pinned resource based on URL/label hints.
 // Kept dumb — hosts that clearly imply a medium get a matching glyph,
 // everything else falls back to a generic link icon.
@@ -57,6 +78,7 @@ export function useUnderway() {
   const [mantra, setMantraState] = useState<string>(DEFAULT_MANTRA);
   const [pinnedResources, setPinnedResources] = useState<UnderwayPinnedResource[]>([]);
   const [stuckPresets, setStuckPresets] = useState<StuckPreset[]>(DEFAULT_STUCK_PRESETS);
+  const [preflightItems, setPreflightItems] = useState<PreflightItem[]>(DEFAULT_PREFLIGHT_ITEMS);
   const [loaded, setLoaded] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -67,6 +89,7 @@ export function useUnderway() {
       if (local.underway?.mantra) setMantraState(local.underway.mantra);
       if (local.underway?.pinnedResources) setPinnedResources(local.underway.pinnedResources);
       if (local.underway?.stuckPresets) setStuckPresets(local.underway.stuckPresets);
+      if (local.underway?.preflightItems) setPreflightItems(local.underway.preflightItems);
       setLoaded(true);
 
       const key = getSecretKey();
@@ -102,6 +125,10 @@ export function useUnderway() {
           if (cloud.underway?.stuckPresets) {
             setStuckPresets(cloud.underway.stuckPresets);
           }
+          // Same whole-list policy as stuckPresets, for the same reason.
+          if (cloud.underway?.preflightItems) {
+            setPreflightItems(cloud.underway.preflightItems);
+          }
         } catch {
           // sync errors handled elsewhere
         }
@@ -113,7 +140,10 @@ export function useUnderway() {
   useEffect(() => {
     if (!loaded) return;
     const state = loadState();
-    const updated = { ...state, underway: { sessions, mantra, pinnedResources, stuckPresets } };
+    const updated = {
+      ...state,
+      underway: { sessions, mantra, pinnedResources, stuckPresets, preflightItems },
+    };
     saveState(updated);
 
     const key = getSecretKey();
@@ -127,7 +157,7 @@ export function useUnderway() {
         }
       }, 1500);
     }
-  }, [sessions, mantra, pinnedResources, stuckPresets, loaded]);
+  }, [sessions, mantra, pinnedResources, stuckPresets, preflightItems, loaded]);
 
   // Setter for the user's BA mantra. Passing an empty string reverts to
   // the default so the surface never shows a blank card.
@@ -194,6 +224,54 @@ export function useUnderway() {
     setStuckPresets(DEFAULT_STUCK_PRESETS);
   }, []);
 
+  // ---- Pre-flight items ----
+
+  const addPreflightItem = useCallback((input: { emoji?: string; label: string }): PreflightItem | null => {
+    const label = input.label.trim();
+    if (!label) return null;
+    const item: PreflightItem = { id: uuidv4(), emoji: input.emoji?.trim() || '•', label };
+    setPreflightItems((prev) => [...prev, item]);
+    return item;
+  }, []);
+
+  const updatePreflightItem = useCallback((id: string, updates: { emoji?: string; label?: string }) => {
+    setPreflightItems((prev) =>
+      prev.map((p) =>
+        p.id === id
+          ? { ...p, emoji: updates.emoji?.trim() || p.emoji, label: updates.label?.trim() || p.label }
+          : p
+      )
+    );
+  }, []);
+
+  const deletePreflightItem = useCallback((id: string) => {
+    setPreflightItems((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const resetPreflightItems = useCallback(() => {
+    setPreflightItems(DEFAULT_PREFLIGHT_ITEMS);
+  }, []);
+
+  // Places worked from recently, most-recent-first. Derived from session
+  // history rather than stored separately, so it can't drift out of sync
+  // — and it's the "what has actually worked before" signal the
+  // pre-flight screen offers as one-tap chips.
+  const recentPlaces = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const byRecency = [...sessions].sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+    for (const s of byRecency) {
+      const place = s.place?.trim();
+      if (!place) continue;
+      const key = place.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(place);
+      if (out.length >= 5) break;
+    }
+    return out;
+  }, [sessions]);
+
   const addSession = useCallback(
     (input: Omit<UnderwaySession, 'id'>): UnderwaySession => {
       const s: UnderwaySession = { id: uuidv4(), ...input };
@@ -255,5 +333,11 @@ export function useUnderway() {
     updateStuckPreset,
     deleteStuckPreset,
     resetStuckPresets,
+    preflightItems,
+    addPreflightItem,
+    updatePreflightItem,
+    deletePreflightItem,
+    resetPreflightItems,
+    recentPlaces,
   };
 }
