@@ -620,9 +620,24 @@ export interface DailyPlanTask {
   projectId?: string;            // optional Project this task advances
 }
 
+// A photo of the day's plan as you actually wrote it — handwritten on an
+// iPad, screenshotted, uploaded. Deliberately ephemeral: it is pruned once
+// its day has passed, so at most a couple ever exist at a time.
+//
+// That expiry is what makes it safe to keep in the synced state blob at
+// all. The whole AppState goes to the sync Lambda as one JSON document
+// with a 6MB ceiling, so images are downscaled to a strict budget on the
+// way in (see utils/imageDownscale.ts) and swept on the way out.
+export interface PlanPhoto {
+  dataUrl: string;   // JPEG data URL, already downscaled
+  addedAt: string;   // ISO
+}
+
 export interface DailyPlanState {
   // Key: local YYYY-MM-DD. Value: the tasks committed to that day.
   days: Record<string, DailyPlanTask[]>;
+  // Key: local YYYY-MM-DD. Value: that day's handwritten plan photo.
+  photos?: Record<string, PlanPhoto>;
 }
 
 // Fixed caps per size. Named so the UI can display them without

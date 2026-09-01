@@ -19,9 +19,19 @@ export function loadState(): AppState {
   }
 }
 
-export function saveState(state: AppState): void {
+// Returns false when the write was rejected (quota) rather than throwing.
+// Callers that add bulky data — plan photos are the only one today — check
+// the result so a too-large payload surfaces as a message instead of an
+// unhandled exception inside a save effect, which would otherwise take the
+// rest of the app's persistence down with it.
+export function saveState(state: AppState): boolean {
   const data: StoredData = { version: STORAGE_VERSION, state };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 const API_KEY_STORAGE = 'setatime_api_key';

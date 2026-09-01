@@ -232,6 +232,14 @@ function AppMain({
     removeTask: removePlanTask,
     markPlanTaskDone,
     updatePlanTask,
+    todaysPhoto: planTodaysPhoto,
+    tomorrowsPhoto: planTomorrowsPhoto,
+    todayKey: planTodayKey,
+    tomorrowKey: planTomorrowKey,
+    setPhoto: setPlanPhoto,
+    removePhoto: removePlanPhoto,
+    photoError: planPhotoError,
+    clearPhotoError: clearPlanPhotoError,
   } = usePlan();
 
   const {
@@ -641,6 +649,14 @@ function AppMain({
           onSetWeekBoardItemDay={setWeekBoardItemDay}
           projects={activeProjects}
           onSetPlanTaskProject={(id, projectId) => updatePlanTask(id, { projectId })}
+          todaysPhoto={planTodaysPhoto}
+          tomorrowsPhoto={planTomorrowsPhoto}
+          planTodayKey={planTodayKey}
+          planTomorrowKey={planTomorrowKey}
+          onSetPlanPhoto={setPlanPhoto}
+          onRemovePlanPhoto={removePlanPhoto}
+          planPhotoError={planPhotoError}
+          onClearPlanPhotoError={clearPlanPhotoError}
           onSetWeekBoardItemProject={setWeekBoardItemProject}
           onOpenProjects={() => setActiveView('projects')}
         />
