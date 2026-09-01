@@ -210,6 +210,12 @@ function AppMain({
     updateStuckPreset: updateUnderwayStuckPreset,
     deleteStuckPreset: deleteUnderwayStuckPreset,
     resetStuckPresets: resetUnderwayStuckPresets,
+    preflightItems: underwayPreflightItems,
+    addPreflightItem: addUnderwayPreflightItem,
+    updatePreflightItem: updateUnderwayPreflightItem,
+    deletePreflightItem: deleteUnderwayPreflightItem,
+    resetPreflightItems: resetUnderwayPreflightItems,
+    recentPlaces: underwayRecentPlaces,
   } = useUnderway();
 
   const {
@@ -700,6 +706,12 @@ function AppMain({
           onUpdateStuckPreset={updateUnderwayStuckPreset}
           onDeleteStuckPreset={deleteUnderwayStuckPreset}
           onResetStuckPresets={resetUnderwayStuckPresets}
+          preflightItems={underwayPreflightItems}
+          onAddPreflightItem={addUnderwayPreflightItem}
+          onUpdatePreflightItem={updateUnderwayPreflightItem}
+          onDeletePreflightItem={deleteUnderwayPreflightItem}
+          onResetPreflightItems={resetUnderwayPreflightItems}
+          recentPlaces={underwayRecentPlaces}
         />
       ) : activeView === 'compass' ? (
         <CompassView
