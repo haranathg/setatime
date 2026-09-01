@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   TaskBlock,
   SubTask,
@@ -18,6 +18,7 @@ import type {
   DailyPlanSize,
   WeekBoardItem,
   Project,
+  PlanPhoto,
 } from '../types';
 import { effectiveEnergy, DAILY_PLAN_CAPS } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
@@ -26,6 +27,7 @@ import type { IndicatorView } from '../hooks/useDashboard';
 import { colorFor } from '../hooks/useNorthStars';
 import { IndicatorIcon } from './IndicatorIcons';
 import { ProjectChip, ProjectPicker } from './ProjectChip';
+import { downscaleForStorage } from '../utils/imageDownscale';
 import { formatDaysUntil, isStalled, nextDeadline } from '../hooks/useProjects';
 
 interface TodayViewProps {
@@ -119,6 +121,15 @@ interface TodayViewProps {
   // above the plan so deadlines inform what gets committed today.
   projects: Project[];
   onSetPlanTaskProject: (id: string, projectId: string | undefined) => void;
+  // Handwritten plan photo — see PlanPhoto in types.ts. Ephemeral by design.
+  todaysPhoto?: PlanPhoto;
+  tomorrowsPhoto?: PlanPhoto;
+  planTodayKey: string;
+  planTomorrowKey: string;
+  onSetPlanPhoto: (when: string, dataUrl: string) => void;
+  onRemovePlanPhoto: (when: string) => void;
+  planPhotoError?: string | null;
+  onClearPlanPhotoError: () => void;
   onSetWeekBoardItemProject: (id: string, projectId: string | undefined) => void;
   onOpenProjects: () => void;
 }
@@ -206,6 +217,14 @@ export default function TodayView({
   onSetWeekBoardItemDay,
   projects,
   onSetPlanTaskProject,
+  todaysPhoto,
+  tomorrowsPhoto,
+  planTodayKey,
+  planTomorrowKey,
+  onSetPlanPhoto,
+  onRemovePlanPhoto,
+  planPhotoError,
+  onClearPlanPhotoError,
   onSetWeekBoardItemProject,
   onOpenProjects,
 }: TodayViewProps) {
@@ -335,6 +354,14 @@ export default function TodayView({
             onStart={onStartPlanTask}
             projects={projects}
             onSetProject={onSetPlanTaskProject}
+            todaysPhoto={todaysPhoto}
+            tomorrowsPhoto={tomorrowsPhoto}
+            todayKey={planTodayKey}
+            tomorrowKey={planTomorrowKey}
+            onSetPhoto={onSetPlanPhoto}
+            onRemovePhoto={onRemovePlanPhoto}
+            photoError={planPhotoError}
+            onClearPhotoError={onClearPlanPhotoError}
           />
           <WeekBoardStrip
             items={weekBoardItems}
@@ -506,6 +533,14 @@ export default function TodayView({
           onStart={onStartPlanTask}
           projects={projects}
           onSetProject={onSetPlanTaskProject}
+          todaysPhoto={todaysPhoto}
+          tomorrowsPhoto={tomorrowsPhoto}
+          todayKey={planTodayKey}
+          tomorrowKey={planTomorrowKey}
+          onSetPhoto={onSetPlanPhoto}
+          onRemovePhoto={onRemovePlanPhoto}
+          photoError={planPhotoError}
+          onClearPhotoError={onClearPlanPhotoError}
         />
 
         <WeekBoardStrip
@@ -2015,6 +2050,189 @@ function ActivateNowStrip({
   );
 }
 
+// ---------- Handwritten plan photo ----------
+//
+// You plan tomorrow's 1/3/5 by hand on the iPad, screenshot it, and attach
+// it here; it shows above the typed list and is swept once its day ends
+// (see prunePhotos in usePlan). Nothing reads the handwriting — this is a
+// picture of your own notes, not a data source.
+
+function PlanPhotoStrip({
+  todaysPhoto,
+  tomorrowsPhoto,
+  todayKey,
+  tomorrowKey,
+  onSetPhoto,
+  onRemovePhoto,
+  photoError,
+  onClearPhotoError,
+}: {
+  todaysPhoto?: PlanPhoto;
+  tomorrowsPhoto?: PlanPhoto;
+  todayKey: string;
+  tomorrowKey: string;
+  onSetPhoto: (when: string, dataUrl: string) => void;
+  onRemovePhoto: (when: string) => void;
+  photoError?: string | null;
+  onClearPhotoError: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  // Which day the next pick attaches to. Defaults to tomorrow: attaching is
+  // an evening move, and tonight's handwriting is tomorrow's plan.
+  const [target, setTarget] = useState<string>(tomorrowKey);
+  const [busy, setBusy] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<PlanPhoto | null>(null);
+
+  const error = localError || photoError || null;
+
+  const pick = (when: string) => {
+    setTarget(when);
+    setLocalError(null);
+    onClearPhotoError();
+    fileRef.current?.click();
+  };
+
+  const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // let the same file be re-picked after an error
+    if (!file) return;
+    setBusy(true);
+    setLocalError(null);
+    onClearPhotoError();
+    try {
+      const { dataUrl } = await downscaleForStorage(file);
+      onSetPhoto(target, dataUrl);
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'That image could not be used.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const hasAny = !!todaysPhoto || !!tomorrowsPhoto;
+
+  return (
+    <div className="px-3 pt-1">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        onChange={onFile}
+        className="hidden"
+        aria-hidden="true"
+        tabIndex={-1}
+      />
+
+      {todaysPhoto && (
+        <figure className="mb-2">
+          <button
+            onClick={() => setLightbox(todaysPhoto)}
+            className="block w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-800 bg-white"
+            title="Tap to view full size"
+          >
+            <img
+              src={todaysPhoto.dataUrl}
+              alt="Today's handwritten plan"
+              className="w-full max-h-56 object-contain"
+            />
+          </button>
+          <figcaption className="flex items-center justify-between mt-1">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
+              Today, in your handwriting
+            </span>
+            <button
+              onClick={() => onRemovePhoto(todayKey)}
+              className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 hover:text-rose-600 dark:hover:text-rose-400"
+            >
+              remove
+            </button>
+          </figcaption>
+        </figure>
+      )}
+
+      {tomorrowsPhoto && (
+        <div className="mb-2 flex items-center gap-2 rounded-xl border border-dashed border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/30 px-2 py-1.5">
+          <button
+            onClick={() => setLightbox(tomorrowsPhoto)}
+            className="flex-shrink-0 w-10 h-10 rounded-lg overflow-hidden border border-indigo-200 dark:border-indigo-800 bg-white"
+            title="Tap to view tomorrow's plan"
+          >
+            <img src={tomorrowsPhoto.dataUrl} alt="Tomorrow's handwritten plan" className="w-full h-full object-cover" />
+          </button>
+          <span className="flex-1 text-[11px] text-indigo-900 dark:text-indigo-200">
+            Tomorrow's plan is attached — it appears here in the morning.
+          </span>
+          <button
+            onClick={() => onRemovePhoto(tomorrowKey)}
+            className="text-[10px] font-semibold text-indigo-400 hover:text-rose-600 dark:hover:text-rose-400"
+          >
+            remove
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <p className="mb-2 text-[11px] text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-lg px-2 py-1.5">
+          {error}
+        </p>
+      )}
+
+      <div className="flex items-center gap-1.5">
+        {!tomorrowsPhoto && (
+          <button
+            onClick={() => pick(tomorrowKey)}
+            disabled={busy}
+            className="flex-1 py-1.5 text-[11px] font-semibold rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-indigo-400 dark:hover:border-indigo-600 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:opacity-50"
+          >
+            {busy ? 'shrinking…' : '📝 attach tomorrow\u2019s handwritten plan'}
+          </button>
+        )}
+        {!todaysPhoto && (
+          <button
+            onClick={() => pick(todayKey)}
+            disabled={busy}
+            className={`py-1.5 text-[11px] font-semibold rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-indigo-400 dark:hover:border-indigo-600 hover:text-indigo-700 dark:hover:text-indigo-300 disabled:opacity-50 ${
+              tomorrowsPhoto ? 'flex-1' : 'px-2'
+            }`}
+          >
+            {tomorrowsPhoto ? '📝 attach today\u2019s' : 'for today'}
+          </button>
+        )}
+      </div>
+
+      {hasAny && (
+        <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500 text-center">
+          Photos clear themselves once the day is over.
+        </p>
+      )}
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setLightbox(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Handwritten plan"
+        >
+          <img
+            src={lightbox.dataUrl}
+            alt="Handwritten plan"
+            className="max-w-full max-h-full object-contain rounded-lg"
+          />
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/90 text-gray-900 text-lg font-bold flex items-center justify-center"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------- Today's plan (1/3/5) strip ----------
 //
 // Daily state-based commitment surface. Cap: 1 big + 3 medium + 5 small
@@ -2068,6 +2286,14 @@ function TodaysPlanStrip({
   onStart,
   projects,
   onSetProject,
+  todaysPhoto,
+  tomorrowsPhoto,
+  todayKey,
+  tomorrowKey,
+  onSetPhoto,
+  onRemovePhoto,
+  photoError,
+  onClearPhotoError,
 }: {
   plan: DailyPlanTask[];
   counts: { total: Record<DailyPlanSize, number>; done: Record<DailyPlanSize, number> };
@@ -2079,6 +2305,14 @@ function TodaysPlanStrip({
   onStart: (task: DailyPlanTask) => void;
   projects: Project[];
   onSetProject: (id: string, projectId: string | undefined) => void;
+  todaysPhoto?: PlanPhoto;
+  tomorrowsPhoto?: PlanPhoto;
+  todayKey: string;
+  tomorrowKey: string;
+  onSetPhoto: (when: string, dataUrl: string) => void;
+  onRemovePhoto: (when: string) => void;
+  photoError?: string | null;
+  onClearPhotoError: () => void;
 }) {
   // Which slot is currently in "add" mode. Only one add form open at
   // a time so the card doesn't sprawl.
@@ -2119,6 +2353,17 @@ function TodaysPlanStrip({
           </p>
         </div>
       ) : null}
+
+      <PlanPhotoStrip
+        todaysPhoto={todaysPhoto}
+        tomorrowsPhoto={tomorrowsPhoto}
+        todayKey={todayKey}
+        tomorrowKey={tomorrowKey}
+        onSetPhoto={onSetPhoto}
+        onRemovePhoto={onRemovePhoto}
+        photoError={photoError}
+        onClearPhotoError={onClearPhotoError}
+      />
 
       <div className="p-3 space-y-3">
         <PlanSection
