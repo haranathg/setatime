@@ -378,6 +378,38 @@ export interface DashboardState {
   occurrenceExceptions?: SpiralOccurrenceException[];
 }
 
+// ---------- Lectures (imported school calendar) ----------
+//
+// Rows come from an .ics export of the school calendar. Each one is a
+// thing to study, tracked through three passes — the spaced-repetition
+// rhythm of first exposure, consolidation, then recall practice.
+//
+// The `id` is the calendar event's UID, which is what makes re-import
+// safe: the feed is the source of truth for *when* and *what*, and the
+// pass checkmarks are yours. Re-importing updates the former and never
+// touches the latter.
+export interface LectureItem {
+  id: string;          // ICS UID — stable across re-imports
+  title: string;
+  start: string;       // ISO
+  end?: string;        // ISO
+  location?: string;
+  allDay?: boolean;
+  recurring?: boolean; // had an RRULE; only the first occurrence was imported
+  pass1At?: string;    // ISO when each pass was ticked
+  pass2At?: string;
+  pass3At?: string;
+  // Not study content (an exam, a break, an admin block). Kept rather
+  // than deleted so a re-import doesn't resurrect it.
+  hidden?: boolean;
+  importedAt: string;  // ISO, first time this row appeared
+}
+
+export interface LecturesState {
+  items: LectureItem[];
+  lastImportedAt?: string;
+}
+
 export interface AppState {
   blocks: TaskBlock[];
   brainDump?: BrainDumpState;
@@ -400,6 +432,7 @@ export interface AppState {
   notes?: NotesState;
   principles?: PrinciplesState;
   projects?: ProjectsState;
+  lectures?: LecturesState;
 }
 
 // ---------- Horizon (life-scale perspective) ----------

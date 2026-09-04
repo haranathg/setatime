@@ -21,6 +21,7 @@ import NorthStarsView from './components/NorthStarsView';
 import PredictionLabView from './components/PredictionLabView';
 import TodayView from './components/TodayView';
 import ProjectsView from './components/ProjectsView';
+import LecturesView from './components/LecturesView';
 import { useAppState } from './hooks/useAppState';
 import { useBooks } from './hooks/useBooks';
 import { useActivities } from './hooks/useActivities';
@@ -42,6 +43,7 @@ import { useWeekBoard } from './hooks/useWeekBoard';
 import { useNotes } from './hooks/useNotes';
 import { usePrinciples } from './hooks/usePrinciples';
 import { useProjects, isStalled } from './hooks/useProjects';
+import { useLectures } from './hooks/useLectures';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -278,6 +280,17 @@ function AppMain({
     toggleMilestone: toggleProjectMilestone,
     deleteMilestone: deleteProjectMilestone,
   } = useProjects();
+
+  const {
+    visible: lectureVisible,
+    hiddenItems: lectureHidden,
+    stats: lectureStats,
+    lastImportedAt: lectureLastImportedAt,
+    importICS: importLectureICS,
+    togglePass: toggleLecturePass,
+    setHidden: setLectureHidden,
+    removeAll: removeAllLectures,
+  } = useLectures();
 
   // Stalled = active, no next action, no deadline within reach. Badged on
   // the Projects hub so it's visible without opening the tab.
@@ -775,6 +788,17 @@ function AppMain({
           onScheduleThis={scheduleThis}
           onAddToPlan={(size, label, projectId) => addToPlan(size, label, undefined, projectId)}
           onAddToWeek={(label, projectId) => addWeekBoardItem(label, undefined, projectId)}
+        />
+      ) : activeView === 'lectures' ? (
+        <LecturesView
+          visible={lectureVisible}
+          hiddenItems={lectureHidden}
+          stats={lectureStats}
+          lastImportedAt={lectureLastImportedAt}
+          onImportICS={importLectureICS}
+          onTogglePass={toggleLecturePass}
+          onSetHidden={setLectureHidden}
+          onRemoveAll={removeAllLectures}
         />
       ) : activeView === 'notes' ? (
         <NotesView

@@ -19,7 +19,8 @@ export type ActiveView =
   | 'triage'
   | 'notes'
   | 'principles'
-  | 'projects';
+  | 'projects'
+  | 'lectures';
 
 export type Hub = 'today' | 'projects' | 'log' | 'charts' | 'sail';
 
@@ -27,7 +28,7 @@ export type Hub = 'today' | 'projects' | 'log' | 'charts' | 'sail';
 // and the sub-tab strip visibility.
 export function hubForView(view: ActiveView): Hub {
   if (view === 'today' || view === 'triage') return 'today'; // Triage is an activation move launched from Today
-  if (view === 'projects') return 'projects';
+  if (view === 'projects' || view === 'lectures') return 'projects';
   if (view === 'inbox' || view === 'braindump') return 'log'; // Hold merged into Log
   if (view === 'chart' || view === 'notes' || view === 'principles' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats' || view === 'horizon') {
     return 'charts';
@@ -236,6 +237,20 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           );
         })}
       </nav>
+
+      {/* Projects sub-pills — the board of outcomes, and the imported
+          lecture list those outcomes are often made of. */}
+      {activeHub === 'projects' && (
+        <SubPillRow
+          activeView={activeView}
+          onViewChange={onViewChange}
+          primary={[
+            { view: 'projects', label: 'Board',    title: 'Every outcome you are steering, and its next move' },
+            { view: 'lectures', label: 'Lectures', title: 'Imported school calendar — track 1st / 2nd / 3rd pass' },
+          ]}
+          secondary={[]}
+        />
+      )}
 
       {/* Charts sub-pills — primary + "More ▾" dropdown for less-used
           check-in surfaces. */}
