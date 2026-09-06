@@ -8,6 +8,10 @@ import type {
   LeapDecisionOutcome,
   LeapOutcomeVsExpectation,
   LeapFearProportion,
+  RubiconMotive,
+  RubiconReached,
+  RubiconIfThenFired,
+  RubiconMotiveShift,
 } from '../types';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
@@ -37,6 +41,16 @@ export interface NewEntryInput {
   leapBridgeCost?: string;
   leapRegret?: string;
   leapDecision?: string;
+  // Rubicon-mode fields
+  rubiconMotive?: RubiconMotive;
+  rubiconWhyMine?: string;
+  rubiconDesirability?: number;
+  rubiconFeasibility?: number;
+  rubiconCommitment?: string;
+  rubiconObstacle?: string;
+  rubiconIfThen?: string;
+  rubiconWhenWhere?: string;
+  rubiconShield?: string;
   // Optional override; defaults to 24h after createdAt
   reflectionDueAt?: string;
 }
@@ -51,6 +65,10 @@ export interface ReflectionInput {
   leapTookIt?: LeapDecisionOutcome;
   leapOutcomeVsExpectation?: LeapOutcomeVsExpectation;
   leapFearProportion?: LeapFearProportion;
+  // Rubicon-mode fields
+  rubiconReached?: RubiconReached;
+  rubiconIfThenFired?: RubiconIfThenFired;
+  rubiconMotiveShift?: RubiconMotiveShift;
   // Shared
   insight?: string;
   trustFuturePredictionsMore?: PredictionEntry['trustFuturePredictionsMore'];
@@ -134,6 +152,17 @@ export function usePredictions() {
       leapBridgeCost: input.leapBridgeCost,
       leapRegret: input.leapRegret,
       leapDecision: input.leapDecision,
+      rubiconMotive: input.rubiconMotive,
+      rubiconWhyMine: input.rubiconWhyMine,
+      rubiconDesirability:
+        input.rubiconDesirability === undefined ? undefined : clamp01_100(input.rubiconDesirability),
+      rubiconFeasibility:
+        input.rubiconFeasibility === undefined ? undefined : clamp01_100(input.rubiconFeasibility),
+      rubiconCommitment: input.rubiconCommitment,
+      rubiconObstacle: input.rubiconObstacle,
+      rubiconIfThen: input.rubiconIfThen,
+      rubiconWhenWhere: input.rubiconWhenWhere,
+      rubiconShield: input.rubiconShield,
       reflectionDueAt: due,
     };
     setEntries((prev) => [entry, ...prev]);
