@@ -284,6 +284,9 @@ function AppMain({
   const {
     visible: lectureVisible,
     hiddenItems: lectureHidden,
+    buckets: lectureBuckets,
+    weeks: lectureWeeks,
+    now: lectureNow,
     stats: lectureStats,
     lastImportedAt: lectureLastImportedAt,
     importICS: importLectureICS,
@@ -793,6 +796,9 @@ function AppMain({
         <LecturesView
           visible={lectureVisible}
           hiddenItems={lectureHidden}
+          buckets={lectureBuckets}
+          weeks={lectureWeeks}
+          now={lectureNow}
           stats={lectureStats}
           lastImportedAt={lectureLastImportedAt}
           onImportICS={importLectureICS}

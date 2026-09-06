@@ -100,3 +100,17 @@ body {
     background: #52525b;
   }
 }
+
+/* Week-heatmap deficit cell. The component sets --c-light and --c-dark per
+   cell; this picks the right one for the active theme. An inline
+   background-color could not do this — it has no theme awareness — and the
+   dark ramp is a separately chosen scale, not a filtered flip of the light
+   one. Matches the app's media-query dark strategy. */
+.deficit-cell {
+  background-color: var(--c-light);
+}
+@media (prefers-color-scheme: dark) {
+  .deficit-cell {
+    background-color: var(--c-dark);
+  }
+}
