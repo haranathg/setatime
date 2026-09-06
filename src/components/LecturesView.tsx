@@ -1,14 +1,29 @@
 import { useMemo, useRef, useState } from 'react';
 import type { LectureItem } from '../types';
-import { passCount } from '../hooks/useLectures';
-import type { ImportSummary, PassNumber } from '../hooks/useLectures';
+import { passCount, overdueDays, isDelivered, nextDueAt } from '../hooks/useLectures';
+import type { ImportSummary, PassNumber, WeekBucket } from '../hooks/useLectures';
 
-type Filter = 'all' | 'todo' | 'progress' | 'done' | 'hidden';
+// Buckets are time-aware. "Due" is the backlog you can actually act on;
+// "Waiting" is spaced-out and deliberately not shouting; "Upcoming" hasn't
+// happened yet and can't be reviewed at all.
+type Filter = 'due' | 'waiting' | 'upcoming' | 'done' | 'all' | 'hidden';
 
 interface LecturesViewProps {
   visible: LectureItem[];
   hiddenItems: LectureItem[];
-  stats: { untouched: number; inProgress: number; complete: number; total: number };
+  buckets: {
+    dueNow: LectureItem[];
+    resting: LectureItem[];
+    upcoming: LectureItem[];
+    complete: LectureItem[];
+  };
+  weeks: WeekBucket[];
+  /** Shared clock from useLectures, so buckets and row badges agree. */
+  now: number;
+  stats: {
+    untouched: number; inProgress: number; complete: number; total: number;
+    due: number; resting: number; upcoming: number;
+  };
   lastImportedAt?: string;
   onImportICS: (text: string) => ImportSummary;
   onTogglePass: (id: string, pass: PassNumber) => void;
@@ -37,6 +52,26 @@ function dayLabel(iso: string): string {
   return sameDay ? `${base} · today` : base;
 }
 
+function weekStartKeyLocal(iso: string): string {
+  const d = new Date(iso);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+// Deficit ramp — one hue, monotone through four steps, encoding *outstanding*
+// passes rather than completed ones, because the question the strip answers
+// is "where am I behind?" and that should be what stands out. On the light
+// surface that means going darker; on the dark surface, brighter. Both move
+// away from the surface as the deficit grows, which is the actual rule.
+// Both ramps were checked with the palette validator (monotone lightness,
+// >=0.06 step gaps, end step clearing the surface at 2:1, single hue): light
+// passes at 2.09:1 / 24°, dark at 3.47:1 / 35°. The dark ramp is chosen for
+// the dark surface, not an inversion of the light one.
+const DEFICIT_RAMP_LIGHT = ['#f59e0b', '#d97706', '#b45309', '#92400e'];
+const DEFICIT_RAMP_DARK  = ['#b45309', '#d97706', '#f59e0b', '#fbbf24'];
+
 function timeLabel(item: LectureItem): string {
   if (item.allDay) return 'all day';
   const d = new Date(item.start);
@@ -46,6 +81,9 @@ function timeLabel(item: LectureItem): string {
 export default function LecturesView({
   visible,
   hiddenItems,
+  buckets,
+  weeks,
+  now,
   stats,
   lastImportedAt,
   onImportICS,
@@ -54,7 +92,9 @@ export default function LecturesView({
   onRemoveAll,
 }: LecturesViewProps) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [filter, setFilter] = useState<Filter>('todo');
+  const [filter, setFilter] = useState<Filter>('due');
+  // Tapping a heatmap cell narrows to that week; tapping it again clears.
+  const [weekFilter, setWeekFilter] = useState<string | null>(null);
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -83,19 +123,24 @@ export default function LecturesView({
   };
 
   const list = useMemo(() => {
-    if (filter === 'hidden') return hiddenItems;
-    return visible.filter((i) => {
-      const n = passCount(i);
-      if (filter === 'todo') return n === 0;
-      if (filter === 'progress') return n > 0 && n < 3;
-      if (filter === 'done') return n === 3;
-      return true;
-    });
-  }, [filter, visible, hiddenItems]);
+    const base =
+      filter === 'hidden' ? hiddenItems
+      : filter === 'due' ? buckets.dueNow
+      : filter === 'waiting' ? buckets.resting
+      : filter === 'upcoming' ? buckets.upcoming
+      : filter === 'done' ? buckets.complete
+      : visible;
+    if (!weekFilter) return base;
+    return base.filter((i) => weekStartKeyLocal(i.start) === weekFilter);
+  }, [filter, visible, hiddenItems, buckets, weekFilter]);
 
-  // Group into day sections so a semester reads as a schedule rather than
-  // one long undifferentiated list.
+  // The Due queue is already ordered by how overdue each item is; grouping
+  // it by day would silently re-sort it back into calendar order and lose
+  // the prioritisation. Only the calendar-shaped views get day headers.
+  const grouped = filter !== 'due';
+
   const groups = useMemo(() => {
+    if (!grouped) return [];
     const map = new Map<string, LectureItem[]>();
     for (const i of list) {
       const k = dayKey(i.start);
@@ -104,7 +149,7 @@ export default function LecturesView({
       else map.set(k, [i]);
     }
     return Array.from(map.entries());
-  }, [list]);
+  }, [list, grouped]);
 
   const isEmpty = visible.length === 0 && hiddenItems.length === 0;
 
@@ -162,8 +207,8 @@ export default function LecturesView({
         ) : (
           <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-3 space-y-2">
             <div className="grid grid-cols-3 gap-2 text-center">
-              <Stat label="To start" value={stats.untouched} tone="text-amber-700 dark:text-amber-300" />
-              <Stat label="In progress" value={stats.inProgress} tone="text-indigo-700 dark:text-indigo-300" />
+              <Stat label="Due now" value={stats.due} tone="text-amber-700 dark:text-amber-300" />
+              <Stat label="Waiting" value={stats.resting} tone="text-indigo-700 dark:text-indigo-300" />
               <Stat label="All 3 passes" value={stats.complete} tone="text-emerald-700 dark:text-emerald-300" />
             </div>
             <div className="flex items-center gap-2 pt-1">
@@ -214,12 +259,21 @@ export default function LecturesView({
           </p>
         )}
 
+        {!isEmpty && weeks.length > 0 && (
+          <WeekHeatmap
+            weeks={weeks}
+            selected={weekFilter}
+            onSelect={(k) => setWeekFilter((prev) => (prev === k ? null : k))}
+          />
+        )}
+
         {!isEmpty && (
           <div className="flex flex-wrap gap-1">
             {(
               [
-                ['todo', `To start (${stats.untouched})`],
-                ['progress', `In progress (${stats.inProgress})`],
+                ['due', `Due now (${stats.due})`],
+                ['waiting', `Waiting (${stats.resting})`],
+                ['upcoming', `Upcoming (${stats.upcoming})`],
                 ['done', `Done (${stats.complete})`],
                 ['all', `All (${stats.total})`],
                 ['hidden', `Hidden (${hiddenItems.length})`],
@@ -246,27 +300,148 @@ export default function LecturesView({
           </p>
         )}
 
-        <div className="space-y-3">
-          {groups.map(([key, dayItems]) => (
-            <section key={key}>
-              <h3 className="text-[11px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 px-1 mb-1">
-                {dayLabel(dayItems[0].start)}
-              </h3>
-              <ul className="space-y-1.5">
-                {dayItems.map((item) => (
-                  <LectureRow
-                    key={item.id}
-                    item={item}
-                    onTogglePass={onTogglePass}
-                    onSetHidden={onSetHidden}
-                  />
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
+        {grouped ? (
+          <div className="space-y-3">
+            {groups.map(([key, dayItems]) => (
+              <section key={key}>
+                <h3 className="text-[11px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 px-1 mb-1">
+                  {dayLabel(dayItems[0].start)}
+                </h3>
+                <ul className="space-y-1.5">
+                  {dayItems.map((item) => (
+                    <LectureRow
+                      key={item.id}
+                      item={item}
+                      now={now}
+                      onTogglePass={onTogglePass}
+                      onSetHidden={onSetHidden}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+        ) : (
+          <ul className="space-y-1.5">
+            {list.map((item) => (
+              <LectureRow
+                key={item.id}
+                item={item}
+                now={now}
+                onTogglePass={onTogglePass}
+                onSetHidden={onSetHidden}
+              />
+            ))}
+          </ul>
+        )}
       </div>
     </div>
+  );
+}
+
+// A week-by-week strip of how much review is outstanding. Weeks are used
+// as the unit rather than parsed topic names: dates are reliable, whereas
+// inferring a topic from a lecture title depends entirely on how
+// consistently the school names things — something worth adding once real
+// titles are in hand, not guessed at.
+//
+// Colour is never the only channel: every cell carries its date label and a
+// title/aria string with the exact counts, and a legend sits underneath.
+function WeekHeatmap({
+  weeks,
+  selected,
+  onSelect,
+}: {
+  weeks: WeekBucket[];
+  selected: string | null;
+  onSelect: (key: string) => void;
+}) {
+  const step = (deficit: number): number => {
+    if (deficit <= 0) return -1;          // nothing outstanding
+    if (deficit <= 0.25) return 0;
+    if (deficit <= 0.5) return 1;
+    if (deficit <= 0.75) return 2;
+    return 3;
+  };
+
+  return (
+    <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-3">
+      <div className="flex items-baseline justify-between mb-2">
+        <h3 className="text-[11px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400">
+          Review debt by week
+        </h3>
+        {selected && (
+          <button
+            onClick={() => onSelect(selected)}
+            className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+          >
+            clear week filter
+          </button>
+        )}
+      </div>
+
+      <div className="flex gap-1 overflow-x-auto no-scrollbar pb-1">
+        {weeks.map((w) => {
+          const i = step(w.deficit);
+          const outstanding = w.passesTotal - w.passesDone;
+          const isSel = selected === w.key;
+          const label = new Date(`${w.key}T12:00:00`).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+          });
+          const desc = !w.delivered
+            ? `Week of ${label}: not delivered yet`
+            : `Week of ${label}: ${outstanding} of ${w.passesTotal} passes outstanding`;
+          return (
+            <button
+              key={w.key}
+              onClick={() => onSelect(w.key)}
+              title={desc}
+              aria-label={desc}
+              aria-pressed={isSel}
+              className={`flex-shrink-0 w-[3.1rem] rounded-lg border px-1 py-1 transition-colors ${
+                isSel
+                  ? 'border-indigo-500 ring-2 ring-indigo-300 dark:ring-indigo-700'
+                  : 'border-gray-200 dark:border-gray-800 hover:border-indigo-400 dark:hover:border-indigo-600'
+              }`}
+            >
+              <span
+                className={`block h-6 rounded ${
+                  i === -1
+                    ? w.delivered
+                      ? 'bg-emerald-500'
+                      : 'bg-gray-100 dark:bg-gray-800'
+                    : 'deficit-cell'
+                }`}
+                style={
+                  i >= 0
+                    ? {
+                        // Two custom properties, one per mode, so the dark
+                        // ramp is a chosen scale rather than a filter flip.
+                        ['--c-light' as string]: DEFICIT_RAMP_LIGHT[i],
+                        ['--c-dark' as string]: DEFICIT_RAMP_DARK[i],
+                      }
+                    : undefined
+                }
+                data-deficit-step={i >= 0 ? i : undefined}
+              />
+              <span className="block text-[9px] text-gray-500 dark:text-gray-400 mt-0.5 tabular-nums leading-tight">
+                {label}
+              </span>
+              <span className="block text-[9px] font-bold text-gray-700 dark:text-gray-300 tabular-nums leading-tight">
+                {w.delivered ? (outstanding === 0 ? '\u2713' : outstanding) : '\u00b7'}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 leading-relaxed">
+        Stronger color = more passes still outstanding that week. The number is the count;
+        <span className="text-emerald-600 dark:text-emerald-400 font-semibold"> ✓</span> means
+        that week is fully reviewed, <strong>·</strong> means it hasn’t happened yet.
+      </p>
+    </section>
   );
 }
 
@@ -283,15 +458,23 @@ function Stat({ label, value, tone }: { label: string; value: number; tone: stri
 
 function LectureRow({
   item,
+  now,
   onTogglePass,
   onSetHidden,
 }: {
   item: LectureItem;
+  /** The view's shared clock — see useLectures. Rows must not read the
+   *  time themselves or a row can disagree with the bucket it sits in. */
+  now: number;
   onTogglePass: (id: string, pass: PassNumber) => void;
   onSetHidden: (id: string, hidden: boolean) => void;
 }) {
   const n = passCount(item);
   const done = n === 3;
+  const delivered = isDelivered(item, now);
+  const late = delivered ? overdueDays(item, now) : 0;
+  const due = nextDueAt(item);
+  const waiting = delivered && !done && due !== null && due > now;
 
   return (
     <li
@@ -317,6 +500,24 @@ function LectureRow({
             {item.location && (
               <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate max-w-[12rem]">
                 · {item.location}
+              </span>
+            )}
+            {!delivered && (
+              <span className="text-[9px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
+                not yet
+              </span>
+            )}
+            {late > 0 && (
+              <span className="text-[9px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-400">
+                {late}d overdue
+              </span>
+            )}
+            {waiting && due !== null && (
+              <span
+                className="text-[9px] uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400"
+                title={`Next pass due ${new Date(due).toLocaleDateString()}`}
+              >
+                next in {Math.max(1, Math.ceil((due - now) / 86400000))}d
               </span>
             )}
             {item.recurring && (
