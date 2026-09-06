@@ -223,7 +223,30 @@ export interface PinsState {
 //   bridge (cost-of-inaction reframed: if you'll face this eventually,
 //   delay just compounds the discomfort), and 5-year regret minimization
 //   (Bezos again).
-export type PredictionMode = 'quick' | 'deep' | 'leap';
+// - 'rubicon': goal-pursuit framework for when motivation, not fear, is the
+//   problem — "I know what I should do and I can't make myself start."
+//   Walks the four action phases of the Heckhausen/Gollwitzer Rubicon model
+//   in order, because they are genuinely different mental moves and running
+//   them out of order is what makes goals stall:
+//     1. Predecisional — deliberate. Weigh the wish on desirability and
+//        feasibility, and check whose goal it actually is. Intrinsic
+//        motivation is found here, not manufactured downstream.
+//     2. Crossing the Rubicon — commit. Deliberating and committing are
+//        different mindsets; the model's central claim is that you have to
+//        stop weighing before you can act.
+//     3. Preactional — plan. Name the obstacle, then an if-then plan
+//        (Gollwitzer's implementation intention).
+//     4. Actional — shield. Decide in advance what happens when something
+//        pulls you away.
+//   The postactional phase is the reflection, filed later like every other
+//   Lab entry.
+//
+//   Why the autonomy step carries the weight: Koestner et al. found
+//   autonomous motivation predicted goal progress while controlled
+//   motivation did not, and that the effect ran *through* implementation
+//   planning — so a goal you cannot honestly call yours is not rescued by
+//   better planning further down.
+export type PredictionMode = 'quick' | 'deep' | 'leap' | 'rubicon';
 
 export type PredictionEmotion =
   | 'anxiety'
@@ -239,6 +262,20 @@ export type PredictionEmotion =
 
 export type PredictionAccuracy = 'yes' | 'partly' | 'no';
 export type TrustShift = 'more' | 'less' | 'same';
+
+// Rubicon-specific enums.
+//
+// The motive ladder is Self-Determination Theory's internalisation continuum
+// (Deci & Ryan), ordered least to most autonomous. It is the point of the
+// whole path: 'external' and 'introjected' goals are the ones that stall, and
+// seeing which rung you are standing on beats any amount of self-exhortation.
+export type RubiconMotive = 'external' | 'introjected' | 'identified' | 'intrinsic';
+/** How far down the action phases you actually got. */
+export type RubiconReached = 'never-started' | 'started' | 'partway' | 'completed';
+/** Whether the if-then plan fired when the obstacle actually showed up. */
+export type RubiconIfThenFired = 'fired' | 'forgot' | 'no-obstacle';
+/** Did the goal feel more or less like yours afterwards? */
+export type RubiconMotiveShift = 'more-mine' | 'same' | 'less-mine';
 
 // Leap-specific enums
 export type LeapReversibility = 'fully' | 'mostly' | 'partial' | 'not';
@@ -284,6 +321,22 @@ export interface PredictionEntry {
   leapRegret?: string;         // 5-year-self answer that becomes decision rationale
   leapDecision?: string;       // what they committed to (fills the "prediction" role in the timeline)
 
+  // Rubicon-mode fields. `situation` holds the wish and `firstMove` the first
+  // physical move, same as every other mode.
+  // Phase 1 — predecisional
+  rubiconMotive?: RubiconMotive;
+  rubiconWhyMine?: string;       // the autonomous reason, in their own words
+  rubiconDesirability?: number;  // 0-100
+  rubiconFeasibility?: number;   // 0-100
+  // Phase 2 — crossing the Rubicon
+  rubiconCommitment?: string;    // the goal intention, stated as a commitment
+  // Phase 3 — preactional
+  rubiconObstacle?: string;      // the inner obstacle (mental contrasting)
+  rubiconIfThen?: string;        // "if X, then I will Y"
+  rubiconWhenWhere?: string;     // the concrete when + where
+  // Phase 4 — actional
+  rubiconShield?: string;        // what happens when something pulls you away
+
   // Reflection — filed later from a TodayView pin
   reflectionDueAt: string;     // ISO; defaults to createdAt + 24h
   reflectedAt?: string;        // ISO; presence marks the loop as closed
@@ -296,6 +349,10 @@ export interface PredictionEntry {
   leapTookIt?: LeapDecisionOutcome;
   leapOutcomeVsExpectation?: LeapOutcomeVsExpectation;
   leapFearProportion?: LeapFearProportion;
+  // Rubicon-mode reflection — the postactional phase
+  rubiconReached?: RubiconReached;
+  rubiconIfThenFired?: RubiconIfThenFired;
+  rubiconMotiveShift?: RubiconMotiveShift;
   // Shared
   insight?: string;            // one-line takeaway
   trustFuturePredictionsMore?: TrustShift;

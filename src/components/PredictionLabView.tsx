@@ -9,6 +9,10 @@ import type {
   LeapDecisionOutcome,
   LeapOutcomeVsExpectation,
   LeapFearProportion,
+  RubiconMotive,
+  RubiconReached,
+  RubiconIfThenFired,
+  RubiconMotiveShift,
 } from '../types';
 import type { NewEntryInput, ReflectionInput } from '../hooks/usePredictions';
 
@@ -71,6 +75,16 @@ interface Draft {
   leapBridgeCost: string;
   leapRegret: string;
   leapDecision: string;
+  // Rubicon-mode fields
+  rubiconMotive: RubiconMotive | '';
+  rubiconWhyMine: string;
+  rubiconDesirability: number;
+  rubiconFeasibility: number;
+  rubiconCommitment: string;
+  rubiconObstacle: string;
+  rubiconIfThen: string;
+  rubiconWhenWhere: string;
+  rubiconShield: string;
 }
 
 interface ReflectDraft {
@@ -83,6 +97,10 @@ interface ReflectDraft {
   leapTookIt: LeapDecisionOutcome | '';
   leapOutcomeVsExpectation: LeapOutcomeVsExpectation | '';
   leapFearProportion: LeapFearProportion | '';
+  // Rubicon-mode
+  rubiconReached: RubiconReached | '';
+  rubiconIfThenFired: RubiconIfThenFired | '';
+  rubiconMotiveShift: RubiconMotiveShift | '';
   // Shared
   insight: string;
   trustFuturePredictionsMore: TrustShift | '';
@@ -107,6 +125,15 @@ const EMPTY_DRAFT: Draft = {
   leapBridgeCost: '',
   leapRegret: '',
   leapDecision: '',
+  rubiconMotive: '',
+  rubiconWhyMine: '',
+  rubiconDesirability: 70,
+  rubiconFeasibility: 50,
+  rubiconCommitment: '',
+  rubiconObstacle: '',
+  rubiconIfThen: '',
+  rubiconWhenWhere: '',
+  rubiconShield: '',
 };
 
 const EMPTY_REFLECT: ReflectDraft = {
@@ -117,6 +144,9 @@ const EMPTY_REFLECT: ReflectDraft = {
   leapTookIt: '',
   leapOutcomeVsExpectation: '',
   leapFearProportion: '',
+  rubiconReached: '',
+  rubiconIfThenFired: '',
+  rubiconMotiveShift: '',
   insight: '',
   trustFuturePredictionsMore: '',
 };
@@ -174,16 +204,18 @@ export default function PredictionLabView({
           onNext={() => setFlow({ ...flow, step: flow.step + 1 })}
           onFinish={() => {
             const d = flow.draft;
-            const isLeap = flow.mode === 'leap';
+            // Prediction fields belong to quick/deep only — leap and rubicon
+            // are not forecasts and must not carry a phantom confidence of 50.
+            const forecasts = flow.mode === 'quick' || flow.mode === 'deep';
+            const isRubicon = flow.mode === 'rubicon';
             onAddEntry({
               mode: flow.mode,
               situation: d.situation.trim(),
               firstMove: d.firstMove.trim(),
-              // Prediction fields (quick/deep). Leap omits these entirely.
-              prediction: isLeap ? undefined : d.prediction.trim(),
-              confidence: isLeap ? undefined : d.confidence,
-              emotions: isLeap ? undefined : d.emotions,
-              emotionIntensity: isLeap ? undefined : d.emotionIntensity,
+              prediction: forecasts ? d.prediction.trim() : undefined,
+              confidence: forecasts ? d.confidence : undefined,
+              emotions: forecasts ? d.emotions : undefined,
+              emotionIntensity: forecasts ? d.emotionIntensity : undefined,
               evidenceFor: emptyToUndef(d.evidenceFor),
               evidenceAgainst: emptyToUndef(d.evidenceAgainst),
               behavioralPull: emptyToUndef(d.behavioralPull),
@@ -197,6 +229,16 @@ export default function PredictionLabView({
               leapBridgeCost: emptyToUndef(d.leapBridgeCost),
               leapRegret: emptyToUndef(d.leapRegret),
               leapDecision: emptyToUndef(d.leapDecision),
+              // Rubicon fields
+              rubiconMotive: d.rubiconMotive || undefined,
+              rubiconWhyMine: emptyToUndef(d.rubiconWhyMine),
+              rubiconDesirability: isRubicon ? d.rubiconDesirability : undefined,
+              rubiconFeasibility: isRubicon ? d.rubiconFeasibility : undefined,
+              rubiconCommitment: emptyToUndef(d.rubiconCommitment),
+              rubiconObstacle: emptyToUndef(d.rubiconObstacle),
+              rubiconIfThen: emptyToUndef(d.rubiconIfThen),
+              rubiconWhenWhere: emptyToUndef(d.rubiconWhenWhere),
+              rubiconShield: emptyToUndef(d.rubiconShield),
             });
             setFlow({ kind: 'none' });
           }}
@@ -227,18 +269,24 @@ export default function PredictionLabView({
           onFinish={() => {
             const d = flow.draft;
             const isLeap = entry.mode === 'leap';
+            const isRubicon = entry.mode === 'rubicon';
+            const forecasts = !isLeap && !isRubicon;
             onRecordReflection(entry.id, {
               outcome: d.outcome.trim(),
               // Prediction-mode reflection fields
-              predictionAccurate: isLeap
-                ? undefined
-                : ((d.predictionAccurate || 'partly') as PredictionAccuracy),
-              shouldHaveBeenConfidence: isLeap ? undefined : d.shouldHaveBeenConfidence,
-              surprise: isLeap ? undefined : d.surprise,
+              predictionAccurate: forecasts
+                ? ((d.predictionAccurate || 'partly') as PredictionAccuracy)
+                : undefined,
+              shouldHaveBeenConfidence: forecasts ? d.shouldHaveBeenConfidence : undefined,
+              surprise: forecasts ? d.surprise : undefined,
               // Leap-mode reflection fields
               leapTookIt: isLeap ? (d.leapTookIt || undefined) as LeapDecisionOutcome | undefined : undefined,
               leapOutcomeVsExpectation: isLeap ? (d.leapOutcomeVsExpectation || undefined) as LeapOutcomeVsExpectation | undefined : undefined,
               leapFearProportion: isLeap ? (d.leapFearProportion || undefined) as LeapFearProportion | undefined : undefined,
+              // Rubicon-mode reflection fields
+              rubiconReached: isRubicon ? (d.rubiconReached || undefined) as RubiconReached | undefined : undefined,
+              rubiconIfThenFired: isRubicon ? (d.rubiconIfThenFired || undefined) as RubiconIfThenFired | undefined : undefined,
+              rubiconMotiveShift: isRubicon ? (d.rubiconMotiveShift || undefined) as RubiconMotiveShift | undefined : undefined,
               insight: emptyToUndef(d.insight),
               trustFuturePredictionsMore: (d.trustFuturePredictionsMore || undefined) as
                 | TrustShift
@@ -464,11 +512,18 @@ function EmptyHint({ onNew }: { onNew: () => void }) {
 
 function EntryRow({ entry, onOpen }: { entry: PredictionEntry; onOpen: () => void }) {
   const isLeap = entry.mode === 'leap';
+  const isRubicon = entry.mode === 'rubicon';
 
   // Prediction-mode badge: awaiting / off-target / partly / on-target.
   // Leap-mode badge: awaiting / took / did-not-take / partial.
+  // Rubicon-mode badge: awaiting / never started / stalled / partway / completed.
   const badgeClass = (() => {
     if (!entry.reflectedAt) return 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+    if (isRubicon) {
+      if (entry.rubiconReached === 'completed') return 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+      if (entry.rubiconReached === 'partway') return 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800';
+      return 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800';
+    }
     if (isLeap) {
       if (entry.leapTookIt === 'took') return 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
       if (entry.leapTookIt === 'partial') return 'bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800';
@@ -480,6 +535,9 @@ function EntryRow({ entry, onOpen }: { entry: PredictionEntry; onOpen: () => voi
   })();
   const badgeLabel = (() => {
     if (!entry.reflectedAt) return 'Awaiting';
+    if (isRubicon) {
+      return entry.rubiconReached ? RUBICON_REACHED_LABEL[entry.rubiconReached] : 'Reflected';
+    }
     if (isLeap) {
       if (entry.leapTookIt === 'took') return 'Took it';
       if (entry.leapTookIt === 'did-not-take') return 'Held back';
@@ -491,19 +549,29 @@ function EntryRow({ entry, onOpen }: { entry: PredictionEntry; onOpen: () => voi
     if (entry.predictionAccurate === 'yes') return 'On-target';
     return 'Reflected';
   })();
-  const modeLabel = isLeap ? 'Leap' : capitalize(entry.mode);
-  const modeAccent = isLeap ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500';
-  const primaryLine = isLeap
+  const modeLabel = isRubicon ? 'Rubicon' : isLeap ? 'Leap' : capitalize(entry.mode);
+  const modeAccent = isRubicon
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : isLeap
+    ? 'text-amber-600 dark:text-amber-400'
+    : 'text-gray-400 dark:text-gray-500';
+  const primaryLine = isRubicon
+    ? entry.rubiconCommitment || entry.situation
+    : isLeap
     ? entry.leapDecision || entry.situation
     : entry.prediction;
-  const secondaryLine = isLeap ? entry.situation : entry.situation;
+  const secondaryLine = entry.situation;
 
   return (
     <li>
       <button
         onClick={onOpen}
         className={`w-full text-left bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:shadow-sm rounded-2xl px-4 py-3 transition-all ${
-          isLeap ? 'hover:border-amber-300 dark:hover:border-amber-700 dark:border-amber-700' : 'hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700'
+          isRubicon
+            ? 'hover:border-emerald-300 dark:hover:border-emerald-700'
+            : isLeap
+            ? 'hover:border-amber-300 dark:hover:border-amber-700'
+            : 'hover:border-indigo-300 dark:hover:border-indigo-700'
         }`}
       >
         <div className="flex items-baseline justify-between gap-3 mb-1">
@@ -521,7 +589,33 @@ function EntryRow({ entry, onOpen }: { entry: PredictionEntry; onOpen: () => voi
           <div className="text-[12px] text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">{secondaryLine}</div>
         )}
         <div className="mt-2 flex items-center gap-3 text-[10px] text-gray-500 dark:text-gray-400">
-          {isLeap ? (
+          {isRubicon ? (
+            <>
+              {entry.rubiconMotive && (
+                <span>
+                  Motive{' '}
+                  <span className="font-mono text-gray-700 dark:text-gray-300 font-semibold">
+                    {RUBICON_MOTIVE_LABEL[entry.rubiconMotive]}
+                  </span>
+                </span>
+              )}
+              {entry.reflectedAt && entry.rubiconIfThenFired && (
+                <>
+                  <span>·</span>
+                  <span>
+                    If-then{' '}
+                    <span className="font-mono text-gray-700 dark:text-gray-300 font-semibold">
+                      {entry.rubiconIfThenFired === 'fired'
+                        ? 'fired'
+                        : entry.rubiconIfThenFired === 'forgot'
+                        ? 'missed'
+                        : 'n/a'}
+                    </span>
+                  </span>
+                </>
+              )}
+            </>
+          ) : isLeap ? (
             <>
               {entry.leapReversibility && (
                 <span>
@@ -583,7 +677,8 @@ function ModePicker({ onPick }: { onPick: (m: PredictionMode) => void }) {
         What kind of moment is this?
       </h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-8 max-w-md">
-        Different flows for reactive gut-checks vs decisions under uncertainty.
+        Different flows for a reactive gut-check, a decision under uncertainty,
+        and a goal you cannot make yourself start.
       </p>
       <div className="w-full max-w-md space-y-3">
         <button
@@ -619,6 +714,18 @@ function ModePicker({ onPick }: { onPick: (m: PredictionMode) => void }) {
             (loss-aversion re-balance), the bridge (delay compounds), 5-year regret. Anti-safety-bias.
           </div>
         </button>
+        <button
+          onClick={() => onPick('rubicon')}
+          className="w-full text-left bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-emerald-400 dark:hover:border-emerald-600 hover:shadow-md rounded-2xl px-5 py-4 transition-all"
+        >
+          <div className="text-xs uppercase tracking-wider font-bold text-emerald-600 dark:text-emerald-400 mb-1">Rubicon</div>
+          <div className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Goal you can't start · ~5m</div>
+          <div className="text-[12px] text-gray-500 dark:text-gray-400 leading-snug">
+            For "I know what I should do and I can't make myself begin." Walks the four action
+            phases in order: weigh it, check whose goal it actually is, cross the Rubicon and
+            commit, then plan the if-then and how you'll shield it.
+          </div>
+        </button>
       </div>
     </div>
   );
@@ -649,14 +756,23 @@ function NewEntryWizard({
   onNext: () => void;
   onFinish: () => void;
 }) {
-  // Quick mode: 3 steps. Deep mode: 7 steps. Leap mode: 5 steps. Last step
-  // calls onFinish.
+  // Quick: 3 steps. Deep: 7. Leap: 5. Rubicon: 6, one per action phase plus
+  // the crossing. Last step calls onFinish.
   const steps: (() => React.ReactNode)[] =
     mode === 'quick'
       ? [
           () => <StepCapturePrediction draft={draft} onChange={onChange} onNext={onNext} />,
           () => <StepEmotion draft={draft} onChange={onChange} onNext={onNext} />,
           () => <StepFirstMove draft={draft} onChange={onChange} onNext={onFinish} />,
+        ]
+      : mode === 'rubicon'
+      ? [
+          () => <StepRubiconWish draft={draft} onChange={onChange} onNext={onNext} />,
+          () => <StepRubiconMotive draft={draft} onChange={onChange} onNext={onNext} />,
+          () => <StepRubiconWeigh draft={draft} onChange={onChange} onNext={onNext} />,
+          () => <StepRubiconCross draft={draft} onChange={onChange} onNext={onNext} />,
+          () => <StepRubiconPlan draft={draft} onChange={onChange} onNext={onNext} />,
+          () => <StepRubiconShield draft={draft} onChange={onChange} onNext={onFinish} />,
         ]
       : mode === 'leap'
       ? [
@@ -742,7 +858,11 @@ function ContinueButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className="mt-6 w-full px-4 py-3 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 dark:bg-gray-800 disabled:text-gray-400 dark:text-gray-500 disabled:cursor-not-allowed rounded-xl transition-colors"
+      // The dark-mode variants must be scoped to :disabled. Written bare they
+      // apply in dark mode always and beat the base indigo, which rendered the
+      // ENABLED button as gray-800 on gray-500 text — looking disabled, at
+      // roughly 2.2:1 — while the disabled one showed as a light gray pill.
+      className="mt-6 w-full px-4 py-3 text-sm font-semibold rounded-xl transition-colors bg-indigo-600 text-white hover:bg-indigo-700 disabled:bg-gray-200 disabled:text-gray-400 dark:disabled:bg-gray-800 dark:disabled:text-gray-600 disabled:cursor-not-allowed"
     >
       {label}
     </button>
@@ -1241,6 +1361,271 @@ function StepLeapCommit({ draft, onChange, onNext }: WizardChildProps) {
   );
 }
 
+const RUBICON_MOTIVE_LABEL: Record<RubiconMotive, string> = {
+  external: "Someone else's",
+  introjected: 'Guilt or shoulds',
+  identified: 'Genuinely useful',
+  intrinsic: 'Wanted for itself',
+};
+
+const RUBICON_REACHED_LABEL: Record<RubiconReached, string> = {
+  'never-started': 'Never started',
+  started: 'Stalled',
+  partway: 'Partway',
+  completed: 'Completed',
+};
+
+// ---------- Rubicon steps ----------
+//
+// One component per action phase of the Heckhausen/Gollwitzer model, in the
+// order the model insists on. The ordering is the intervention: the common
+// failure is jumping straight to planning a goal that was never actually
+// yours, or re-deliberating one you already committed to.
+
+// Phase 1a — predecisional. Name the wish before weighing it.
+function StepRubiconWish({ draft, onChange, onNext }: WizardChildProps) {
+  return (
+    <div>
+      <PromptHeading sub="Not the whole mountain — the one goal that keeps sliding. Say it as an outcome, not a task list.">
+        What do you actually want here?
+      </PromptHeading>
+      <TextInput
+        autoFocus
+        multiline
+        value={draft.situation}
+        onChange={(v) => onChange({ ...draft, situation: v })}
+        placeholder={'e.g. "Be genuinely caught up on cardio by the end of next week"'}
+      />
+      <ContinueButton onClick={onNext} disabled={!draft.situation.trim()} />
+    </div>
+  );
+}
+
+// Phase 1b — the autonomy check. This is the step that makes the path about
+// intrinsic motivation rather than willpower: a goal sitting on the bottom
+// two rungs is not fixed by better planning further down.
+function StepRubiconMotive({ draft, onChange, onNext }: WizardChildProps) {
+  const options: { value: RubiconMotive; label: string; hint: string }[] = [
+    { value: 'external', label: "Someone else's", hint: "You'd drop it tomorrow if nobody were checking. Grades, a deadline, an attending's expectation." },
+    { value: 'introjected', label: 'Guilt or shoulds', hint: "You'd feel like a bad student if you didn't. Driven by avoiding shame more than wanting the outcome." },
+    { value: 'identified', label: 'Genuinely useful to you', hint: 'You may not enjoy it, but it clearly serves something you actually care about.' },
+    { value: 'intrinsic', label: 'You want it for itself', hint: 'The work itself is interesting. You would do some of it unprompted.' },
+  ];
+  const shaky = draft.rubiconMotive === 'external' || draft.rubiconMotive === 'introjected';
+  return (
+    <div>
+      <PromptHeading sub="Be honest rather than aspirational — a wrong answer here quietly wastes the next four steps.">
+        Whose goal is this?
+      </PromptHeading>
+      <div className="space-y-2">
+        {options.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => onChange({ ...draft, rubiconMotive: opt.value })}
+            className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
+              draft.rubiconMotive === opt.value
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400'
+                : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-emerald-200 dark:hover:border-emerald-800'
+            }`}
+          >
+            <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">{opt.label}</div>
+            <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 leading-snug">{opt.hint}</div>
+          </button>
+        ))}
+      </div>
+      {draft.rubiconMotive && (
+        <div className="mt-5">
+          <FieldLabel>
+            {shaky ? 'Is there a version of this that IS yours?' : 'What makes it yours?'}
+          </FieldLabel>
+          <TextInput
+            multiline
+            value={draft.rubiconWhyMine}
+            onChange={(v) => onChange({ ...draft, rubiconWhyMine: v })}
+            placeholder={
+              shaky
+                ? 'e.g. "I do want to be the doctor who actually knows cardio, not just passes the block"'
+                : 'One sentence, in your own words.'
+            }
+          />
+          {shaky && (
+            <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-2 leading-snug">
+              Goals in the bottom two rungs predict much weaker follow-through — and better
+              planning downstream doesn&apos;t rescue them. If you can&apos;t find a version that
+              is yours, that is real information: shrink it, delegate it, or let it be a
+              deadline you simply meet rather than a goal you pursue.
+            </p>
+          )}
+        </div>
+      )}
+      <ContinueButton
+        onClick={onNext}
+        disabled={!draft.rubiconMotive || !draft.rubiconWhyMine.trim()}
+      />
+    </div>
+  );
+}
+
+// Phase 1c — the actual deliberation the model names: desirability x feasibility.
+function StepRubiconWeigh({ draft, onChange, onNext }: WizardChildProps) {
+  const tooBig = draft.rubiconFeasibility < 40;
+  return (
+    <div>
+      <PromptHeading sub="The predecisional phase weighs exactly two things. Do it now, deliberately, so you don't keep re-doing it at 11pm.">
+        How much do you want it, and can you actually do it?
+      </PromptHeading>
+      <div className="space-y-6">
+        <div>
+          <FieldLabel>Desirability — how much do you want the outcome?</FieldLabel>
+          <Slider
+            value={draft.rubiconDesirability}
+            onChange={(n) => onChange({ ...draft, rubiconDesirability: n })}
+            leftLabel="Indifferent"
+            rightLabel="Badly want it"
+          />
+        </div>
+        <div>
+          <FieldLabel>Feasibility — with the week you actually have?</FieldLabel>
+          <Slider
+            value={draft.rubiconFeasibility}
+            onChange={(n) => onChange({ ...draft, rubiconFeasibility: n })}
+            leftLabel="Not a chance"
+            rightLabel="Clearly doable"
+          />
+        </div>
+      </div>
+      {tooBig && (
+        <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-4 leading-snug">
+          Low feasibility is the model&apos;s signal to <strong>not</strong> cross yet — commitment
+          to an undoable goal is how a week becomes guilt. Go back and shrink the wish until this
+          reads as doable. A smaller goal you finish beats a bigger one you abandon.
+        </p>
+      )}
+      <ContinueButton onClick={onNext} />
+    </div>
+  );
+}
+
+// Phase 2 — crossing the Rubicon. The model's signature move: deliberating
+// and committing are different mindsets, and the switch has to be deliberate.
+function StepRubiconCross({ draft, onChange, onNext }: WizardChildProps) {
+  return (
+    <div>
+      <PromptHeading sub="Everything before this was weighing. From here on you are not deciding any more — you are doing. That switch is the whole model.">
+        Cross the Rubicon
+      </PromptHeading>
+      <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl px-4 py-3 mb-5">
+        <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 dark:text-emerald-300 mb-1">
+          The wish
+        </div>
+        <div className="text-[13px] text-gray-800 dark:text-gray-200 leading-snug">{draft.situation}</div>
+      </div>
+      <div className="space-y-4">
+        <div>
+          <FieldLabel>State it as a commitment, not a wish</FieldLabel>
+          <TextInput
+            autoFocus
+            multiline
+            value={draft.rubiconCommitment}
+            onChange={(v) => onChange({ ...draft, rubiconCommitment: v })}
+            placeholder={'"I will..." — not "I want to" or "I should".'}
+          />
+        </div>
+        <div>
+          <FieldLabel>First physical move</FieldLabel>
+          <TextInput
+            value={draft.firstMove}
+            onChange={(v) => onChange({ ...draft, firstMove: v })}
+            placeholder={'The smallest concrete action. e.g. "open the cardio deck"'}
+          />
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">
+            You can Schedule this from the entry detail after saving.
+          </p>
+        </div>
+      </div>
+      <ContinueButton
+        onClick={onNext}
+        disabled={!draft.rubiconCommitment.trim() || !draft.firstMove.trim()}
+        label="Commit and plan it"
+      />
+    </div>
+  );
+}
+
+// Phase 3 — preactional. Obstacle first, then the if-then that answers it.
+function StepRubiconPlan({ draft, onChange, onNext }: WizardChildProps) {
+  return (
+    <div>
+      <PromptHeading sub="Name the obstacle, then pre-decide the response. An if-then plan works because it hands the trigger to the situation instead of to your willpower in the moment.">
+        The obstacle, and the if-then
+      </PromptHeading>
+      <div className="space-y-4">
+        <div>
+          <FieldLabel>What actually stops you — the inner obstacle</FieldLabel>
+          <TextInput
+            autoFocus
+            value={draft.rubiconObstacle}
+            onChange={(v) => onChange({ ...draft, rubiconObstacle: v })}
+            placeholder={'Not "no time" — the real one. e.g. "I open the deck and feel behind, so I close it"'}
+          />
+        </div>
+        <div>
+          <FieldLabel>If that happens, then I will…</FieldLabel>
+          <TextInput
+            multiline
+            value={draft.rubiconIfThen}
+            onChange={(v) => onChange({ ...draft, rubiconIfThen: v })}
+            placeholder={'e.g. "then I will do only the first 5 cards and let that count"'}
+          />
+        </div>
+        <div>
+          <FieldLabel>When and where</FieldLabel>
+          <TextInput
+            value={draft.rubiconWhenWhere}
+            onChange={(v) => onChange({ ...draft, rubiconWhenWhere: v })}
+            placeholder={'e.g. "7:30am, third floor of the library, before checking email"'}
+          />
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5">
+            A concrete time and place is the difference between an intention and a plan.
+          </p>
+        </div>
+      </div>
+      <ContinueButton
+        onClick={onNext}
+        disabled={!draft.rubiconObstacle.trim() || !draft.rubiconIfThen.trim()}
+      />
+    </div>
+  );
+}
+
+// Phase 4 — actional. Goal shielding: decide the response to competing pulls
+// before you are in the moment and losing the argument with yourself.
+function StepRubiconShield({ draft, onChange, onNext }: WizardChildProps) {
+  return (
+    <div>
+      <PromptHeading sub="Once you're in it, the job stops being motivation and starts being protection. Decide now, while it's cheap.">
+        How will you shield it?
+      </PromptHeading>
+      <TextInput
+        autoFocus
+        multiline
+        value={draft.rubiconShield}
+        onChange={(v) => onChange({ ...draft, rubiconShield: v })}
+        placeholder={'What happens when something pulls you away? e.g. "phone in the bag, and if someone asks me to cover, I say I\'m booked until 9"'}
+      />
+      <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-3 leading-snug">
+        You&apos;ll be asked how this went when the reflection comes due — how far you got, whether
+        the if-then actually fired, and whether the goal still felt like yours.
+      </p>
+      <ContinueButton
+        onClick={onNext}
+        disabled={!draft.rubiconShield.trim()}
+        label="Save Rubicon"
+      />
+    </div>
+  );
+}
+
 // ---------- Reflection wizard ----------
 
 function ReflectionWizard({
@@ -1261,7 +1646,157 @@ function ReflectionWizard({
   onFinish: () => void;
 }) {
   const isLeap = entry.mode === 'leap';
-  const steps: (() => React.ReactNode)[] = isLeap
+  const isRubicon = entry.mode === 'rubicon';
+  const steps: (() => React.ReactNode)[] = isRubicon
+    ? [
+        // ---------- Rubicon reflection: the postactional phase ----------
+        // The model's fourth phase is evaluation, and its job is to feed the
+        // next predecisional phase — hence the motive re-check at the end.
+        () => (
+          <div>
+            <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl px-4 py-3 mb-6 text-[12px]">
+              <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 dark:text-emerald-300 mb-1">
+                What you committed to
+              </div>
+              <div className="text-gray-800 dark:text-gray-200 leading-snug">
+                {entry.rubiconCommitment || entry.situation}
+              </div>
+              {entry.rubiconIfThen && (
+                <div className="text-gray-600 dark:text-gray-400 leading-snug mt-1.5">
+                  If-then: {entry.rubiconIfThen}
+                </div>
+              )}
+            </div>
+            <PromptHeading sub="A single honest sentence is enough.">
+              What actually happened?
+            </PromptHeading>
+            <TextInput
+              autoFocus
+              multiline
+              value={draft.outcome}
+              onChange={(v) => onChange({ ...draft, outcome: v })}
+              placeholder="e.g. did three of the five sessions; skipped the weekend ones"
+            />
+            <ContinueButton onClick={onNext} disabled={!draft.outcome.trim()} />
+          </div>
+        ),
+        () => (
+          <div>
+            <PromptHeading sub="Where the pursuit actually stopped. Knowing which phase failed is what makes the next one fixable.">
+              How far did you get?
+            </PromptHeading>
+            <div className="flex flex-col gap-2">
+              {(
+                [
+                  { value: 'never-started', label: 'Never started', hint: 'The plan never survived contact with a real day.' },
+                  { value: 'started', label: 'Started, then stalled', hint: 'You crossed into acting but it did not hold.' },
+                  { value: 'partway', label: 'Got partway', hint: 'Real progress, short of the goal you set.' },
+                  { value: 'completed', label: 'Completed it', hint: 'The outcome you committed to actually happened.' },
+                ] as { value: RubiconReached; label: string; hint: string }[]
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => onChange({ ...draft, rubiconReached: opt.value })}
+                  className={`text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                    draft.rubiconReached === opt.value
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 text-emerald-900 dark:text-emerald-100'
+                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-emerald-200 dark:hover:border-emerald-800'
+                  }`}
+                >
+                  <div className="text-sm font-semibold">{opt.label}</div>
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{opt.hint}</div>
+                </button>
+              ))}
+            </div>
+            <ContinueButton onClick={onNext} disabled={!draft.rubiconReached} />
+          </div>
+        ),
+        () => (
+          <div>
+            <PromptHeading sub="An if-then that never fires is usually too vague, or aimed at the wrong obstacle. That is a fixable, specific failure.">
+              Did the if-then fire?
+            </PromptHeading>
+            {entry.rubiconObstacle && (
+              <p className="text-[12px] text-gray-500 dark:text-gray-400 mb-4 text-center leading-snug">
+                Your obstacle was: {entry.rubiconObstacle}
+              </p>
+            )}
+            <div className="flex flex-col gap-2">
+              {(
+                [
+                  { value: 'fired', label: 'Yes — it fired', hint: 'The obstacle showed up and the planned response happened.' },
+                  { value: 'forgot', label: 'Obstacle came, plan did not', hint: 'You hit it and reverted to the old response.' },
+                  { value: 'no-obstacle', label: 'That obstacle never came', hint: 'Something else got in the way, or nothing did.' },
+                ] as { value: RubiconIfThenFired; label: string; hint: string }[]
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => onChange({ ...draft, rubiconIfThenFired: opt.value })}
+                  className={`text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                    draft.rubiconIfThenFired === opt.value
+                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 text-emerald-900 dark:text-emerald-100'
+                      : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-emerald-200 dark:hover:border-emerald-800'
+                  }`}
+                >
+                  <div className="text-sm font-semibold">{opt.label}</div>
+                  <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">{opt.hint}</div>
+                </button>
+              ))}
+            </div>
+            <ContinueButton onClick={onNext} disabled={!draft.rubiconIfThenFired} />
+          </div>
+        ),
+        () => (
+          <div>
+            <PromptHeading sub="The postactional phase feeds the next predecisional one. Doing the work sometimes makes a goal yours — and sometimes proves it never was.">
+              Does it still feel like yours?
+            </PromptHeading>
+            <div className="space-y-4">
+              <div>
+                <FieldLabel>
+                  You called it{' '}
+                  {entry.rubiconMotive ? RUBICON_MOTIVE_LABEL[entry.rubiconMotive].toLowerCase() : 'yours'} going in
+                </FieldLabel>
+                <div className="flex gap-2 mt-1">
+                  {(
+                    [
+                      { value: 'less-mine', label: 'Less mine' },
+                      { value: 'same', label: 'Same' },
+                      { value: 'more-mine', label: 'More mine' },
+                    ] as { value: RubiconMotiveShift; label: string }[]
+                  ).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => onChange({ ...draft, rubiconMotiveShift: opt.value })}
+                      className={`flex-1 px-3 py-2 text-sm font-medium rounded-xl border-2 transition-all ${
+                        draft.rubiconMotiveShift === opt.value
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-400 text-emerald-900 dark:text-emerald-100'
+                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 hover:border-emerald-200 dark:hover:border-emerald-800'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <FieldLabel>One-line insight</FieldLabel>
+                <TextInput
+                  value={draft.insight}
+                  onChange={(v) => onChange({ ...draft, insight: v })}
+                  placeholder={'e.g. "The if-then was too vague — \'feel behind\' is not a trigger I notice"'}
+                />
+              </div>
+            </div>
+            <ContinueButton
+              onClick={onFinish}
+              disabled={!draft.rubiconMotiveShift}
+              label="Save reflection"
+            />
+          </div>
+        ),
+      ]
+    : isLeap
     ? [
         // ---------- Leap-mode reflection ----------
         () => (
@@ -1561,27 +2096,79 @@ function EntryDetail({
   onScheduleThis: (prefill: { taskName?: string; time?: string; dateKey?: string }) => void;
 }) {
   const isLeap = entry.mode === 'leap';
+  const isRubicon = entry.mode === 'rubicon';
+  const headline = isRubicon
+    ? entry.rubiconCommitment || entry.situation
+    : isLeap
+    ? entry.leapDecision || entry.situation
+    : entry.prediction;
   return (
     <div className="space-y-5 py-2">
       <div>
-        <div className={`text-[10px] uppercase tracking-wider font-mono mb-1 ${isLeap ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400 dark:text-gray-500'}`}>
-          {formatDate(entry.createdAt)} · {isLeap ? 'Leap' : capitalize(entry.mode)} entry
+        <div
+          className={`text-[10px] uppercase tracking-wider font-mono mb-1 ${
+            isRubicon
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : isLeap
+              ? 'text-amber-600 dark:text-amber-400'
+              : 'text-gray-400 dark:text-gray-500'
+          }`}
+        >
+          {formatDate(entry.createdAt)} ·{' '}
+          {isRubicon ? 'Rubicon' : isLeap ? 'Leap' : capitalize(entry.mode)} entry
         </div>
         <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 leading-snug">
-          {isLeap ? (entry.leapDecision || entry.situation) : entry.prediction}
+          {headline}
         </h2>
-        {isLeap ? (
-          entry.situation && entry.situation !== entry.leapDecision && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-snug">The choice: {entry.situation}</p>
-          )
-        ) : (
-          entry.situation && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-snug">{entry.situation}</p>
-          )
+        {entry.situation && entry.situation !== headline && (
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 leading-snug">
+            {isRubicon ? 'The wish: ' : isLeap ? 'The choice: ' : ''}
+            {entry.situation}
+          </p>
         )}
       </div>
 
-      {isLeap ? (
+      {isRubicon ? (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <DetailBox
+              label="Desirability"
+              value={entry.rubiconDesirability !== undefined ? `${entry.rubiconDesirability}` : '—'}
+            />
+            <DetailBox
+              label="Feasibility"
+              value={entry.rubiconFeasibility !== undefined ? `${entry.rubiconFeasibility}` : '—'}
+            />
+          </div>
+          {entry.rubiconMotive && (
+            <DetailSection label="Whose goal is this">
+              {RUBICON_MOTIVE_LABEL[entry.rubiconMotive]}
+              {entry.rubiconWhyMine ? ` — ${entry.rubiconWhyMine}` : ''}
+            </DetailSection>
+          )}
+          {entry.rubiconObstacle && (
+            <DetailSection label="Inner obstacle">{entry.rubiconObstacle}</DetailSection>
+          )}
+          {entry.rubiconIfThen && (
+            <DetailSection label="If-then plan">{entry.rubiconIfThen}</DetailSection>
+          )}
+          {entry.rubiconWhenWhere && (
+            <div>
+              <DetailSection label="When and where">{entry.rubiconWhenWhere}</DetailSection>
+              <button
+                onClick={() => onScheduleThis({ taskName: entry.rubiconCommitment || entry.situation })}
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg transition-colors"
+                title="Jump to the calendar with this commitment pre-filled"
+              >
+                ↳ Schedule this
+              </button>
+            </div>
+          )}
+          {entry.rubiconShield && (
+            <DetailSection label="Shielding plan">{entry.rubiconShield}</DetailSection>
+          )}
+        </>
+      ) : isLeap ? (
         <>
           {entry.leapReversibility && (
             <div className="grid grid-cols-1 gap-3">
@@ -1630,7 +2217,7 @@ function EntryDetail({
           <DetailSection label={isLeap ? 'First physical move' : 'First physical move'}>
             {entry.firstMove}
           </DetailSection>
-          {isLeap && (
+          {(isLeap || isRubicon) && (
             <button
               onClick={() => onScheduleThis({ taskName: entry.firstMove })}
               className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold text-white bg-sky-600 hover:bg-sky-700 rounded-lg transition-colors"
@@ -1677,14 +2264,20 @@ function EntryDetail({
       {entry.reflectedAt ? (
         <section
           className={`rounded-2xl px-4 py-3 space-y-3 border ${
-            isLeap
+            isRubicon
+              ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800'
+              : isLeap
               ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800'
               : 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-100 dark:border-indigo-900'
           }`}
         >
           <div
             className={`text-[10px] uppercase tracking-wider font-bold ${
-              isLeap ? 'text-amber-700 dark:text-amber-300' : 'text-indigo-700 dark:text-indigo-300'
+              isRubicon
+                ? 'text-emerald-700 dark:text-emerald-300'
+                : isLeap
+                ? 'text-amber-700 dark:text-amber-300'
+                : 'text-indigo-700 dark:text-indigo-300'
             }`}
           >
             Reflection · {formatDate(entry.reflectedAt)}
@@ -1692,7 +2285,41 @@ function EntryDetail({
           {entry.outcome && (
             <DetailSection label="Outcome">{entry.outcome}</DetailSection>
           )}
-          {isLeap ? (
+          {isRubicon ? (
+            <div className="grid grid-cols-3 gap-3">
+              <DetailBox
+                label="Got to"
+                value={entry.rubiconReached ? RUBICON_REACHED_LABEL[entry.rubiconReached] : '—'}
+                compact
+              />
+              <DetailBox
+                label="If-then"
+                value={
+                  entry.rubiconIfThenFired === 'fired'
+                    ? 'Fired'
+                    : entry.rubiconIfThenFired === 'forgot'
+                    ? 'Missed'
+                    : entry.rubiconIfThenFired === 'no-obstacle'
+                    ? 'N/A'
+                    : '—'
+                }
+                compact
+              />
+              <DetailBox
+                label="Still yours"
+                value={
+                  entry.rubiconMotiveShift === 'more-mine'
+                    ? 'More'
+                    : entry.rubiconMotiveShift === 'same'
+                    ? 'Same'
+                    : entry.rubiconMotiveShift === 'less-mine'
+                    ? 'Less'
+                    : '—'
+                }
+                compact
+              />
+            </div>
+          ) : isLeap ? (
             <div className="grid grid-cols-3 gap-3">
               <DetailBox
                 label="Took it"
@@ -1767,12 +2394,18 @@ function EntryDetail({
         <button
           onClick={onReflect}
           className={`w-full px-4 py-3 text-sm font-semibold text-white rounded-xl transition-colors ${
-            isLeap
+            isRubicon
+              ? 'bg-emerald-600 hover:bg-emerald-700'
+              : isLeap
               ? 'bg-amber-600 hover:bg-amber-700'
               : 'bg-indigo-600 hover:bg-indigo-700'
           }`}
         >
-          {isLeap ? 'Reflect on this leap' : 'Reflect on this prediction'}
+          {isRubicon
+            ? 'Reflect on this goal'
+            : isLeap
+            ? 'Reflect on this leap'
+            : 'Reflect on this prediction'}
         </button>
       )}
 

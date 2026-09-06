@@ -61,6 +61,33 @@ the board is the plan.
 with a next action already written down is one you can start without
 deciding anything first — that's the entire reason the field exists.
 
+## When you can't make yourself start
+
+Sail → Lab → **Rubicon**. Use it for the specific failure where you know
+exactly what you should do and still don't begin — not for fear (that's
+**Leap**) and not for a gut-check (**Quick**/**Deep**).
+
+It walks the four action phases of the Rubicon model in order, because
+running them out of order is what makes goals stall:
+
+1. **Deliberate** — the wish, whose goal it actually is, and desirability
+   × feasibility. If feasibility reads low, the model's answer is to
+   *not* commit yet: shrink the wish first.
+2. **Cross** — state it as a commitment and stop weighing. Deliberating
+   and doing are different mindsets and the switch has to be deliberate.
+3. **Plan** — the inner obstacle, then an if-then that answers it, with a
+   real time and place.
+4. **Shield** — what happens when something pulls you away.
+
+The reflection, due the next day, closes it: how far you got, whether the
+if-then actually fired, and whether the goal still feels like yours.
+
+The second step is the one that does the work. A goal you can only
+describe as someone else's, or as guilt, predicts weak follow-through
+regardless of how good the plan underneath it is — so the honest answer
+there saves you the next four steps. Backburner is still a legitimate
+answer.
+
 ## The one rule
 
 **Every active project has a next action, or a deadline within reach.**
