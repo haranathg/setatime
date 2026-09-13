@@ -481,6 +481,7 @@ export interface AppState {
   dashboard?: DashboardState;
   northStars?: NorthStarsState;
   stateLog?: StateLogState;
+  regulate?: RegulateState;
   horizon?: HorizonState;
   underway?: UnderwayState;
   compass?: CompassState;
@@ -532,22 +533,63 @@ export interface HorizonState {
 // entries; read paths use `effectiveEnergy(entry)` which prefers `energy` and
 // falls back to a mapping of the legacy value.
 
-export type EnergyLevel = 1 | 2 | 3 | 4 | 5;
+// Window of Tolerance (Siegel). The axis is AROUSAL — too much / just right /
+// too little — not how good the day is going. That distinction is the whole
+// reason this replaced the 1-5 energy dial: the old scale ran bad→good, so
+// "wired, racing, can't settle" had nowhere to sit. It is not a mood rating.
+//
+//   hyper  — sympathetic activation. Wired, racing, braced.
+//   window — regulated. Can think and feel at the same time.
+//   hypo   — dorsal shutdown. Foggy, heavy, flat, far away.
+export type RegulationZone = 'hyper' | 'window' | 'hypo';
+
+/** Which way a reset moves you back toward the window. */
+export type ResetDirection = 'down' | 'up';
+
+export type EnergyLevel = 1 | 2 | 3 | 4 | 5;           // legacy; see effectiveZone
 export type EnergyDirection = 'recharged' | 'drained' | 'neutral';
 export type StateFeeling = 'off' | 'neutral' | 'good'; // deprecated; kept for back-compat reads
 
 export interface StateLogEntry {
   id: string;
   loggedAt: string;             // ISO
-  energy?: EnergyLevel;         // 1-5; required for new entries
-  direction?: EnergyDirection;  // did the reasons recharge or drain you?
-  feeling?: StateFeeling;       // legacy 3-bucket; only present on pre-upgrade entries
+  zone?: RegulationZone;        // required for new entries
+  energy?: EnergyLevel;         // legacy 1-5 dial; pre-zone entries only
+  direction?: EnergyDirection;  // legacy; only meaningful alongside `energy`
+  feeling?: StateFeeling;       // legacy 3-bucket; only on pre-energy entries
   reasons: string[];            // free-text tags user believes contributed to this state
   note?: string;                // optional free-form context
+  /** Reset activities tapped from this entry, stored by label rather than id
+   *  so the record survives renaming or deleting the activity itself. */
+  resetsUsed?: string[];
 }
 
 export interface StateLogState {
   entries: StateLogEntry[];
+}
+
+// ---------- Regulate (ways back into the window) ----------
+//
+// A user-owned library of small moves that bring them back toward the window
+// of tolerance, each tagged with the direction it moves them. Separate from
+// Underway's stuck presets on purpose: those answer "I'm regulated but can't
+// begin", these answer "my nervous system is not in a state where beginning
+// is the problem yet". The two screens cross-link rather than merge, so
+// neither list grows long enough to be useless in the moment it's needed.
+
+export interface ResetActivity {
+  id: string;
+  emoji: string;
+  label: string;              // chip text — kept short
+  direction: ResetDirection;  // 'down' from hyper, 'up' from hypo
+  /** Optional how-to, shown under the label. Where the actual technique
+   *  lives when the label alone isn't enough ("out longer than in"). */
+  how?: string;
+  minutes?: number;           // optional suggested duration
+}
+
+export interface RegulateState {
+  activities: ResetActivity[];
 }
 
 // ---------- Underway (focus sessions) ----------
@@ -807,6 +849,19 @@ export interface PrincipleEntry {
 
 export interface PrinciplesState {
   entries: PrincipleEntry[];
+}
+
+/**
+ * Read an entry's zone, mapping legacy entries onto the new axis.
+ *
+ * The mapping is deliberately lossy in one direction: **nothing ever maps to
+ * `hyper`**. The old dial ran low-energy→high-energy, so an activated,
+ * can't-settle state had no representation on it — inferring one would be
+ * inventing data. Doldrums and Fog become `hypo`; everything else `window`.
+ */
+export function effectiveZone(entry: StateLogEntry): RegulationZone {
+  if (entry.zone) return entry.zone;
+  return effectiveEnergy(entry) <= 2 ? 'hypo' : 'window';
 }
 
 // Prefer new energy field; map legacy feeling to a coarse point on the scale.

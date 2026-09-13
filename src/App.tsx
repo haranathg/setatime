@@ -10,6 +10,7 @@ import ChartView from './components/ChartView';
 import HabitsView from './components/HabitsView';
 import BooksView from './components/BooksView';
 import GroundingView from './components/GroundingView';
+import RegulateView from './components/RegulateView';
 import UnderwayView from './components/UnderwayView';
 import CompassView from './components/CompassView';
 import TriageView from './components/TriageView';
@@ -36,6 +37,7 @@ import { usePins } from './hooks/usePins';
 import { usePredictions } from './hooks/usePredictions';
 import { useHorizon } from './hooks/useHorizon';
 import { useStateLog } from './hooks/useStateLog';
+import { useRegulate } from './hooks/useRegulate';
 import { useUnderway } from './hooks/useUnderway';
 import { useCompass } from './hooks/useCompass';
 import { usePlan } from './hooks/usePlan';
@@ -193,7 +195,18 @@ function AppMain({
     addEntry: addStateLogEntry,
     addEntryLegacy: addStateLogEntryLegacy,
     deleteEntry: deleteStateLogEntry,
+    markResetUsed: markStateLogResetUsed,
+    resetUsage: stateLogResetUsage,
   } = useStateLog();
+
+  const {
+    activities: resetActivities,
+    forZone: resetsForZone,
+    addActivity: addResetActivity,
+    updateActivity: updateResetActivity,
+    deleteActivity: deleteResetActivity,
+    resetToDefaults: resetResetsToDefaults,
+  } = useRegulate();
 
   const {
     sessions: underwayAllSessions,
@@ -599,6 +612,9 @@ function AppMain({
           onToggleIndicatorStar={toggleIndicatorStar}
           stateLogTodaysEntries={stateLogTodaysEntries}
           stateLogRecentReasons={stateLogRecentReasons}
+          resetsFor={resetsForZone}
+          onUseReset={markStateLogResetUsed}
+          onOpenRegulate={() => setActiveView('regulate')}
           onAddStateLogEntry={addStateLogEntry}
           onDeleteStateLogEntry={deleteStateLogEntry}
           agedDumpTasks={agedDumpTasks}
@@ -711,12 +727,26 @@ function AppMain({
         />
       ) : activeView === 'grounding' ? (
         <GroundingView />
+      ) : activeView === 'regulate' ? (
+        <RegulateView
+          activities={resetActivities}
+          usage={stateLogResetUsage}
+          onAdd={addResetActivity}
+          onUpdate={updateResetActivity}
+          onDelete={deleteResetActivity}
+          onResetDefaults={resetResetsToDefaults}
+          onOpenStuck={() => {
+            setUnderwayInitialPhase('stuck');
+            setActiveView('underway');
+          }}
+        />
       ) : activeView === 'underway' ? (
         <UnderwayView
           agedDumpTasks={agedDumpTasks}
           unscheduledTasks={activeDumpTasks}
           onDeleteDumpTask={deleteTask}
           onNavigateToGrounding={() => setActiveView('grounding')}
+          onNavigateToRegulate={() => setActiveView('regulate')}
           todaysSessions={underwayTodaysSessions}
           allSessions={underwayAllSessions}
           weekCount={underwayWeekCount}
