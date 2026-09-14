@@ -12,15 +12,15 @@ import type {
   NorthStar,
   BrainDumpTask,
   StateLogEntry,
-  EnergyLevel,
-  EnergyDirection,
+  RegulationZone,
+  ResetActivity,
   DailyPlanTask,
   DailyPlanSize,
   WeekBoardItem,
   Project,
   PlanPhoto,
 } from '../types';
-import { effectiveEnergy, DAILY_PLAN_CAPS } from '../types';
+import { effectiveZone, DAILY_PLAN_CAPS } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
 import { isCheckedToday } from '../hooks/usePins';
 import type { IndicatorView } from '../hooks/useDashboard';
@@ -76,9 +76,11 @@ interface TodayViewProps {
   // State log — periodic "Feeling ___ because ___" entries
   stateLogTodaysEntries: StateLogEntry[];
   stateLogRecentReasons: string[];
+  resetsFor: (zone: RegulationZone) => ResetActivity[];
+  onUseReset: (entryId: string, label: string) => void;
+  onOpenRegulate: () => void;
   onAddStateLogEntry: (input: {
-    energy: EnergyLevel;
-    direction?: EnergyDirection;
+    zone: RegulationZone;
     reasons: string[];
     note?: string;
   }) => StateLogEntry;
@@ -189,6 +191,9 @@ export default function TodayView({
   onDropDumpTask,
   stateLogTodaysEntries,
   stateLogRecentReasons,
+  resetsFor,
+  onUseReset,
+  onOpenRegulate,
   onAddStateLogEntry,
   onDeleteStateLogEntry,
   underwayMantra,
@@ -391,8 +396,11 @@ export default function TodayView({
               <StateLogStrip
                 todaysEntries={stateLogTodaysEntries}
                 recentReasons={stateLogRecentReasons}
+                resetsFor={resetsFor}
                 onAdd={onAddStateLogEntry}
                 onDelete={onDeleteStateLogEntry}
+                onUseReset={onUseReset}
+                onOpenRegulate={onOpenRegulate}
               />
               <BasicsDashboard
                 indicators={dashboardIndicators}
@@ -576,8 +584,11 @@ export default function TodayView({
             <StateLogStrip
               todaysEntries={stateLogTodaysEntries}
               recentReasons={stateLogRecentReasons}
+              resetsFor={resetsFor}
               onAdd={onAddStateLogEntry}
               onDelete={onDeleteStateLogEntry}
+              onUseReset={onUseReset}
+              onOpenRegulate={onOpenRegulate}
             />
 
             <BasicsDashboard
@@ -3580,42 +3591,60 @@ function AgedDumpStrip({
 // state and attribution explicit is calibrating in its own right). v2b
 // will mine correlations and feed suggestions into TaskModal.
 
-// Nautical energy dial. Doldrums (dead calm, no wind) → Following seas (aligned
-// current + wind at your back). Colors go rose → amber → gray → sky → emerald
-// so a glance at the Today trail shows the day's trajectory instantly.
-const ENERGY_OPTIONS: {
-  value: EnergyLevel;
+// Window-of-tolerance picker. The three cards carry body-level cues rather
+// than just labels, because the hard part is not choosing between three
+// buttons — it is recognising which one you are in. Activation and shutdown
+// both feel like "bad", and they need opposite responses, so naming the cues
+// is the actual intervention here.
+const ZONE_OPTIONS: {
+  value: RegulationZone;
   label: string;
   emoji: string;
-  ring: string;
+  tagline: string;
+  cues: string[];
   bg: string;
+  ring: string;
   text: string;
-  dot: string; // solid color for the trail dot
+  chipBg: string;
 }[] = [
-  { value: 1, label: 'Doldrums', emoji: '🪫', ring: 'ring-rose-300', bg: 'bg-rose-50 dark:bg-rose-950/40', text: 'text-rose-700 dark:text-rose-300', dot: 'bg-rose-500' },
-  { value: 2, label: 'Fog', emoji: '🌫', ring: 'ring-amber-300', bg: 'bg-amber-50 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-300', dot: 'bg-amber-500' },
-  { value: 3, label: 'Cruising', emoji: '⛵', ring: 'ring-gray-300', bg: 'bg-gray-100 dark:bg-gray-800', text: 'text-gray-700 dark:text-gray-300', dot: 'bg-gray-500' },
-  { value: 4, label: 'Tailwind', emoji: '💨', ring: 'ring-sky-300', bg: 'bg-sky-50 dark:bg-sky-950/40', text: 'text-sky-700 dark:text-sky-300', dot: 'bg-sky-500' },
-  { value: 5, label: 'Following seas', emoji: '🌊', ring: 'ring-emerald-300', bg: 'bg-emerald-50 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-300', dot: 'bg-emerald-500' },
+  {
+    value: 'hyper',
+    label: 'Hyper',
+    emoji: '🔥',
+    tagline: 'Too much',
+    cues: ['Racing thoughts', 'Jaw or chest tight', 'Can’t settle', 'Snappy, on edge', 'Scrolling without reading'],
+    bg: 'bg-rose-50 dark:bg-rose-950/40',
+    ring: 'ring-rose-400',
+    text: 'text-rose-800 dark:text-rose-200',
+    chipBg: 'bg-rose-100 dark:bg-rose-900/50',
+  },
+  {
+    value: 'window',
+    label: 'In the window',
+    emoji: '🎯',
+    tagline: 'Workable',
+    cues: ['Can think and feel at once', 'Hard things feel hard, not impossible', 'Can start something', 'Present in the room'],
+    bg: 'bg-emerald-50 dark:bg-emerald-950/40',
+    ring: 'ring-emerald-400',
+    text: 'text-emerald-800 dark:text-emerald-200',
+    chipBg: 'bg-emerald-100 dark:bg-emerald-900/50',
+  },
+  {
+    value: 'hypo',
+    label: 'Hypo',
+    emoji: '🧊',
+    tagline: 'Too little',
+    cues: ['Foggy, heavy', 'Flat or numb', 'Staring, re-reading', 'Everything feels far away', 'Can’t get going'],
+    bg: 'bg-sky-50 dark:bg-sky-950/40',
+    ring: 'ring-sky-400',
+    text: 'text-sky-800 dark:text-sky-200',
+    chipBg: 'bg-sky-100 dark:bg-sky-900/50',
+  },
 ];
 
-function energyStyle(level: EnergyLevel) {
-  return ENERGY_OPTIONS.find((o) => o.value === level) ?? ENERGY_OPTIONS[2];
+function zoneStyle(zone: RegulationZone) {
+  return ZONE_OPTIONS.find((o) => o.value === zone) ?? ZONE_OPTIONS[1];
 }
-
-// Direction chips — did the reasons top up your reserves or spend them down?
-// Kept as three explicit options (not a "leave blank to mean neutral" implicit
-// default) so the meaning stays legible in the log.
-const DIRECTION_OPTIONS: {
-  value: EnergyDirection;
-  label: string;
-  glyph: string;
-  activeClass: string;
-}[] = [
-  { value: 'recharged', label: 'Recharged', glyph: '↑', activeClass: 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200' },
-  { value: 'neutral',   label: 'Neutral',   glyph: '·', activeClass: 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-200' },
-  { value: 'drained',   label: 'Drained',   glyph: '↓', activeClass: 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-700 text-rose-800 dark:text-rose-200' },
-];
 
 function formatClockTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -3624,30 +3653,33 @@ function formatClockTime(iso: string): string {
 function StateLogStrip({
   todaysEntries,
   recentReasons,
+  resetsFor,
   onAdd,
   onDelete,
+  onUseReset,
+  onOpenRegulate,
 }: {
   todaysEntries: StateLogEntry[];
   recentReasons: string[];
-  onAdd: (input: {
-    energy: EnergyLevel;
-    direction?: EnergyDirection;
-    reasons: string[];
-    note?: string;
-  }) => StateLogEntry;
+  resetsFor: (zone: RegulationZone) => ResetActivity[];
+  onAdd: (input: { zone: RegulationZone; reasons: string[]; note?: string }) => StateLogEntry;
   onDelete: (id: string) => void;
+  onUseReset: (entryId: string, label: string) => void;
+  onOpenRegulate: () => void;
 }) {
-  // Picking an energy level opens the reason editor. Nothing selected → the
-  // strip stays compact with just the 5-chip dial.
-  const [pendingEnergy, setPendingEnergy] = useState<EnergyLevel | null>(null);
-  const [direction, setDirection] = useState<EnergyDirection>('neutral');
+  // Picking a zone opens the reason editor. Nothing selected → the strip
+  // stays compact with just the three cards.
+  const [pendingZone, setPendingZone] = useState<RegulationZone | null>(null);
   const [reasonDraft, setReasonDraft] = useState('');
   const [reasons, setReasons] = useState<string[]>([]);
   const [note, setNote] = useState('');
+  // After logging outside the window, the entry that was just written — so
+  // its resets can be offered immediately, and taps recorded against it.
+  const [justLogged, setJustLogged] = useState<StateLogEntry | null>(null);
+  const [usedLabels, setUsedLabels] = useState<string[]>([]);
 
   const cancel = () => {
-    setPendingEnergy(null);
-    setDirection('neutral');
+    setPendingZone(null);
     setReasonDraft('');
     setReasons([]);
     setNote('');
@@ -3669,17 +3701,19 @@ function StateLogStrip({
   };
 
   const submit = () => {
-    if (!pendingEnergy) return;
+    if (!pendingZone) return;
     // Commit any half-typed draft so a Tab-and-Save flow doesn't lose it.
     const trimmed = reasonDraft.trim().toLowerCase();
     const finalReasons =
       trimmed && !reasons.includes(trimmed) ? [...reasons, trimmed] : reasons;
-    onAdd({
-      energy: pendingEnergy,
-      direction,
-      reasons: finalReasons,
-      note,
-    });
+    const entry = onAdd({ zone: pendingZone, reasons: finalReasons, note });
+    // Outside the window, hand back the way in rather than just filing the
+    // observation. Logging that you are activated and being shown nothing is
+    // the gap this whole surface exists to close.
+    if (pendingZone !== 'window') {
+      setJustLogged(entry);
+      setUsedLabels([]);
+    }
     cancel();
   };
 
@@ -3691,65 +3725,69 @@ function StateLogStrip({
         <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Log a moment</h3>
         <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
           {todaysEntries.length === 0
-            ? 'How are you sailing right now?'
+            ? 'Where are you right now?'
             : `${todaysEntries.length} today`}
         </span>
       </header>
 
       <div className="px-4 py-3 space-y-3">
-        {/* Energy dial — 5-level nautical scale from Doldrums to Following seas */}
-        <div className="grid grid-cols-5 gap-1.5">
-          {ENERGY_OPTIONS.map((opt) => {
-            const active = pendingEnergy === opt.value;
+        {/* Three zone cards. Cues are visible at pick time, not after — the
+            hard part is recognising the state, not tapping the button. */}
+        <div className="space-y-1.5">
+          {ZONE_OPTIONS.map((opt) => {
+            const active = pendingZone === opt.value;
             return (
               <button
                 key={opt.value}
-                onClick={() => setPendingEnergy(active ? null : opt.value)}
-                className={`flex flex-col items-center justify-center px-1 py-2 rounded-xl transition-all ${
+                onClick={() => {
+                  setPendingZone(active ? null : opt.value);
+                  setJustLogged(null);
+                }}
+                className={`w-full text-left px-3 py-2.5 rounded-xl border-2 transition-all ${
                   active
-                    ? `${opt.bg} ring-2 ${opt.ring} ${opt.text}`
-                    : 'bg-gray-50 dark:bg-gray-950 hover:bg-gray-100 dark:hover:bg-gray-800 dark:bg-gray-800 text-gray-700 dark:text-gray-300'
+                    ? `${opt.bg} ${opt.text} border-transparent ring-2 ${opt.ring}`
+                    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700'
                 }`}
-                title={opt.label}
               >
-                <span className="text-base leading-none">{opt.emoji}</span>
-                <span className="mt-1 text-[10px] font-semibold leading-tight text-center">
-                  {opt.label}
-                </span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-base leading-none">{opt.emoji}</span>
+                  <span
+                    className={`text-sm font-semibold ${
+                      active ? '' : 'text-gray-900 dark:text-gray-100'
+                    }`}
+                  >
+                    {opt.label}
+                  </span>
+                  <span
+                    className={`text-[10px] uppercase tracking-wider font-bold ${
+                      active ? 'opacity-70' : 'text-gray-400 dark:text-gray-500'
+                    }`}
+                  >
+                    {opt.tagline}
+                  </span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {opt.cues.map((c) => (
+                    <span
+                      key={c}
+                      className={`px-1.5 py-0.5 rounded text-[10px] leading-tight ${
+                        active
+                          ? `${opt.chipBg} ${opt.text}`
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                      }`}
+                    >
+                      {c}
+                    </span>
+                  ))}
+                </div>
               </button>
             );
           })}
         </div>
 
-        {/* Reason editor — appears once an energy level is picked */}
-        {pendingEnergy && (
+        {/* Reason editor — appears once a zone is picked */}
+        {pendingZone && (
           <div className="space-y-3">
-            {/* Direction toggle — did this recharge or drain you? */}
-            <div>
-              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
-                Trend
-              </div>
-              <div className="flex gap-1.5">
-                {DIRECTION_OPTIONS.map((d) => {
-                  const active = direction === d.value;
-                  return (
-                    <button
-                      key={d.value}
-                      onClick={() => setDirection(d.value)}
-                      className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                        active
-                          ? d.activeClass
-                          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-700 dark:border-gray-700'
-                      }`}
-                    >
-                      <span className="text-sm leading-none">{d.glyph}</span>
-                      <span>{d.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             <div>
               <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-1">
                 Because…
@@ -3848,9 +3886,80 @@ function StateLogStrip({
           </div>
         )}
 
-        {/* Today's compact chip strip. Older entries may only carry the legacy
-            3-bucket `feeling`; effectiveEnergy() maps both to the 1-5 scale so
-            the day's trajectory reads consistently. */}
+        {/* Outside the window → offer the way back, right here. Tapping one
+            records it against the entry, so the library slowly learns which
+            of your own moves you actually reach for. */}
+        {justLogged && (() => {
+          const zone = justLogged.zone ?? 'window';
+          const style = zoneStyle(zone);
+          const options = resetsFor(zone);
+          return (
+            <div className={`rounded-xl border px-3 py-2.5 ${style.bg} border-transparent`}>
+              <div className="flex items-baseline justify-between gap-2 mb-1.5">
+                <span className={`text-[11px] font-semibold ${style.text}`}>
+                  {zone === 'hyper' ? 'Bring it down' : 'Bring it up'}
+                </span>
+                <button
+                  onClick={() => setJustLogged(null)}
+                  className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                >
+                  Dismiss
+                </button>
+              </div>
+              {options.length === 0 ? (
+                <button
+                  onClick={onOpenRegulate}
+                  className="text-[12px] underline text-gray-700 dark:text-gray-300"
+                >
+                  No resets saved for this yet — add some
+                </button>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-1.5">
+                    {options.map((a) => {
+                      const used = usedLabels.includes(a.label);
+                      return (
+                        <button
+                          key={a.id}
+                          onClick={() => {
+                            onUseReset(justLogged.id, a.label);
+                            setUsedLabels((prev) =>
+                              prev.includes(a.label) ? prev : [...prev, a.label]
+                            );
+                          }}
+                          title={a.how}
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg border text-[12px] transition-colors ${
+                            used
+                              ? 'bg-white/80 dark:bg-gray-900/70 border-transparent text-gray-400 dark:text-gray-500 line-through'
+                              : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 hover:border-gray-400 dark:hover:border-gray-500'
+                          }`}
+                        >
+                          <span>{a.emoji}</span>
+                          <span className="font-medium">{a.label}</span>
+                          {a.minutes !== undefined && (
+                            <span className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">
+                              {a.minutes}m
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <button
+                    onClick={onOpenRegulate}
+                    className="mt-2 text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  >
+                    Edit resets →
+                  </button>
+                </>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* Today's compact chip strip. Pre-zone entries carry only the legacy
+            energy or feeling value; effectiveZone() maps them onto the same
+            axis so the day reads consistently. */}
         {todaysEntries.length > 0 && (
           <div className="pt-1">
             <div className="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-1">
@@ -3858,19 +3967,18 @@ function StateLogStrip({
             </div>
             <ul className="space-y-1">
               {todaysEntries.map((e) => {
-                const s = energyStyle(effectiveEnergy(e));
-                const dirGlyph =
-                  e.direction === 'recharged' ? '↑' :
-                  e.direction === 'drained' ? '↓' :
-                  null;
+                const s = zoneStyle(effectiveZone(e));
                 return (
                   <li key={e.id} className="flex items-center gap-2 group">
                     <span
                       className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] ${s.bg} ${s.text}`}
+                      title={s.label}
                     >
                       <span>{s.emoji}</span>
                       <span className="font-semibold">{formatClockTime(e.loggedAt)}</span>
-                      {dirGlyph && <span className="leading-none">{dirGlyph}</span>}
+                      {(e.resetsUsed?.length ?? 0) > 0 && (
+                        <span className="leading-none" title={e.resetsUsed?.join(', ')}>✓</span>
+                      )}
                     </span>
                     <span className="flex-1 min-w-0 truncate text-[12px] text-gray-700 dark:text-gray-300">
                       {e.reasons.length > 0 ? e.reasons.join(' · ') : (e.note || '—')}

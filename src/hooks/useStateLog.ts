@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { StateLogEntry, StateFeeling, EnergyLevel, EnergyDirection } from '../types';
+import type { StateLogEntry, StateFeeling, RegulationZone } from '../types';
+import { effectiveZone } from '../types';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
 
@@ -67,26 +68,21 @@ export function useStateLog() {
     }
   }, [entries, loaded]);
 
-  // Add an entry using the new energy-scale API. Callers that still pass the
-  // legacy 3-bucket feeling go through `addEntryLegacy` below (Horizon's
-  // contemplation prompt for now).
+  const normalizeReasons = (reasons: string[]) =>
+    reasons
+      .map((r) => r.trim().toLowerCase())
+      .filter((r) => r.length > 0)
+      .filter((r, i, arr) => arr.indexOf(r) === i);
+
+  // Add an entry on the window-of-tolerance axis. Older entries keep whatever
+  // legacy shape they were written with; read paths go through effectiveZone.
   const addEntry = useCallback(
-    (input: {
-      energy: EnergyLevel;
-      direction?: EnergyDirection;
-      reasons: string[];
-      note?: string;
-    }): StateLogEntry => {
-      const normalized = input.reasons
-        .map((r) => r.trim().toLowerCase())
-        .filter((r) => r.length > 0)
-        .filter((r, i, arr) => arr.indexOf(r) === i);
+    (input: { zone: RegulationZone; reasons: string[]; note?: string }): StateLogEntry => {
       const entry: StateLogEntry = {
         id: uuidv4(),
         loggedAt: new Date().toISOString(),
-        energy: input.energy,
-        direction: input.direction,
-        reasons: normalized,
+        zone: input.zone,
+        reasons: normalizeReasons(input.reasons),
         note: input.note?.trim() || undefined,
       };
       setEntries((prev) => [entry, ...prev]);
@@ -95,21 +91,18 @@ export function useStateLog() {
     []
   );
 
-  // Legacy path — kept so any surface that still emits the 3-bucket feeling
-  // (e.g. the Horizon contemplation prompt) doesn't need to change. Maps the
-  // old value onto the new scale using effectiveEnergy's inverse.
+  // Legacy path — kept so any surface still emitting the 3-bucket feeling
+  // (Horizon's contemplation prompt) doesn't need to change. 'off' is mapped
+  // to hypo rather than hyper: the old vocabulary described flatness, not
+  // activation, so reading it as activation would be inventing data.
   const addEntryLegacy = useCallback(
     (feeling: StateFeeling, reasons: string[], note?: string): StateLogEntry => {
-      const energy: EnergyLevel = feeling === 'off' ? 2 : feeling === 'good' ? 4 : 3;
-      const normalized = reasons
-        .map((r) => r.trim().toLowerCase())
-        .filter((r) => r.length > 0)
-        .filter((r, i, arr) => arr.indexOf(r) === i);
+      const zone: RegulationZone = feeling === 'off' ? 'hypo' : 'window';
       const entry: StateLogEntry = {
         id: uuidv4(),
         loggedAt: new Date().toISOString(),
-        energy,
-        reasons: normalized,
+        zone,
+        reasons: normalizeReasons(reasons),
         note: note?.trim() || undefined,
       };
       setEntries((prev) => [entry, ...prev]);
@@ -117,6 +110,18 @@ export function useStateLog() {
     },
     []
   );
+
+  /** Record that a reset was tapped from a given entry. Stored by label so
+   *  the record survives the activity being renamed or deleted later. */
+  const markResetUsed = useCallback((id: string, label: string) => {
+    setEntries((prev) =>
+      prev.map((e) =>
+        e.id === id
+          ? { ...e, resetsUsed: e.resetsUsed?.includes(label) ? e.resetsUsed : [...(e.resetsUsed ?? []), label] }
+          : e
+      )
+    );
+  }, []);
 
   const updateEntry = useCallback(
     (id: string, patch: Partial<Omit<StateLogEntry, 'id' | 'loggedAt'>>) => {
@@ -155,14 +160,35 @@ export function useStateLog() {
     return out;
   }, [entries]);
 
+  // How often each reset has actually been tapped, and from which zone. This
+  // is the loop the library exists for: over time it shows which of your own
+  // moves you really reach for, rather than which ones sounded good.
+  const resetUsage = useMemo(() => {
+    const counts = new Map<string, { total: number; hyper: number; hypo: number }>();
+    for (const e of entries) {
+      if (!e.resetsUsed?.length) continue;
+      const z = effectiveZone(e);
+      for (const label of e.resetsUsed) {
+        const cur = counts.get(label) ?? { total: 0, hyper: 0, hypo: 0 };
+        cur.total += 1;
+        if (z === 'hyper') cur.hyper += 1;
+        else if (z === 'hypo') cur.hypo += 1;
+        counts.set(label, cur);
+      }
+    }
+    return counts;
+  }, [entries]);
+
   return {
     entries,
     todaysEntries,
     recentReasons,
+    resetUsage,
     loaded,
     addEntry,
     addEntryLegacy,
     updateEntry,
     deleteEntry,
+    markResetUsed,
   };
 }

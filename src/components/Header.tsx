@@ -16,6 +16,7 @@ export type ActiveView =
   | 'grounding'
   | 'underway'
   | 'compass'
+  | 'regulate'
   | 'triage'
   | 'notes'
   | 'principles'
@@ -282,6 +283,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
           primary={[
             { view: 'underway',    label: 'Underway', title: 'One task, one session — synthetic body-doubling' },
             { view: 'predictions', label: 'Lab',      title: 'Prediction Lab: predict, leap, initiate' },
+            { view: 'regulate',    label: 'Regulate', title: 'Window of tolerance: your ways back from hyper or hypo' },
             { view: 'calendar',    label: 'Calendar', title: 'Weekly calendar with blocks' },
           ]}
           secondary={[

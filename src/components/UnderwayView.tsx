@@ -161,6 +161,7 @@ interface UnderwayViewProps {
   unscheduledTasks: BrainDumpTask[];
   onDeleteDumpTask: (id: string) => void;
   onNavigateToGrounding: () => void;
+  onNavigateToRegulate: () => void;
   todaysSessions: UnderwaySession[];
   allSessions: UnderwaySession[];       // full history for the Past Sessions section
   weekCount: number;
@@ -203,6 +204,7 @@ export default function UnderwayView({
   unscheduledTasks,
   onDeleteDumpTask,
   onNavigateToGrounding,
+  onNavigateToRegulate,
   todaysSessions,
   allSessions,
   weekCount,
@@ -606,6 +608,7 @@ export default function UnderwayView({
         onResetStuckPresets={onResetStuckPresets}
         onBack={() => setPhase('home')}
         onGo={(label, sizeMin) => startQuickstart(label, sizeMin, { viaPreflight: true })}
+        onNavigateToRegulate={onNavigateToRegulate}
       />
     );
   }
@@ -1137,6 +1140,7 @@ function StuckPhase({
   onResetStuckPresets,
   onBack,
   onGo,
+  onNavigateToRegulate,
 }: {
   mantra: string;
   onSetMantra: (m: string) => void;
@@ -1150,6 +1154,7 @@ function StuckPhase({
   onResetStuckPresets: () => void;
   onBack: () => void;
   onGo: (label: string, sizeMin: 2 | 15 | 60) => void;
+  onNavigateToRegulate: () => void;
 }) {
   const [label, setLabel] = useState('');
   const [sizeMin, setSizeMin] = useState<2 | 15 | 60>(2);
@@ -1487,6 +1492,20 @@ function StuckPhase({
               No chips left. Add your own above, or reset to the defaults.
             </p>
           )}
+
+          {/* Cross-link to Regulate. These chips assume inertia is the problem;
+              if you are activated or shut down, none of them will land, and
+              sending you round this list again is the real dead end. */}
+          <p className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
+            Wired and can’t settle, or foggy and far away? That is arousal, not inertia —{' '}
+            <button
+              onClick={onNavigateToRegulate}
+              className="underline font-semibold text-emerald-700 dark:text-emerald-300 hover:text-emerald-800 dark:hover:text-emerald-200"
+            >
+              go to Regulate
+            </button>{' '}
+            instead.
+          </p>
         </div>
 
         <div>

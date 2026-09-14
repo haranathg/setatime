@@ -61,6 +61,33 @@ the board is the plan.
 with a next action already written down is one you can start without
 deciding anything first — that's the entire reason the field exists.
 
+## When the problem is your state, not your plan
+
+Two different failures get confused constantly, and they need opposite
+responses:
+
+| You are… | Looks like | Go to |
+|---|---|---|
+| **Hyper** | Racing, jaw tight, can't settle, scrolling without reading | Regulate → bring it down |
+| **In the window** | Can think and feel at once; hard things feel hard, not impossible | Nothing to fix — Stuck, if you can't start |
+| **Hypo** | Foggy, flat, staring, everything far away | Regulate → bring it up |
+
+**Log it on Today** — the "Log a moment" card, under *show more on today*.
+Each of the three cards lists the body cues, because the hard part is
+recognising which one you're in, not tapping the button. Both ends feel
+like "bad", and a calming exercise does nothing when you are already shut
+down.
+
+If you log hyper or hypo, your resets for that direction appear right
+there. Tap one and it is recorded against the entry, so over time
+**Sail → Regulate** shows which of your own moves you actually reach for —
+`used 4×` beside the ones that are real rather than aspirational.
+
+**Regulate is the library; Stuck is for inertia.** If you are in the
+window and still not starting, that is a different problem and the Stuck
+chips are the right tool. Each screen links to the other, so a wrong guess
+costs one tap.
+
 ## When you can't make yourself start
 
 Sail → Lab → **Rubicon**. Use it for the specific failure where you know
