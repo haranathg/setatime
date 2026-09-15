@@ -54,7 +54,12 @@ export default function RegulateView({
   const [adding, setAdding] = useState<ResetDirection | null>(null);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-5 space-y-5">
+    // The scroll container every other full-page view uses. Without
+    // flex-1 + overflow-y-auto this sits inside App's `h-full flex flex-col`
+    // shell with no way to scroll, so everything past the fold — the whole
+    // "Bring it up" section and its editor included — was unreachable.
+    <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
+      <div className="max-w-3xl mx-auto px-4 py-5 space-y-5">
       <header>
         <div className="flex items-baseline justify-between gap-3">
           <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
@@ -211,6 +216,7 @@ export default function RegulateView({
           </button>
         </div>
       )}
+      </div>
     </div>
   );
 }

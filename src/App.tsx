@@ -11,6 +11,7 @@ import HabitsView from './components/HabitsView';
 import BooksView from './components/BooksView';
 import GroundingView from './components/GroundingView';
 import RegulateView from './components/RegulateView';
+import TodayLayoutEditor from './components/TodayLayoutEditor';
 import UnderwayView from './components/UnderwayView';
 import CompassView from './components/CompassView';
 import TriageView from './components/TriageView';
@@ -38,6 +39,7 @@ import { usePredictions } from './hooks/usePredictions';
 import { useHorizon } from './hooks/useHorizon';
 import { useStateLog } from './hooks/useStateLog';
 import { useRegulate } from './hooks/useRegulate';
+import { useTodayLayout } from './hooks/useTodayLayout';
 import { useUnderway } from './hooks/useUnderway';
 import { useCompass } from './hooks/useCompass';
 import { usePlan } from './hooks/usePlan';
@@ -198,6 +200,17 @@ function AppMain({
     markResetUsed: markStateLogResetUsed,
     resetUsage: stateLogResetUsage,
   } = useStateLog();
+
+  const {
+    order: todayOrder,
+    isTucked: isTodaySectionTucked,
+    tuckedCount: todayTuckedCount,
+    move: moveTodaySection,
+    pinToTop: pinTodaySection,
+    toggleTucked: toggleTodaySectionTucked,
+    resetLayout: resetTodayLayout,
+  } = useTodayLayout();
+  const [customisingToday, setCustomisingToday] = useState(false);
 
   const {
     activities: resetActivities,
@@ -472,6 +485,18 @@ function AppMain({
 
       <NowNextBar blocks={blocks} onJumpToToday={() => setActiveView('today')} />
 
+      {customisingToday && (
+        <TodayLayoutEditor
+          order={todayOrder}
+          isTucked={isTodaySectionTucked}
+          onMove={moveTodaySection}
+          onPinToTop={pinTodaySection}
+          onToggleTucked={toggleTodaySectionTucked}
+          onReset={resetTodayLayout}
+          onClose={() => setCustomisingToday(false)}
+        />
+      )}
+
       {activeView === 'calendar' ? (
         <div className="flex-1 flex overflow-hidden">
           <div className={`flex-1 flex flex-col transition-all ${sidebarOpen ? 'sm:mr-80' : ''}`}>
@@ -612,6 +637,10 @@ function AppMain({
           onToggleIndicatorStar={toggleIndicatorStar}
           stateLogTodaysEntries={stateLogTodaysEntries}
           stateLogRecentReasons={stateLogRecentReasons}
+          todayOrder={todayOrder}
+          isTucked={isTodaySectionTucked}
+          tuckedCount={todayTuckedCount}
+          onOpenCustomise={() => setCustomisingToday(true)}
           resetsFor={resetsForZone}
           onUseReset={markStateLogResetUsed}
           onOpenRegulate={() => setActiveView('regulate')}

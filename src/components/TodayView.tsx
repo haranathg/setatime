@@ -14,6 +14,7 @@ import type {
   StateLogEntry,
   RegulationZone,
   ResetActivity,
+  TodaySectionKey,
   DailyPlanTask,
   DailyPlanSize,
   WeekBoardItem,
@@ -77,6 +78,11 @@ interface TodayViewProps {
   stateLogTodaysEntries: StateLogEntry[];
   stateLogRecentReasons: string[];
   resetsFor: (zone: RegulationZone) => ResetActivity[];
+  // Today layout — see useTodayLayout.
+  todayOrder: TodaySectionKey[];
+  isTucked: (key: TodaySectionKey) => boolean;
+  tuckedCount: number;
+  onOpenCustomise: () => void;
   onUseReset: (entryId: string, label: string) => void;
   onOpenRegulate: () => void;
   onAddStateLogEntry: (input: {
@@ -194,6 +200,10 @@ export default function TodayView({
   resetsFor,
   onUseReset,
   onOpenRegulate,
+  todayOrder,
+  isTucked,
+  tuckedCount,
+  onOpenCustomise,
   onAddStateLogEntry,
   onDeleteStateLogEntry,
   underwayMantra,
@@ -330,115 +340,253 @@ export default function TodayView({
   const totalSubTasks = states.reduce((sum, s) => sum + s.todaySubTasks.length, 0);
   const doneSubTasks = states.reduce((sum, s) => sum + s.doneCount, 0);
 
+  // Every Today widget, keyed. Both render paths (with and without calendar
+  // blocks) draw from this one map in the user's saved order, which is also
+  // what stopped the two paths drifting apart.
+  const hasBlocks = states.length > 0;
+  const sections: Record<TodaySectionKey, React.ReactNode> = {
+    activate: (
+      <>
+      <ActivateNowStrip
+                mantra={underwayMantra}
+                onStuck={onGoStuck}
+                onStart={onGoStart}
+                onKnockOne={onGoKnockOne}
+                onTriage={onGoTriage}
+                onPredict={onGoPredict}
+                onReflect={onGoReflect}
+                onSort={onGoSort}
+                onBreathe={onGoBreathe}
+                activeDumpCount={activeDumpCount}
+              />
+      </>
+    ),
+    projectsDue: (
+      <>
+      <ProjectsDueStrip projects={projects} onOpenProjects={onOpenProjects} />
+      </>
+    ),
+    block: hasBlocks ? (
+<>
+      {/* All-day banner — reserved-day events surface here as compact chips */}
+              {allDayToday.length > 0 && (
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3">
+                  <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-2">
+                    All-day today
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {allDayToday.map((b) => (
+                      <span
+                        key={b.id}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold text-gray-900 dark:text-gray-100"
+                        style={{ backgroundColor: b.color }}
+                      >
+                        {b.mainTask}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* The working checklist. A full BlockCard either way: when a block
+                  is running it's the "now" card, and when none is it's the next
+                  one up — still with real checkboxes, because a card that only
+                  says "3 subtasks planned" is not something you can tick. */}
+              {current ? (
+                <BlockCard
+                  state={current}
+                  variant="now"
+                  now={now}
+                  onToggleSubTask={onToggleSubTask}
+                  onToggleSubStep={onToggleSubStep}
+                />
+              ) : nextUp ? (
+                <BlockCard
+                  state={nextUp}
+                  variant="upcoming"
+                  now={now}
+                  onToggleSubTask={onToggleSubTask}
+                  onToggleSubStep={onToggleSubStep}
+                  relativeLabel={relativeStartLabel(nextUp, now)}
+                  emphasize
+                />
+              ) : (
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 text-center">
+                  <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">You're done for the day ✓</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">No upcoming blocks left.</p>
+                </div>
+              )}
+      </>
+    ) : null,
+    plan: (
+      <>
+      <TodaysPlanStrip
+                plan={todaysPlan}
+                counts={planCounts}
+                dumpTasks={activeDumpTasks}
+                onAddToPlan={onAddToPlan}
+                onComplete={onCompletePlanTask}
+                onRemove={onRemovePlanTask}
+                onUpdate={onUpdatePlanTask}
+                onStart={onStartPlanTask}
+                projects={projects}
+                onSetProject={onSetPlanTaskProject}
+                todaysPhoto={todaysPhoto}
+                tomorrowsPhoto={tomorrowsPhoto}
+                todayKey={planTodayKey}
+                tomorrowKey={planTomorrowKey}
+                onSetPhoto={onSetPlanPhoto}
+                onRemovePhoto={onRemovePlanPhoto}
+                photoError={planPhotoError}
+                onClearPhotoError={onClearPlanPhotoError}
+              />
+      </>
+    ),
+    weekBoard: (
+      <>
+      <WeekBoardStrip
+                items={weekBoardItems}
+                dropsThisWeek={weekBoardDropsThisWeek}
+                planCounts={planCounts}
+                dumpTasks={activeDumpTasks}
+                onAdd={onAddWeekBoardItem}
+                onDrop={onDropWeekBoardItem}
+                onPromote={onPromoteWeekBoardItem}
+                onSetDay={onSetWeekBoardItemDay}
+                projects={projects}
+                onSetProject={onSetWeekBoardItemProject}
+              />
+      </>
+    ),
+    northStars: (
+      <>
+      <NorthStarsStrip
+                    stars={northStars}
+                    onOpenStar={onOpenStar}
+                    onOpenAll={onOpenAllStars}
+                  />
+      </>
+    ),
+    stateLog: (
+      <>
+      <StateLogStrip
+                    todaysEntries={stateLogTodaysEntries}
+                    recentReasons={stateLogRecentReasons}
+                    resetsFor={resetsFor}
+                    onAdd={onAddStateLogEntry}
+                    onDelete={onDeleteStateLogEntry}
+                    onUseReset={onUseReset}
+                    onOpenRegulate={onOpenRegulate}
+                  />
+      </>
+    ),
+    basics: (
+      <>
+      <BasicsDashboard
+                    indicators={dashboardIndicators}
+                    views={dashboardViews}
+                    onLog={(id) => {
+                      onLogIndicator(id);
+                      const ind = dashboardIndicators.find((i) => i.id === id);
+                      if (ind) setUndoToast({ id: `t-${Date.now()}`, spiralId: id, label: ind.name });
+                    }}
+                    onUndoLast={onUndoLastIndicatorLog}
+                    onToggle={onToggleIndicatorEnabled}
+                    onAddCustom={onAddCustomIndicator}
+                    onRemove={onRemoveIndicator}
+                    onPushToDump={onPushIndicatorToDump}
+                    onSetCadence={onSetCadence}
+                    onSetSchedule={onSetSchedule}
+                    onSetPause={onSetPause}
+                    northStars={northStars}
+                    onToggleIndicatorStar={onToggleIndicatorStar}
+                  />
+      </>
+    ),
+    predictions: (
+      <>
+      <OverduePredictionsStrip
+                    overdue={overduePredictions}
+                    onReflect={onReflectPrediction}
+                  />
+      </>
+    ),
+    agedDump: (
+      <>
+      <AgedDumpStrip
+                    tasks={agedDumpTasks}
+                    onSchedule={onScheduleDumpTask}
+                    onDrop={onDropDumpTask}
+                  />
+      </>
+    ),
+    pins: (
+      <>
+      <PinsStrip
+                    pins={pins}
+                    onAddPin={onAddPin}
+                    onTogglePin={onTogglePin}
+                    onEditPin={onEditPin}
+                    onRemovePin={onRemovePin}
+                  />
+      </>
+    ),
+    upNext: hasBlocks ? (
+<>
+      {/* Upcoming — excluding whatever is already filling the slot above */}
+              {restUpcoming.length > 0 && (
+                <Section title="Up next">
+                  {restUpcoming.map((s) => (
+                    <BlockCard
+                      key={s.block.id}
+                      state={s}
+                      variant="upcoming"
+                      now={now}
+                      onToggleSubTask={onToggleSubTask}
+                      onToggleSubStep={onToggleSubStep}
+                    />
+                  ))}
+                </Section>
+              )}
+      </>
+    ) : null,
+  };
+
+  // Walk the order once. The "show more" toggle is emitted at the position
+  // of the first tucked section rather than at a fixed place, so it always
+  // sits immediately before the things it hides, whatever order you choose.
+  const renderOrdered = () => {
+    const out: React.ReactNode[] = [];
+    let toggleEmitted = false;
+    for (const key of todayOrder) {
+      const hidden = isTucked(key);
+      if (hidden && !toggleEmitted) {
+        toggleEmitted = true;
+        out.push(
+          <button
+            key="__more"
+            onClick={() => setShowMoreToday((v) => !v)}
+            className="w-full text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-indigo-700 dark:hover:text-indigo-300 py-1.5 border-t border-dashed border-gray-200 dark:border-gray-800"
+          >
+            {showMoreToday
+              ? '− hide more on today'
+              : `▶ show more on today (${tuckedCount})`}
+          </button>
+        );
+      }
+      if (hidden && !showMoreToday) continue;
+      out.push(<div key={key}>{sections[key]}</div>);
+    }
+    return out;
+  };
+
   if (states.length === 0) {
     return (
       <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
         <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
-          <Header today={today} doneSubTasks={0} totalSubTasks={0} />
-          <ActivateNowStrip
-            mantra={underwayMantra}
-            onStuck={onGoStuck}
-            onStart={onGoStart}
-            onKnockOne={onGoKnockOne}
-            onTriage={onGoTriage}
-            onPredict={onGoPredict}
-            onReflect={onGoReflect}
-            onSort={onGoSort}
-            onBreathe={onGoBreathe}
-            activeDumpCount={activeDumpCount}
-          />
-          <ProjectsDueStrip projects={projects} onOpenProjects={onOpenProjects} />
-          <TodaysPlanStrip
-            plan={todaysPlan}
-            counts={planCounts}
-            dumpTasks={activeDumpTasks}
-            onAddToPlan={onAddToPlan}
-            onComplete={onCompletePlanTask}
-            onRemove={onRemovePlanTask}
-            onUpdate={onUpdatePlanTask}
-            onStart={onStartPlanTask}
-            projects={projects}
-            onSetProject={onSetPlanTaskProject}
-            todaysPhoto={todaysPhoto}
-            tomorrowsPhoto={tomorrowsPhoto}
-            todayKey={planTodayKey}
-            tomorrowKey={planTomorrowKey}
-            onSetPhoto={onSetPlanPhoto}
-            onRemovePhoto={onRemovePlanPhoto}
-            photoError={planPhotoError}
-            onClearPhotoError={onClearPlanPhotoError}
-          />
-          <WeekBoardStrip
-            items={weekBoardItems}
-            dropsThisWeek={weekBoardDropsThisWeek}
-            planCounts={planCounts}
-            dumpTasks={activeDumpTasks}
-            onAdd={onAddWeekBoardItem}
-            onDrop={onDropWeekBoardItem}
-            onPromote={onPromoteWeekBoardItem}
-            onSetDay={onSetWeekBoardItemDay}
-            projects={projects}
-            onSetProject={onSetWeekBoardItemProject}
-          />
-          <button
-            onClick={() => setShowMoreToday((v) => !v)}
-            className="w-full text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300 py-1.5 border-t border-dashed border-gray-200 dark:border-gray-800"
-          >
-            {showMoreToday ? '− hide more on today' : '▶ show more on today (6)'}
-          </button>
-          {showMoreToday && (
-            <>
-              <NorthStarsStrip
-                stars={northStars}
-                onOpenStar={onOpenStar}
-                onOpenAll={onOpenAllStars}
-              />
-              <StateLogStrip
-                todaysEntries={stateLogTodaysEntries}
-                recentReasons={stateLogRecentReasons}
-                resetsFor={resetsFor}
-                onAdd={onAddStateLogEntry}
-                onDelete={onDeleteStateLogEntry}
-                onUseReset={onUseReset}
-                onOpenRegulate={onOpenRegulate}
-              />
-              <BasicsDashboard
-                indicators={dashboardIndicators}
-                views={dashboardViews}
-                onLog={(id) => {
-                  onLogIndicator(id);
-                  const ind = dashboardIndicators.find((i) => i.id === id);
-                  if (ind) setUndoToast({ id: `t-${Date.now()}`, spiralId: id, label: ind.name });
-                }}
-                onUndoLast={onUndoLastIndicatorLog}
-                onToggle={onToggleIndicatorEnabled}
-                onAddCustom={onAddCustomIndicator}
-                onRemove={onRemoveIndicator}
-                onPushToDump={onPushIndicatorToDump}
-                onSetCadence={onSetCadence}
-                onSetSchedule={onSetSchedule}
-                onSetPause={onSetPause}
-                northStars={northStars}
-                onToggleIndicatorStar={onToggleIndicatorStar}
-              />
-              <OverduePredictionsStrip
-                overdue={overduePredictions}
-                onReflect={onReflectPrediction}
-              />
-              <AgedDumpStrip
-                tasks={agedDumpTasks}
-                onSchedule={onScheduleDumpTask}
-                onDrop={onDropDumpTask}
-              />
-              <PinsStrip
-                pins={pins}
-                onAddPin={onAddPin}
-                onTogglePin={onTogglePin}
-                onEditPin={onEditPin}
-                onRemovePin={onRemovePin}
-              />
-            </>
-          )}
+          <Header today={today} doneSubTasks={0} totalSubTasks={0} onArrange={onOpenCustomise} />
+          {renderOrdered()}
+
           <div className="mt-8 text-center py-16 px-4 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl bg-white dark:bg-gray-900">
             <p className="text-base font-semibold text-gray-700 dark:text-gray-300">Nothing scheduled for today</p>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-4">Add a block in the calendar to start tracking your progress here.</p>
@@ -458,195 +606,9 @@ export default function TodayView({
   return (
     <div className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-950">
       <div className="max-w-2xl mx-auto px-4 py-5 space-y-4">
-        <Header today={today} doneSubTasks={doneSubTasks} totalSubTasks={totalSubTasks} />
+        <Header today={today} doneSubTasks={doneSubTasks} totalSubTasks={totalSubTasks} onArrange={onOpenCustomise} />
 
-        <ActivateNowStrip
-          mantra={underwayMantra}
-          onStuck={onGoStuck}
-          onStart={onGoStart}
-          onKnockOne={onGoKnockOne}
-          onTriage={onGoTriage}
-          onPredict={onGoPredict}
-          onReflect={onGoReflect}
-          onSort={onGoSort}
-          onBreathe={onGoBreathe}
-          activeDumpCount={activeDumpCount}
-        />
-
-        <ProjectsDueStrip projects={projects} onOpenProjects={onOpenProjects} />
-
-        {/* The working checklist comes first. Directly below Activate now
-            sits the block you're actually in — its sub-tasks and their
-            steps — because that's the list you tick through during the
-            day. Coming due / Plan / Week are decisions already made this
-            morning, so they sit underneath it. */}
-        {/* All-day banner — reserved-day events surface here as compact chips */}
-        {allDayToday.length > 0 && (
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3">
-            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-gray-400 mb-2">
-              All-day today
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {allDayToday.map((b) => (
-                <span
-                  key={b.id}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[12px] font-semibold text-gray-900 dark:text-gray-100"
-                  style={{ backgroundColor: b.color }}
-                >
-                  {b.mainTask}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* The working checklist. A full BlockCard either way: when a block
-            is running it's the "now" card, and when none is it's the next
-            one up — still with real checkboxes, because a card that only
-            says "3 subtasks planned" is not something you can tick. */}
-        {current ? (
-          <BlockCard
-            state={current}
-            variant="now"
-            now={now}
-            onToggleSubTask={onToggleSubTask}
-            onToggleSubStep={onToggleSubStep}
-          />
-        ) : nextUp ? (
-          <BlockCard
-            state={nextUp}
-            variant="upcoming"
-            now={now}
-            onToggleSubTask={onToggleSubTask}
-            onToggleSubStep={onToggleSubStep}
-            relativeLabel={relativeStartLabel(nextUp, now)}
-            emphasize
-          />
-        ) : (
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-5 text-center">
-            <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">You're done for the day ✓</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">No upcoming blocks left.</p>
-          </div>
-        )}
-
-
-        <TodaysPlanStrip
-          plan={todaysPlan}
-          counts={planCounts}
-          dumpTasks={activeDumpTasks}
-          onAddToPlan={onAddToPlan}
-          onComplete={onCompletePlanTask}
-          onRemove={onRemovePlanTask}
-          onUpdate={onUpdatePlanTask}
-          onStart={onStartPlanTask}
-          projects={projects}
-          onSetProject={onSetPlanTaskProject}
-          todaysPhoto={todaysPhoto}
-          tomorrowsPhoto={tomorrowsPhoto}
-          todayKey={planTodayKey}
-          tomorrowKey={planTomorrowKey}
-          onSetPhoto={onSetPlanPhoto}
-          onRemovePhoto={onRemovePlanPhoto}
-          photoError={planPhotoError}
-          onClearPhotoError={onClearPlanPhotoError}
-        />
-
-        <WeekBoardStrip
-          items={weekBoardItems}
-          dropsThisWeek={weekBoardDropsThisWeek}
-          planCounts={planCounts}
-          dumpTasks={activeDumpTasks}
-          onAdd={onAddWeekBoardItem}
-          onDrop={onDropWeekBoardItem}
-          onPromote={onPromoteWeekBoardItem}
-          onSetDay={onSetWeekBoardItemDay}
-          projects={projects}
-          onSetProject={onSetWeekBoardItemProject}
-        />
-
-        {/* Show more on today — the 6 secondary widgets. Hidden by
-            default; user preference persists per device. */}
-        <button
-          onClick={() => setShowMoreToday((v) => !v)}
-          className="w-full text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300 py-1.5 border-t border-dashed border-gray-200 dark:border-gray-800"
-        >
-          {showMoreToday ? '− hide more on today' : '▶ show more on today (6)'}
-        </button>
-
-        {showMoreToday && (
-          <>
-            <NorthStarsStrip
-              stars={northStars}
-              onOpenStar={onOpenStar}
-              onOpenAll={onOpenAllStars}
-            />
-
-            <StateLogStrip
-              todaysEntries={stateLogTodaysEntries}
-              recentReasons={stateLogRecentReasons}
-              resetsFor={resetsFor}
-              onAdd={onAddStateLogEntry}
-              onDelete={onDeleteStateLogEntry}
-              onUseReset={onUseReset}
-              onOpenRegulate={onOpenRegulate}
-            />
-
-            <BasicsDashboard
-              indicators={dashboardIndicators}
-              views={dashboardViews}
-              onLog={(id) => {
-                onLogIndicator(id);
-                const ind = dashboardIndicators.find((i) => i.id === id);
-                if (ind) setUndoToast({ id: `t-${Date.now()}`, spiralId: id, label: ind.name });
-              }}
-              onUndoLast={onUndoLastIndicatorLog}
-              onToggle={onToggleIndicatorEnabled}
-              onAddCustom={onAddCustomIndicator}
-              onRemove={onRemoveIndicator}
-              onPushToDump={onPushIndicatorToDump}
-              onSetCadence={onSetCadence}
-              onSetSchedule={onSetSchedule}
-              onSetPause={onSetPause}
-              northStars={northStars}
-              onToggleIndicatorStar={onToggleIndicatorStar}
-            />
-
-            <OverduePredictionsStrip
-              overdue={overduePredictions}
-              onReflect={onReflectPrediction}
-            />
-
-            <AgedDumpStrip
-              tasks={agedDumpTasks}
-              onSchedule={onScheduleDumpTask}
-              onDrop={onDropDumpTask}
-            />
-
-            <PinsStrip
-              pins={pins}
-              onAddPin={onAddPin}
-              onTogglePin={onTogglePin}
-              onEditPin={onEditPin}
-              onRemovePin={onRemovePin}
-            />
-          </>
-        )}
-
-        {/* Upcoming — excluding whatever is already filling the slot above */}
-        {restUpcoming.length > 0 && (
-          <Section title="Up next">
-            {restUpcoming.map((s) => (
-              <BlockCard
-                key={s.block.id}
-                state={s}
-                variant="upcoming"
-                now={now}
-                onToggleSubTask={onToggleSubTask}
-                onToggleSubStep={onToggleSubStep}
-              />
-            ))}
-          </Section>
-        )}
+        {renderOrdered()}
 
         {/* Past */}
         {past.length > 0 && (
@@ -671,17 +633,26 @@ export default function TodayView({
 
 // ---------- Top header ----------
 
-function Header({ today, doneSubTasks, totalSubTasks }: { today: Date; doneSubTasks: number; totalSubTasks: number }) {
+function Header({ today, doneSubTasks, totalSubTasks, onArrange }: { today: Date; doneSubTasks: number; totalSubTasks: number; onArrange: () => void }) {
   const pct = totalSubTasks > 0 ? Math.round((doneSubTasks / totalSubTasks) * 100) : 0;
   return (
     <div>
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">Today</h1>
-        {totalSubTasks > 0 && (
-          <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
-            {doneSubTasks}/{totalSubTasks} done · {pct}%
-          </span>
-        )}
+        <div className="flex items-baseline gap-3">
+          {totalSubTasks > 0 && (
+            <span className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+              {doneSubTasks}/{totalSubTasks} done · {pct}%
+            </span>
+          )}
+          <button
+            onClick={onArrange}
+            title="Reorder and pin what's on Today"
+            className="text-[11px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 shrink-0"
+          >
+            Arrange
+          </button>
+        </div>
       </div>
       <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{formatFullDate(today)}</p>
       {totalSubTasks > 0 && (
