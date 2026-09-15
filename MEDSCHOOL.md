@@ -61,6 +61,28 @@ the board is the plan.
 with a next action already written down is one you can start without
 deciding anything first — that's the entire reason the field exists.
 
+## Arranging Today
+
+Today has a lot on it, and which parts earn their place is personal. Tap
+**Arrange** in the Today header to open the list of all twelve sections.
+
+Each row gives you four moves:
+
+- **↑ / ↓** — nudge it one position.
+- **📌** — jump it straight to the top. Use this for the one or two you
+  reach for constantly; with arrows alone it costs a tap per position,
+  which is exactly the friction you can't afford on a bad day.
+- **Shown / Tucked** — tucked sections live behind *show more on today*
+  rather than disappearing. The disclosure always sits immediately above
+  the first tucked thing, whatever order you choose.
+
+The order syncs across your devices, so you arrange it once. **↺ Reset
+order** puts it back.
+
+A reasonable starting move: pin **Log a moment** to the top during a hard
+block, so checking which state you're in is the first thing you see rather
+than something you have to go looking for.
+
 ## When the problem is your state, not your plan
 
 Two different failures get confused constantly, and they need opposite

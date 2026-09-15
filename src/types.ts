@@ -482,6 +482,7 @@ export interface AppState {
   northStars?: NorthStarsState;
   stateLog?: StateLogState;
   regulate?: RegulateState;
+  todayLayout?: TodayLayoutState;
   horizon?: HorizonState;
   underway?: UnderwayState;
   compass?: CompassState;
@@ -566,6 +567,73 @@ export interface StateLogEntry {
 
 export interface StateLogState {
   entries: StateLogEntry[];
+}
+
+// ---------- Today layout ----------
+//
+// Today accumulated a lot of widgets, and which ones matter is personal and
+// changes with the term. Rather than guess an order for everyone, the order
+// and what sits behind "show more" are both user-owned.
+//
+// Stored in synced state rather than localStorage (where the show-more flag
+// lives) because curating an order is real work, and redoing it on the phone
+// after doing it on the laptop would make it not worth doing once.
+
+export type TodaySectionKey =
+  | 'activate'      // Activate now — the strategy menu
+  | 'projectsDue'   // Coming due / stalled projects
+  | 'block'         // All-day banner + the current or next calendar block
+  | 'plan'          // Today's 1/3/5
+  | 'weekBoard'     // This week
+  | 'northStars'
+  | 'stateLog'      // Log a moment — window of tolerance
+  | 'basics'        // Daily basics
+  | 'predictions'   // Overdue Lab reflections
+  | 'agedDump'      // Tasks aging in the Hold
+  | 'pins'          // Don't forget
+  | 'upNext';       // Later blocks today
+
+/** Render order out of the box — the layout as it shipped. */
+export const DEFAULT_TODAY_ORDER: TodaySectionKey[] = [
+  'activate', 'projectsDue', 'block', 'plan', 'weekBoard',
+  'northStars', 'stateLog', 'basics', 'predictions', 'agedDump', 'pins',
+  'upNext',
+];
+
+/** Tucked behind "show more on today" out of the box. */
+export const DEFAULT_TODAY_TUCKED: TodaySectionKey[] = [
+  'northStars', 'stateLog', 'basics', 'predictions', 'agedDump', 'pins',
+];
+
+export interface TodayLayoutState {
+  order?: TodaySectionKey[];
+  tucked?: TodaySectionKey[];
+}
+
+/**
+ * Resolve a stored layout against the defaults.
+ *
+ * Keys the stored order has never seen are appended in their default
+ * position rather than dropped, so adding a new Today widget in a later
+ * release shows up for someone who customised their layout months ago
+ * instead of silently never appearing. Unknown keys are filtered out for
+ * the mirror-image reason: a removed widget shouldn't wedge the list.
+ */
+export function resolveTodayOrder(stored?: TodaySectionKey[]): TodaySectionKey[] {
+  if (!stored || stored.length === 0) return [...DEFAULT_TODAY_ORDER];
+  const known = stored.filter((k) => DEFAULT_TODAY_ORDER.includes(k));
+  const seen = new Set(known);
+  const out = [...known];
+  DEFAULT_TODAY_ORDER.forEach((k, defaultIndex) => {
+    if (seen.has(k)) return;
+    // Insert near where it would have sat by default.
+    const before = DEFAULT_TODAY_ORDER.slice(0, defaultIndex).filter((x) => seen.has(x));
+    const anchorKey = before[before.length - 1];
+    const at = anchorKey ? out.indexOf(anchorKey) + 1 : 0;
+    out.splice(at, 0, k);
+    seen.add(k);
+  });
+  return out;
 }
 
 // ---------- Regulate (ways back into the window) ----------
