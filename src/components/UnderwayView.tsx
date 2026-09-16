@@ -172,6 +172,11 @@ interface UnderwayViewProps {
   // (used by Today's Activate menu to fast-path into Stuck / Quickstart).
   // Consumed via onConsumedInitialPhase to prevent re-firing.
   initialPhase?: 'quickstart' | 'stuck' | null;
+  /** Pre-fills the quickstart task name — used when a session is started
+   *  from somewhere that already knows what the task is, like a lecture
+   *  row. Deliberately not initialSession: that skips the pre-flight, and
+   *  the pre-flight is the point. */
+  initialQuickLabel?: string | null;
   onConsumedInitialPhase?: () => void;
   // When set, the view opens directly into a live Underway focus session
   // with this task + size. Used by Knock one out (Today) and the Triage
@@ -212,6 +217,7 @@ export default function UnderwayView({
   mantra,
   pinnedResources,
   initialPhase,
+  initialQuickLabel,
   onConsumedInitialPhase,
   initialSession,
   onConsumedInitialSession,
@@ -586,6 +592,8 @@ export default function UnderwayView({
   if (phase === 'quickstart') {
     return (
       <QuickstartPhase
+        key={initialQuickLabel || 'blank'}
+        initialLabel={initialQuickLabel ?? ''}
         recentLabels={recentTaskLabels}
         onBack={() => setPhase('home')}
         onGo={(label, sizeMin) => startQuickstart(label, sizeMin, { viaPreflight: true })}
@@ -1005,14 +1013,16 @@ function OutcomeDot({ outcome }: { outcome: UnderwayOutcome }) {
 
 function QuickstartPhase({
   recentLabels,
+  initialLabel,
   onBack,
   onGo,
 }: {
   recentLabels: string[];
+  initialLabel?: string;
   onBack: () => void;
   onGo: (label: string, sizeMin: 2 | 15 | 60) => void;
 }) {
-  const [label, setLabel] = useState('');
+  const [label, setLabel] = useState(initialLabel ?? '');
   const [sizeMin, setSizeMin] = useState<2 | 15 | 60>(15);
 
   const canGo = label.trim().length > 0;

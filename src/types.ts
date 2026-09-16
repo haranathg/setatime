@@ -445,12 +445,37 @@ export interface DashboardState {
 // safe: the feed is the source of truth for *when* and *what*, and the
 // pass checkmarks are yours. Re-importing updates the former and never
 // touches the latter.
+/**
+ * What a scheduled activity means for how you study it.
+ *
+ * The split is taken from the data, not invented: in the Vitals export 83
+ * lectures carry no due date at all, while 106 of 110 Guided Learning items
+ * do — often the next morning. Lectures are re-reviewed, so they get the
+ * three-pass model. Guided Learning is homework against a deadline and gets
+ * a single done flag; running passes on it would be answering a question
+ * nobody asked.
+ */
+export type LectureKind = 'lecture' | 'guided' | 'assessment' | 'non-curricular';
+
 export interface LectureItem {
-  id: string;          // ICS UID — stable across re-imports
+  id: string;          // ICS UID, or a derived stable id for .xls rows
   title: string;
   start: string;       // ISO
   end?: string;        // ISO
   location?: string;
+
+  // ---- From the .xls schedule export; absent on .ics-imported rows.
+  course?: string;         // the workbook sheet name
+  activityType?: string;   // raw Type cell, e.g. "Team-Based Learning"
+  kind?: LectureKind;      // how activityType maps onto study workflow
+  durationHours?: number;
+  dueAt?: string;          // ISO — a real deadline, for guided work
+  flex?: boolean;          // whether the schedule lets it move
+  instructors?: string;
+  resourceUrl?: string;    // the deck/handout. One per row is all the file carries.
+  resourceNames?: string[]; // every listed resource, including unlinked ones
+  /** Guided work is done once, by its due date, rather than reviewed. */
+  doneAt?: string;
   allDay?: boolean;
   recurring?: boolean; // had an RRULE; only the first occurrence was imported
   pass1At?: string;    // ISO when each pass was ticked

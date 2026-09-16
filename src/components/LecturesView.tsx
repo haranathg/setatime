@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { LectureItem } from '../types';
+import type { ParsedActivity } from '../utils/scheduleImport';
+import { kindOf, isGuidedDone } from '../hooks/useLectures';
 import { passCount, overdueDays, isDelivered, nextDueAt } from '../hooks/useLectures';
 import type { ImportSummary, PassNumber, WeekBucket } from '../hooks/useLectures';
 
@@ -7,6 +9,16 @@ import type { ImportSummary, PassNumber, WeekBucket } from '../hooks/useLectures
 // "Waiting" is spaced-out and deliberately not shouting; "Upcoming" hasn't
 // happened yet and can't be reviewed at all.
 type Filter = 'due' | 'waiting' | 'upcoming' | 'done' | 'all' | 'hidden';
+
+export interface NextAssessment {
+  item: LectureItem;
+  since: string | null;
+  sinceAt: number | null;
+  daysAway: number;
+  covered: number;
+  outstanding: number;
+  hours: number;
+}
 
 interface LecturesViewProps {
   visible: LectureItem[];
@@ -22,10 +34,19 @@ interface LecturesViewProps {
   now: number;
   stats: {
     untouched: number; inProgress: number; complete: number; total: number;
-    due: number; resting: number; upcoming: number;
+    due: number; resting: number; upcoming: number; dueHours: number;
   };
   lastImportedAt?: string;
   onImportICS: (text: string) => ImportSummary;
+  onImportSchedule: (activities: ParsedActivity[]) => ImportSummary;
+  onToggleDone: (id: string) => void;
+  courses: string[];
+  nextAssessment: NextAssessment | null;
+  /** Hand a row to the rest of the app — the page used to be a closed loop
+   *  that ended at a checkbox, so deciding to study something meant
+   *  retyping its name somewhere else. */
+  onStartSession: (label: string) => void;
+  onAddToToday: (label: string) => void;
   onTogglePass: (id: string, pass: PassNumber) => void;
   onSetHidden: (id: string, hidden: boolean) => void;
   onRemoveAll: () => void;
@@ -87,9 +108,15 @@ export default function LecturesView({
   stats,
   lastImportedAt,
   onImportICS,
+  onImportSchedule,
+  onToggleDone,
   onTogglePass,
   onSetHidden,
   onRemoveAll,
+  courses,
+  nextAssessment,
+  onStartSession,
+  onAddToToday,
 }: LecturesViewProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [filter, setFilter] = useState<Filter>('due');
@@ -98,6 +125,15 @@ export default function LecturesView({
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [courseFilter, setCourseFilter] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // Narrow to only what the next assessment covers.
+  const [beforeAssessment, setBeforeAssessment] = useState(false);
+
+  /** What a session or plan entry is called. Naming the pass matters:
+   *  "Cardio 4" tells you nothing about what you are about to do. */
+  const sessionLabel = (i: LectureItem) =>
+    kindOf(i) === 'guided' ? i.title : `${i.title} — pass ${passCount(i) + 1}`;
 
   const onFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -105,10 +141,31 @@ export default function LecturesView({
     if (!file) return;
     setError(null);
     setSummary(null);
+
+    const isSheet = /\.xlsx?$/i.test(file.name);
+    setBusy(true);
     try {
+      if (isSheet) {
+        // The spreadsheet reader is ~400KB and is only ever needed on an
+        // import, so it is loaded here rather than in the app bundle.
+        const [XLSX, { parseScheduleWorkbook }] = await Promise.all([
+          import('xlsx'),
+          import('../utils/scheduleImport'),
+        ]);
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { cellStyles: true });
+        const parsed = parseScheduleWorkbook(XLSX, wb);
+        if (parsed.activities.length === 0) {
+          setError("No activities found in that workbook. Is it the Student Schedule export?");
+          return;
+        }
+        setSummary(onImportSchedule(parsed.activities));
+        return;
+      }
+
       const text = await file.text();
       if (!/BEGIN:VCALENDAR/i.test(text)) {
-        setError("That file doesn't look like a calendar export (.ics).");
+        setError("That file doesn't look like a schedule export (.xls) or a calendar (.ics).");
         return;
       }
       const result = onImportICS(text);
@@ -119,6 +176,8 @@ export default function LecturesView({
       setSummary(result);
     } catch {
       setError("Couldn't read that file.");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -130,9 +189,20 @@ export default function LecturesView({
       : filter === 'upcoming' ? buckets.upcoming
       : filter === 'done' ? buckets.complete
       : visible;
-    if (!weekFilter) return base;
-    return base.filter((i) => weekStartKeyLocal(i.start) === weekFilter);
-  }, [filter, visible, hiddenItems, buckets, weekFilter]);
+    let out = courseFilter ? base.filter((i) => i.course === courseFilter) : base;
+    if (beforeAssessment && nextAssessment) {
+      const cutoff = new Date(nextAssessment.item.start).getTime();
+      const since = nextAssessment.sinceAt ?? 0;
+      const course = nextAssessment.item.course;
+      out = out.filter((i) => {
+        if (course && i.course !== course) return false;
+        const t = new Date(i.start).getTime();
+        return t > since && t <= cutoff;
+      });
+    }
+    if (!weekFilter) return out;
+    return out.filter((i) => weekStartKeyLocal(i.start) === weekFilter);
+  }, [filter, visible, hiddenItems, buckets, weekFilter, courseFilter, beforeAssessment, nextAssessment]);
 
   // The Due queue is already ordered by how overdue each item is; grouping
   // it by day would silently re-sort it back into calendar order and lose
@@ -162,7 +232,8 @@ export default function LecturesView({
               Lectures
             </h2>
             <p className="text-[12px] text-gray-500 dark:text-gray-400 mt-0.5">
-              Three passes each: first exposure, consolidation, recall.
+              Lectures get three passes — exposure, consolidation, recall.
+              Guided work is done once, by its due date.
             </p>
           </div>
           {stats.total > 0 && (
@@ -175,12 +246,56 @@ export default function LecturesView({
         <input
           ref={fileRef}
           type="file"
-          accept=".ics,text/calendar"
+          accept=".xls,.xlsx,.ics,text/calendar,application/vnd.ms-excel"
           onChange={onFile}
           className="hidden"
           aria-hidden="true"
           tabIndex={-1}
         />
+
+        {!isEmpty && nextAssessment && (
+          <NextAssessmentCard
+            next={nextAssessment}
+            filtered={beforeAssessment}
+            onFilterToIt={() => setBeforeAssessment((v) => !v)}
+          />
+        )}
+
+        {!isEmpty && list.length > 0 && filter === 'due' && (
+          <NextUpCard
+            item={list[0]}
+            onStart={() => onStartSession(sessionLabel(list[0]))}
+            onAddToToday={() => onAddToToday(sessionLabel(list[0]))}
+          />
+        )}
+
+        {courses.length > 1 && (
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => setCourseFilter(null)}
+              className={`px-2.5 py-1 text-[11px] font-semibold rounded-full border transition-colors ${
+                courseFilter === null
+                  ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-transparent'
+                  : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-400'
+              }`}
+            >
+              All courses
+            </button>
+            {courses.map((c) => (
+              <button
+                key={c}
+                onClick={() => setCourseFilter(courseFilter === c ? null : c)}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full border transition-colors ${
+                  courseFilter === c
+                    ? 'bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 border-transparent'
+                    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-600 dark:text-gray-400 hover:border-gray-400'
+                }`}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
 
         {isEmpty ? (
           <section className="bg-white dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-6 text-center space-y-3">
@@ -207,16 +322,16 @@ export default function LecturesView({
         ) : (
           <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-3 space-y-2">
             <div className="grid grid-cols-3 gap-2 text-center">
-              <Stat label="Due now" value={stats.due} tone="text-amber-700 dark:text-amber-300" />
+              <Stat label="Due now" value={stats.due} tone="text-amber-700 dark:text-amber-300" hint={stats.dueHours > 0 ? hoursLabel(stats.dueHours) : undefined} />
               <Stat label="Waiting" value={stats.resting} tone="text-indigo-700 dark:text-indigo-300" />
-              <Stat label="All 3 passes" value={stats.complete} tone="text-emerald-700 dark:text-emerald-300" />
+              <Stat label="Finished" value={stats.complete} tone="text-emerald-700 dark:text-emerald-300" />
             </div>
             <div className="flex items-center gap-2 pt-1">
               <button
                 onClick={() => fileRef.current?.click()}
                 className="flex-1 py-1.5 text-[11px] font-semibold rounded-lg border border-dashed border-gray-300 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-indigo-400 dark:hover:border-indigo-600 hover:text-indigo-700 dark:hover:text-indigo-300"
               >
-                ↻ re-import .ics
+                {busy ? 'reading…' : '↻ re-import schedule'}
               </button>
               <button
                 onClick={() => (confirmClear ? (onRemoveAll(), setConfirmClear(false)) : setConfirmClear(true))}
@@ -314,7 +429,10 @@ export default function LecturesView({
                       item={item}
                       now={now}
                       onTogglePass={onTogglePass}
+                      onToggleDone={onToggleDone}
                       onSetHidden={onSetHidden}
+                      onStart={onStartSession}
+                      onAddToToday={onAddToToday}
                     />
                   ))}
                 </ul>
@@ -329,7 +447,10 @@ export default function LecturesView({
                 item={item}
                 now={now}
                 onTogglePass={onTogglePass}
+                onToggleDone={onToggleDone}
                 onSetHidden={onSetHidden}
+                onStart={onStartSession}
+                onAddToToday={onAddToToday}
               />
             ))}
           </ul>
@@ -347,6 +468,126 @@ export default function LecturesView({
 //
 // Colour is never the only channel: every cell carries its date label and a
 // title/aria string with the exact counts, and a legend sits underneath.
+// ---------- The two cards that answer "what next" ----------
+
+/** How much work is left, phrased so you can plan an evening against it. */
+function hoursLabel(h: number): string {
+  if (h <= 0) return '—';
+  if (h < 1) return `${Math.round(h * 60)}m`;
+  return `${h % 1 === 0 ? h : h.toFixed(1)}h`;
+}
+
+/** The deadline that actually decides what is worth studying tonight. */
+function NextAssessmentCard({
+  next,
+  onFilterToIt,
+  filtered,
+}: {
+  next: NextAssessment;
+  onFilterToIt: () => void;
+  filtered: boolean;
+}) {
+  const urgent = next.daysAway <= 7;
+  return (
+    <section
+      className={`rounded-2xl border px-4 py-3 ${
+        urgent
+          ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800'
+          : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800'
+      }`}
+    >
+      <div className="flex items-baseline justify-between gap-2">
+        <span
+          className={`text-[10px] uppercase tracking-wider font-bold ${
+            urgent ? 'text-rose-700 dark:text-rose-300' : 'text-gray-400 dark:text-gray-500'
+          }`}
+        >
+          Next assessment
+        </span>
+        <span
+          className={`text-[10px] uppercase tracking-wider font-bold tabular-nums ${
+            urgent ? 'text-rose-700 dark:text-rose-300' : 'text-gray-400 dark:text-gray-500'
+          }`}
+        >
+          {next.daysAway === 0 ? 'today' : `in ${next.daysAway}d`}
+        </span>
+      </div>
+      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-0.5">
+        {next.item.title}
+      </div>
+      <div className="text-[12px] text-gray-600 dark:text-gray-400 mt-1 leading-snug">
+        {next.covered} sessions{next.since ? ` since ${next.since}` : ''} ·{' '}
+        <strong className="text-gray-900 dark:text-gray-100">{next.outstanding} still outstanding</strong>
+        {next.hours > 0 && <> · about {hoursLabel(next.hours)} of work</>}
+      </div>
+      <button
+        onClick={onFilterToIt}
+        className="mt-2 text-[11px] uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+      >
+        {filtered ? '← show everything' : 'Show only what it covers →'}
+      </button>
+    </section>
+  );
+}
+
+/** One item, not a wall of them. Fourteen overdue rows is something you
+ *  bounce off; a single card is a decision you can actually make. */
+function NextUpCard({
+  item,
+  onStart,
+  onAddToToday,
+}: {
+  item: LectureItem;
+  onStart: () => void;
+  onAddToToday: () => void;
+}) {
+  const guided = kindOf(item) === 'guided';
+  const pass = guided ? null : passCount(item) + 1;
+  return (
+    <section className="rounded-2xl border-2 border-indigo-300 dark:border-indigo-700 bg-white dark:bg-gray-900 px-4 py-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-[10px] uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400">
+          Do this next
+        </span>
+        <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
+          {guided ? 'Guided' : `Pass ${pass}`}
+          {item.durationHours ? ` · ${hoursLabel(item.durationHours)}` : ''}
+        </span>
+      </div>
+      <div className="text-sm font-semibold text-gray-900 dark:text-gray-100 mt-0.5 leading-snug">
+        {item.title}
+      </div>
+      {item.course && (
+        <div className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">{item.course}</div>
+      )}
+      <div className="flex flex-wrap items-center gap-2 mt-2.5">
+        <button
+          onClick={onStart}
+          className="px-3 py-1.5 text-[12px] font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+        >
+          Start a session
+        </button>
+        <button
+          onClick={onAddToToday}
+          className="px-3 py-1.5 text-[12px] font-semibold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 rounded-lg transition-colors"
+        >
+          → Today's plan
+        </button>
+        {item.resourceUrl && (
+          <a
+            href={item.resourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-1.5 text-[12px] font-semibold text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-500 rounded-lg transition-colors"
+          >
+            Open material ↗
+          </a>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function WeekHeatmap({
   weeks,
   selected,
@@ -437,7 +678,8 @@ function WeekHeatmap({
       </div>
 
       <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1.5 leading-relaxed">
-        Stronger color = more passes still outstanding that week. The number is the count;
+        Stronger color = more work still outstanding that week — three passes per
+        lecture, one per guided item. The number is the count;
         <span className="text-emerald-600 dark:text-emerald-400 font-semibold"> ✓</span> means
         that week is fully reviewed, <strong>·</strong> means it hasn’t happened yet.
       </p>
@@ -445,13 +687,16 @@ function WeekHeatmap({
   );
 }
 
-function Stat({ label, value, tone }: { label: string; value: number; tone: string }) {
+function Stat({ label, value, tone, hint }: { label: string; value: number; tone: string; hint?: string }) {
   return (
     <div className="rounded-lg bg-gray-50 dark:bg-gray-800/60 py-2">
       <div className={`text-lg font-bold tabular-nums ${tone}`}>{value}</div>
       <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
         {label}
       </div>
+      {hint && (
+        <div className="text-[10px] text-gray-400 dark:text-gray-500 tabular-nums">~{hint}</div>
+      )}
     </div>
   );
 }
@@ -460,17 +705,25 @@ function LectureRow({
   item,
   now,
   onTogglePass,
+  onToggleDone,
   onSetHidden,
+  onStart,
+  onAddToToday,
 }: {
   item: LectureItem;
   /** The view's shared clock — see useLectures. Rows must not read the
    *  time themselves or a row can disagree with the bucket it sits in. */
   now: number;
   onTogglePass: (id: string, pass: PassNumber) => void;
+  onToggleDone: (id: string) => void;
   onSetHidden: (id: string, hidden: boolean) => void;
+  onStart: (label: string) => void;
+  onAddToToday: (label: string) => void;
 }) {
+  const guided = kindOf(item) === 'guided';
   const n = passCount(item);
-  const done = n === 3;
+  const done = guided ? isGuidedDone(item) : n === 3;
+  const label = guided ? item.title : `${item.title} — pass ${n + 1}`;
   const delivered = isDelivered(item, now);
   const late = delivered ? overdueDays(item, now) : 0;
   const due = nextDueAt(item);
@@ -497,14 +750,37 @@ function LectureRow({
             <span className="text-[10px] text-gray-500 dark:text-gray-400 tabular-nums">
               {timeLabel(item)}
             </span>
+            {item.durationHours !== undefined && (
+              <span className="text-[10px] text-gray-500 dark:text-gray-400 tabular-nums">
+                · {hoursLabel(item.durationHours)}
+              </span>
+            )}
+            {item.course && (
+              <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate max-w-[10rem]">
+                · {item.course}
+              </span>
+            )}
             {item.location && (
               <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate max-w-[12rem]">
                 · {item.location}
               </span>
             )}
-            {!delivered && (
+            {guided && item.activityType && (
+              <span className="text-[9px] uppercase tracking-wider font-bold text-sky-700 dark:text-sky-400">
+                {item.activityType}
+              </span>
+            )}
+            {!delivered && !guided && (
               <span className="text-[9px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
                 not yet
+              </span>
+            )}
+            {guided && item.dueAt && !done && (
+              <span
+                className="text-[9px] uppercase tracking-wider font-bold text-rose-700 dark:text-rose-400"
+                title={new Date(item.dueAt).toLocaleString()}
+              >
+                due {new Date(item.dueAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
               </span>
             )}
             {late > 0 && (
@@ -515,7 +791,7 @@ function LectureRow({
             {waiting && due !== null && (
               <span
                 className="text-[9px] uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400"
-                title={`Next pass due ${new Date(due).toLocaleDateString()}`}
+                title={`Next ${guided ? 'due' : 'pass due'} ${new Date(due).toLocaleDateString()}`}
               >
                 next in {Math.max(1, Math.ceil((due - now) / 86400000))}d
               </span>
@@ -539,31 +815,93 @@ function LectureRow({
         </button>
       </div>
 
+      {/* Guided work is finished once, against its deadline. Lectures walk
+          the three passes. Giving guided work three anonymous numbered
+          buttons was asking a question the material never poses. */}
       <div className="flex items-center gap-1.5 mt-1.5">
-        {([1, 2, 3] as PassNumber[]).map((p) => {
-          const field = p === 1 ? item.pass1At : p === 2 ? item.pass2At : item.pass3At;
-          const on = !!field;
-          return (
-            <button
-              key={p}
-              onClick={() => onTogglePass(item.id, p)}
-              className={`flex-1 py-1 text-[11px] font-bold rounded-lg border transition-colors ${
-                on
-                  ? 'bg-emerald-500 border-emerald-500 text-white'
-                  : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500 hover:border-emerald-400 dark:hover:border-emerald-600 hover:text-emerald-700 dark:hover:text-emerald-300'
-              }`}
-              title={
-                on
-                  ? `Pass ${p} done ${new Date(field!).toLocaleDateString()} — tap to undo`
-                  : `Mark pass ${p} done`
-              }
-              aria-pressed={on}
-            >
-              {on ? '✓' : ''} {p}
-            </button>
-          );
-        })}
+        {guided ? (
+          <button
+            onClick={() => onToggleDone(item.id)}
+            className={`flex-1 py-1 text-[11px] font-bold rounded-lg border transition-colors ${
+              done
+                ? 'bg-emerald-500 border-emerald-500 text-white'
+                : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-emerald-400 dark:hover:border-emerald-600 hover:text-emerald-700 dark:hover:text-emerald-300'
+            }`}
+            title={
+              done
+                ? `Done ${new Date(item.doneAt!).toLocaleDateString()} — tap to undo`
+                : 'Mark done'
+            }
+            aria-pressed={done}
+          >
+            {done ? '✓ Done' : 'Mark done'}
+          </button>
+        ) : (
+          ([1, 2, 3] as PassNumber[]).map((p) => {
+            const field = p === 1 ? item.pass1At : p === 2 ? item.pass2At : item.pass3At;
+            const on = !!field;
+            const NAMES = ['first pass — watch it', 'second pass — consolidate', 'third pass — recall'];
+            return (
+              <button
+                key={p}
+                onClick={() => onTogglePass(item.id, p)}
+                className={`flex-1 py-1 text-[11px] font-bold rounded-lg border transition-colors ${
+                  on
+                    ? 'bg-emerald-500 border-emerald-500 text-white'
+                    : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500 hover:border-emerald-400 dark:hover:border-emerald-600 hover:text-emerald-700 dark:hover:text-emerald-300'
+                }`}
+                title={
+                  on
+                    ? `${NAMES[p - 1]} — done ${new Date(field!).toLocaleDateString()}, tap to undo`
+                    : `Mark ${NAMES[p - 1]}`
+                }
+                aria-label={on ? `Undo ${NAMES[p - 1]}` : `Mark ${NAMES[p - 1]}`}
+                aria-pressed={on}
+              >
+                {on ? '✓' : ''} {p}
+              </button>
+            );
+          })
+        )}
       </div>
+
+      {/* The page used to end here, at a checkbox. These are the ways out
+          of it — into a session, into today's plan, or into the material. */}
+      {!done && (
+        <div className="flex items-center gap-2 mt-1.5">
+          <button
+            onClick={() => onStart(label)}
+            className="text-[10px] uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
+          >
+            Start
+          </button>
+          <button
+            onClick={() => onAddToToday(label)}
+            className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+          >
+            → Today
+          </button>
+          {item.resourceUrl && (
+            <a
+              href={item.resourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+              title={item.resourceNames?.[0] ?? 'Open the material'}
+            >
+              Material ↗
+            </a>
+          )}
+          {(item.resourceNames?.length ?? 0) > 1 && (
+            <span
+              className="text-[10px] text-gray-300 dark:text-gray-600"
+              title={`This row lists ${item.resourceNames!.length} resources, but the export only carries a link for the first:\n\n${item.resourceNames!.join('\n')}`}
+            >
+              +{item.resourceNames!.length - 1} more
+            </span>
+          )}
+        </div>
+      )}
     </li>
   );
 }

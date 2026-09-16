@@ -316,6 +316,10 @@ function AppMain({
     stats: lectureStats,
     lastImportedAt: lectureLastImportedAt,
     importICS: importLectureICS,
+    importSchedule: importLectureSchedule,
+    toggleDone: toggleLectureDone,
+    courses: lectureCourses,
+    nextAssessment: lectureNextAssessment,
     togglePass: toggleLecturePass,
     setHidden: setLectureHidden,
     removeAll: removeAllLectures,
@@ -381,6 +385,7 @@ function AppMain({
   // Set to 'stuck' or 'quickstart' just before switching to the underway
   // view; UnderwayView consumes it on mount and clears via callback.
   const [underwayInitialPhase, setUnderwayInitialPhase] = useState<'quickstart' | 'stuck' | null>(null);
+  const [underwayInitialLabel, setUnderwayInitialLabel] = useState<string | null>(null);
 
   // Fast-path to launch Underway with a specific task pre-picked. Used
   // by "Knock one out" (auto-picks smallest aged dump task) and the
@@ -783,6 +788,7 @@ function AppMain({
           mantra={underwayMantra}
           pinnedResources={underwayPinnedResources}
           initialPhase={underwayInitialPhase}
+          initialQuickLabel={underwayInitialLabel}
           onConsumedInitialPhase={() => setUnderwayInitialPhase(null)}
           initialSession={underwayInitialSession}
           onConsumedInitialSession={() => setUnderwayInitialSession(null)}
@@ -861,6 +867,16 @@ function AppMain({
           stats={lectureStats}
           lastImportedAt={lectureLastImportedAt}
           onImportICS={importLectureICS}
+          onImportSchedule={importLectureSchedule}
+          onToggleDone={toggleLectureDone}
+          courses={lectureCourses}
+          nextAssessment={lectureNextAssessment}
+          onStartSession={(label) => {
+            setUnderwayInitialPhase('quickstart');
+            setUnderwayInitialLabel(label);
+            setActiveView('underway');
+          }}
+          onAddToToday={(label) => addToPlan('medium', label)}
           onTogglePass={toggleLecturePass}
           onSetHidden={setLectureHidden}
           onRemoveAll={removeAllLectures}
