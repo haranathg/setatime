@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import type { LectureItem } from '../types';
+import type { LectureItem, LectureKind } from '../types';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
 import { parseICS } from '../utils/icalImport';
+import type { ParsedActivity } from '../utils/scheduleImport';
+import { toLectureItem } from '../utils/scheduleImport';
 
 export type PassNumber = 1 | 2 | 3;
 
@@ -25,6 +27,34 @@ export function passCount(item: LectureItem): number {
   return (item.pass1At ? 1 : 0) + (item.pass2At ? 1 : 0) + (item.pass3At ? 1 : 0);
 }
 
+/** Rows imported from the .ics predate the kind field and are all lectures. */
+export function kindOf(item: LectureItem): LectureKind {
+  return item.kind ?? 'lecture';
+}
+
+/** Guided work is finished, not reviewed — one flag rather than three passes. */
+export function isGuidedDone(item: LectureItem): boolean {
+  return !!item.doneAt;
+}
+
+/** Is this row study work at all? Assessments are deadlines, not tasks. */
+export function isStudyItem(item: LectureItem): boolean {
+  const k = kindOf(item);
+  return k === 'lecture' || k === 'guided';
+}
+
+/** Whole hours of work an item represents, for planning a realistic evening.
+ *  A lecture's later passes are review and cost less than the first sitting. */
+export function remainingHours(item: LectureItem): number {
+  const base = item.durationHours ?? 0;
+  if (!base) return 0;
+  if (kindOf(item) === 'guided') return isGuidedDone(item) ? 0 : base;
+  const done = passCount(item);
+  if (done >= 3) return 0;
+  // Pass 1 is the full sitting; passes 2 and 3 are review at a third each.
+  return (done === 0 ? base : 0) + (3 - Math.max(done, 1)) * (base / 3);
+}
+
 const DAY_MS = 86_400_000;
 
 // Expanding intervals between passes. Pass 1 is due as soon as the lecture
@@ -39,8 +69,15 @@ export function isDelivered(item: LectureItem, now = Date.now()): boolean {
   return new Date(item.start).getTime() <= now;
 }
 
-/** When the next pass becomes due, or null when all three are done. */
+/** When the next thing is due, or null when there is nothing left to do.
+ *
+ *  Guided work answers with its real deadline. Anything else walks the
+ *  spaced-repetition ladder from the moment it was delivered. */
 export function nextDueAt(item: LectureItem): number | null {
+  if (kindOf(item) === 'guided') {
+    if (isGuidedDone(item)) return null;
+    return item.dueAt ? new Date(item.dueAt).getTime() : new Date(item.start).getTime();
+  }
   const start = new Date(item.start).getTime();
   if (!item.pass1At) return start;
   if (!item.pass2At) return new Date(item.pass1At).getTime() + PASS_GAP_DAYS.toSecond * DAY_MS;
@@ -220,6 +257,69 @@ export function useLectures() {
     };
   }, []);
 
+  /**
+   * Merge a parsed .xls schedule.
+   *
+   * Same ownership rule as the .ics path: the export owns title, time,
+   * duration, due date and resources; the passes, the done flag and whatever
+   * you have hidden are yours and survive a re-import. Rows that vanish from
+   * a later export are kept rather than deleted.
+   */
+  const importSchedule = useCallback((activities: ParsedActivity[]): ImportSummary => {
+    let added = 0;
+    let updated = 0;
+    let unchanged = 0;
+    const stamp = new Date().toISOString();
+
+    setItems((prev) => {
+      const byId = new Map(prev.map((i) => [i.id, i]));
+      for (const a of activities) {
+        const fresh = toLectureItem(a, stamp);
+        const existing = byId.get(a.id);
+        if (!existing) {
+          byId.set(a.id, fresh);
+          added++;
+          continue;
+        }
+        const changed =
+          existing.title !== fresh.title ||
+          existing.start !== fresh.start ||
+          existing.dueAt !== fresh.dueAt ||
+          existing.durationHours !== fresh.durationHours ||
+          existing.resourceUrl !== fresh.resourceUrl;
+        if (changed) updated++;
+        else unchanged++;
+        byId.set(a.id, {
+          ...fresh,
+          // Yours, not the feed's.
+          pass1At: existing.pass1At,
+          pass2At: existing.pass2At,
+          pass3At: existing.pass3At,
+          doneAt: existing.doneAt,
+          hidden: existing.hidden,
+        });
+      }
+      return Array.from(byId.values());
+    });
+
+    setLastImportedAt(stamp);
+    return {
+      added,
+      updated,
+      unchanged,
+      skipped: 0,
+      recurring: 0,
+      total: activities.length,
+    };
+  }, []);
+
+  /** Guided work: one flag, toggled against its deadline. */
+  const toggleDone = useCallback((id: string) => {
+    setItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, doneAt: i.doneAt ? undefined : new Date().toISOString() } : i))
+    );
+  }, []);
+
   const togglePass = useCallback((id: string, pass: PassNumber) => {
     const field = PASS_FIELD[pass];
     setItems((prev) =>
@@ -255,8 +355,12 @@ export function useLectures() {
     const upcoming: LectureItem[] = [];
     const complete: LectureItem[] = [];
     for (const i of visible) {
-      if (passCount(i) === 3) { complete.push(i); continue; }
-      if (!isDelivered(i, now)) { upcoming.push(i); continue; }
+      if (!isStudyItem(i)) continue;   // assessments are deadlines, not work
+      const finished = kindOf(i) === 'guided' ? isGuidedDone(i) : passCount(i) === 3;
+      if (finished) { complete.push(i); continue; }
+      // Guided work can be due before it is "delivered" — the deadline is the
+      // deadline — so it is never parked in Upcoming on delivery grounds.
+      if (kindOf(i) !== 'guided' && !isDelivered(i, now)) { upcoming.push(i); continue; }
       const due = nextDueAt(i);
       if (due !== null && due <= now) dueNow.push(i);
       else resting.push(i);
@@ -272,6 +376,7 @@ export function useLectures() {
   const weeks = useMemo<WeekBucket[]>(() => {
     const map = new Map<string, LectureItem[]>();
     for (const i of visible) {
+      if (!isStudyItem(i)) continue;
       const k = weekStartKey(i.start);
       const arr = map.get(k);
       if (arr) arr.push(i);
@@ -280,9 +385,15 @@ export function useLectures() {
     return Array.from(map.entries())
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([key, its]) => {
-        const deliveredItems = its.filter((i) => isDelivered(i, now));
-        const passesTotal = deliveredItems.length * 3;
-        const passesDone = deliveredItems.reduce((n, i) => n + passCount(i), 0);
+        // A lecture is three units of work; a guided item is one. Counting
+        // them on the same scale keeps the strip a single honest "what is
+        // still outstanding" number rather than two measures in one row.
+        const deliveredItems = its.filter((i) => isStudyItem(i) && isDelivered(i, now));
+        const unitsFor = (i: LectureItem) => (kindOf(i) === 'guided' ? 1 : 3);
+        const doneFor = (i: LectureItem) =>
+          kindOf(i) === 'guided' ? (isGuidedDone(i) ? 1 : 0) : passCount(i);
+        const passesTotal = deliveredItems.reduce((n, i) => n + unitsFor(i), 0);
+        const passesDone = deliveredItems.reduce((n, i) => n + doneFor(i), 0);
         return {
           key,
           items: its,
@@ -293,6 +404,60 @@ export function useLectures() {
         };
       });
   }, [visible, now]);
+
+  /** Dated assessments, soonest first — the deadlines that actually drive
+   *  what is worth studying next. */
+  const assessments = useMemo(
+    () =>
+      items
+        .filter((i) => kindOf(i) === 'assessment')
+        .sort((a, b) => a.start.localeCompare(b.start)),
+    [items]
+  );
+
+  /** The next assessment still ahead of us, with everything scheduled
+   *  between now and it — "what is on the next exam, and am I behind on it". */
+  const nextAssessment = useMemo(() => {
+    const next = assessments.find((a) => new Date(a.start).getTime() > now);
+    if (!next) return null;
+    const cutoff = new Date(next.start).getTime();
+
+    // The window opens at the PREVIOUS assessment in the same course, not at
+    // the start of term. Counting everything ever scheduled produces a number
+    // that is both wrong — the previous exam already examined most of it —
+    // and far too large to act on, which is the failure this card exists to
+    // prevent in the first place.
+    const prior = assessments
+      .filter((a) => a.course === next.course && new Date(a.start).getTime() < cutoff)
+      .pop();
+    const since = prior ? new Date(prior.start).getTime() : 0;
+
+    const covered = visible.filter((i) => {
+      if (!isStudyItem(i)) return false;
+      if (next.course && i.course !== next.course) return false;
+      const t = new Date(i.start).getTime();
+      return t > since && t <= cutoff;
+    });
+    const outstanding = covered.filter((i) =>
+      kindOf(i) === 'guided' ? !isGuidedDone(i) : passCount(i) < 3
+    );
+    return {
+      item: next,
+      /** The assessment this window opens after, if any — shown so the
+       *  scope of the count is legible rather than implied. */
+      since: prior ? prior.title : null,
+      sinceAt: prior ? new Date(prior.start).getTime() : null,
+      daysAway: Math.max(0, Math.ceil((cutoff - now) / DAY_MS)),
+      covered: covered.length,
+      outstanding: outstanding.length,
+      hours: outstanding.reduce((h, i) => h + remainingHours(i), 0),
+    };
+  }, [assessments, visible, now]);
+
+  const courses = useMemo(
+    () => Array.from(new Set(visible.map((i) => i.course).filter(Boolean))) as string[],
+    [visible]
+  );
 
   const stats = useMemo(() => {
     let untouched = 0;
@@ -312,6 +477,9 @@ export function useLectures() {
       due: buckets.dueNow.length,
       resting: buckets.resting.length,
       upcoming: buckets.upcoming.length,
+      // Hours, so the backlog is something you can plan an evening against
+      // rather than a count that could mean two hours or two weekends.
+      dueHours: buckets.dueNow.reduce((h, i) => h + remainingHours(i), 0),
     };
   }, [visible, buckets]);
 
@@ -325,7 +493,12 @@ export function useLectures() {
     now,
     lastImportedAt,
     loaded,
+    assessments,
+    nextAssessment,
+    courses,
     importICS,
+    importSchedule,
+    toggleDone,
     togglePass,
     setHidden,
     removeAll,
