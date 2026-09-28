@@ -81,6 +81,50 @@ your head — that's the window this exists for. A map isn't notes; it's the
 skeleton you hang notes on, and if it takes longer than the gap between
 sessions it won't happen.
 
+### One tree per course
+
+**Map it** on a lecture row no longer starts a fresh map. It opens that
+course's tree, adds the lecture as a **section** inside it, and makes it the
+**working lecture** — so everything you type next is tagged to that session
+without you doing anything.
+
+That is the whole trick behind the big picture. One tree holds the course;
+each lecture's material lives inside it under whatever heading it actually
+belongs to, not under the date it happened to be taught. Later you can pull
+one session back out:
+
+- The **Lecture** strip filters the canvas. Everything outside the chosen
+  lecture dims rather than vanishing, so you see your part *and* where it
+  sits.
+- **Export → Include** prints just that lecture's nodes, plus the branches
+  above them for context. The file is named after both.
+
+Maps you made before this existed aren't stranded: **Move into another map**
+on the list folds one into another. Its nodes move across and become a
+section, nothing is copied, and the old map goes away.
+
+### Finding your way around a big tree
+
+Four controls, all in the strip under the title or the bar at the bottom:
+
+- **1 / 2 / 3 / ∞** — show that many levels. Depth 2 is the big picture;
+  ∞ opens everything.
+- **Find in map** — type and the matches light up while everything else
+  dims, opening whatever was collapsed on the way. Clearing it puts the
+  shape straight back.
+- **Focus** — treat the selected node as the root, with a breadcrumb back
+  out. This is how you work on one lecture without the other nine on screen.
+- **Section** — mark a node as a category. Sections get their own heading on
+  the canvas and their own page in the PDF, so you choose where the splits
+  fall instead of always getting one page per top-level branch.
+
+**Scaffold** drops a standard shape under the selected node — Pathophysiology
+/ Clinical features / Investigations / Management / Complications, and three
+others. Most topics take the same shape and retyping those headings is what
+stops a map getting made.
+
+Sibling order is yours: **↑ / ↓** in the bar, or **Alt+↑ / Alt+↓**.
+
 **Export** does two things. **Copy as markdown outline** turns the map into
 text, so it can become the spine of a chart note or a set of cards without
 retyping anything. **Save PDF** turns it into paper.
@@ -96,9 +140,12 @@ Three layouts, and the choice is really about how much you plan to write:
 
 - **Overview** — the whole map on one page with wide margins. The shape at
   a glance. Good for a pre-read, or for a lecture you already know.
-- **Roomy map** — the overview, then one page per branch with a ruled lane
-  beside every node. You keep the structure *and* get real room. This is
-  the default and the one to use during a lecture.
+- **Roomy map** — the overview, then one page per **section** with a ruled
+  lane beside every node. You keep the structure *and* get real room. This
+  is the default and the one to use during a lecture. A tree with two or
+  more sections also gets a contents page with page numbers. If you have
+  marked no sections, it falls back to one page per top-level branch, which
+  is what it always did.
 - **Worksheet** — no picture; every node becomes a heading over a block of
   ruled space. The most room per node. Use it when you're rebuilding a
   topic from scratch rather than annotating what you already mapped.

@@ -57,6 +57,10 @@ const TRANSLITERATE: Record<string, string> = {
   'φ': 'phi', 'χ': 'chi', 'ψ': 'psi', 'ω': 'omega',
   'Δ': 'delta', 'Ω': 'ohm', '✓': 'x', '✗': 'x',
   '′': "'", '″': '"', ' ': ' ',
+  // WinAnsi has these, but they sit in 0x80-0x9F where it diverges from
+  // Latin-1, and the passthrough above deliberately covers only the range
+  // where the two agree. Cheaper to spell them than to special-case it.
+  '›': '>', '‹': '<', '€': 'EUR', '™': '(TM)', 'Š': 'S', 'Ž': 'Z',
 };
 
 /** Fold a string down to what WinAnsiEncoding can actually render. */

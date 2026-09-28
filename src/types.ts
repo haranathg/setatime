@@ -615,6 +615,19 @@ export interface MindMapNode {
   collapsed?: boolean;
   /** Longer detail that would clutter the map — shown on the selected node. */
   note?: string;
+  /** Marks this node as a category boundary. A section gets its own heading
+   *  treatment on the canvas and its own page in the PDF, which is what
+   *  makes a course-sized tree readable: the grain of the split is yours to
+   *  choose rather than "top-level branches, always". */
+  section?: boolean;
+  /** Which lecture contributed this node. Set automatically from the map's
+   *  working lecture as you type, so one tree can hold a whole course and
+   *  still be filtered back down to a single session's worth of material. */
+  lectureId?: string;
+  /** Denormalised on purpose: a map outlives the lecture list it was built
+   *  from (re-importing a schedule can change ids), and a tag that renders
+   *  as a blank chip is worse than one that is merely stale. */
+  lectureTitle?: string;
 }
 
 export interface MindMap {
@@ -623,9 +636,18 @@ export interface MindMap {
   nodes: MindMapNode[];
   createdAt: string;
   updatedAt: string;
-  /** Set when the map was started from a lecture row, so the two stay linked. */
+  /** Set on the older one-map-per-lecture documents. Its absence is what
+   *  marks a map as a course master map, so the two kinds coexist without a
+   *  migration: `course` set and `lectureId` unset means "the tree for this
+   *  course". */
   lectureId?: string;
   course?: string;
+  /** The lecture whose tag new nodes inherit while you are working. Stored
+   *  rather than held in component state because coming back to a map the
+   *  next day and silently tagging everything onto the wrong lecture is a
+   *  mistake you would not notice until the filter stopped working. */
+  workingLectureId?: string;
+  workingLectureTitle?: string;
 }
 
 export interface MindMapsState {
