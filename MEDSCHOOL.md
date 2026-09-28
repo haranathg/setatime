@@ -81,8 +81,39 @@ your head — that's the window this exists for. A map isn't notes; it's the
 skeleton you hang notes on, and if it takes longer than the gap between
 sessions it won't happen.
 
-**Outline** copies the whole map as markdown, so it can become the spine of
-a chart note or a set of cards without retyping anything.
+**Export** does two things. **Copy as markdown outline** turns the map into
+text, so it can become the spine of a chart note or a set of cards without
+retyping anything. **Save PDF** turns it into paper.
+
+### Printing a map to annotate
+
+The PDF is built for writing on, not for looking at — the point is to open
+it in GoodNotes or Notability and fill the space with a pencil. On an iPad
+the Save button opens the share sheet, so the file goes straight into the
+notes app; everywhere else it downloads.
+
+Three layouts, and the choice is really about how much you plan to write:
+
+- **Overview** — the whole map on one page with wide margins. The shape at
+  a glance. Good for a pre-read, or for a lecture you already know.
+- **Roomy map** — the overview, then one page per branch with a ruled lane
+  beside every node. You keep the structure *and* get real room. This is
+  the default and the one to use during a lecture.
+- **Worksheet** — no picture; every node becomes a heading over a block of
+  ruled space. The most room per node. Use it when you're rebuilding a
+  topic from scratch rather than annotating what you already mapped.
+
+Short branches stretch to fill the page rather than leaving the bottom
+blank, so a three-point branch gives you three deep lanes instead of three
+shallow ones. Long ones carry on to a second page.
+
+**Paper** matters more than it sounds: *iPad 4:3* fills the screen in a
+notes app with no letterboxing, while Letter and A4 are the right choice if
+the sheet is going to a printer. **Writing guides** are ruled lines, a dot
+grid (better if you draw diagrams in the margin), or blank.
+
+Whatever is collapsed on screen stays collapsed in the PDF — what you see
+is what you print.
 
 ## Arranging Today
 
