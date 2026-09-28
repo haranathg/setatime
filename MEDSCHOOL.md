@@ -125,6 +125,23 @@ stops a map getting made.
 
 Sibling order is yours: **↑ / ↓** in the bar, or **Alt+↑ / Alt+↓**.
 
+### If you delete something you didn't mean to
+
+**Delete removes the node and everything under it.** That is what it has
+always done, but now it says so first: deleting anything with children asks,
+and tells you how many nodes are going.
+
+Three ways back, in the order you'd reach for them:
+
+- **Undo** — `Cmd/Ctrl+Z`, or the ↶ button. `Cmd/Ctrl+Shift+Z` redoes.
+  Covers the current session.
+- **History** (in the map's header) — restore points kept *on this device*,
+  written before anything destructive and every few minutes while you work.
+  This survives a reload, and it survives the cloud copy being overwritten,
+  which is the case undo can't help with. Restoring is itself undoable.
+- **Deleted, but recoverable** — a deleted map's history outlives it, so the
+  Maps list offers it back. It's only gone for good once you tap Forget.
+
 **Export** does two things. **Copy as markdown outline** turns the map into
 text, so it can become the spine of a chart note or a set of cards without
 retyping anything. **Save PDF** turns it into paper.
