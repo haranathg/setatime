@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import Header from './components/Header';
 import type { ActiveView } from './components/Header';
 import NowNextBar from './components/NowNextBar';
@@ -222,9 +222,18 @@ function AppMain({
     updateNode: updateMapNode,
     deleteNode: deleteMapNode,
     reparent: reparentMapNode,
+    moveNode: moveMapNode,
+    tagSubtree: tagMapSubtree,
+    setWorkingLecture: setMapWorkingLecture,
+    collapseToDepth: collapseMapToDepth,
+    insertTemplate: insertMapTemplate,
+    ensureLectureBranch,
+    graftMap,
   } = useMindMaps();
-  // Set when a lecture row starts a map, so Maps opens straight into it.
+  // Set when a lecture row starts a map, so Maps opens straight into it —
+  // and which node inside it to focus on arrival.
   const [openMapId, setOpenMapId] = useState<string | null>(null);
+  const [openMapFocusId, setOpenMapFocusId] = useState<string | null>(null);
 
   const {
     activities: resetActivities,
@@ -338,6 +347,19 @@ function AppMain({
     setHidden: setLectureHidden,
     removeAll: removeAllLectures,
   } = useLectures();
+
+  // The slice Maps needs to offer a working-lecture picker. Hidden rows are
+  // included deliberately: a non-curricular session you hid from the study
+  // queue can still be something you took notes on.
+  const mapLectureRefs = useMemo(
+    () =>
+      [...lectureVisible, ...lectureHidden].map((l) => ({
+        id: l.id,
+        title: l.title,
+        course: l.course,
+      })),
+    [lectureVisible, lectureHidden]
+  );
 
   // Stalled = active, no next action, no deadline within reach. Badged on
   // the Projects hub so it's visible without opening the tab.
@@ -782,8 +804,19 @@ function AppMain({
           onUpdateNode={updateMapNode}
           onDeleteNode={deleteMapNode}
           onReparent={reparentMapNode}
+          onMoveNode={moveMapNode}
+          onTagSubtree={tagMapSubtree}
+          onSetWorkingLecture={setMapWorkingLecture}
+          onCollapseToDepth={collapseMapToDepth}
+          onInsertTemplate={insertMapTemplate}
+          onGraftMap={graftMap}
+          lectures={mapLectureRefs}
           initialMapId={openMapId}
-          onConsumedInitialMap={() => setOpenMapId(null)}
+          initialFocusId={openMapFocusId}
+          onConsumedInitialMap={() => {
+            setOpenMapId(null);
+            setOpenMapFocusId(null);
+          }}
         />
       ) : activeView === 'grounding' ? (
         <GroundingView />
@@ -904,8 +937,16 @@ function AppMain({
           }}
           onAddToToday={(label) => addToPlan('medium', label)}
           onMapIt={(item) => {
-            const m = createMap(item.title, { lectureId: item.id, course: item.course });
-            setOpenMapId(m.id);
+            // One tree per course, not one per lecture. A lecture gets its
+            // own section inside that tree and becomes the working lecture,
+            // so everything typed next is tagged to it — which is what makes
+            // the course tree filterable back down to one session later.
+            const course = item.course || 'Lectures';
+            const existing = mindMaps.find((m) => m.course === course && !m.lectureId);
+            const target = existing ?? createMap(course, { course });
+            const nodeId = ensureLectureBranch(target.id, item.id, item.title);
+            setOpenMapId(target.id);
+            setOpenMapFocusId(nodeId);
             setActiveView('maps');
           }}
           onTogglePass={toggleLecturePass}

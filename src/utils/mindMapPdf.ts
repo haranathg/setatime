@@ -22,7 +22,14 @@
 //               writing room per node, for a lecture you are rebuilding from
 //               scratch rather than annotating.
 
-import { layoutMap, branchColorOf, BRANCH_COLORS } from './mindMapLayout';
+import {
+  layoutMap,
+  branchColorOf,
+  BRANCH_COLORS,
+  pageUnits,
+  nestedSections,
+  pathToRoot,
+} from './mindMapLayout';
 import type { MapLayout } from './mindMapLayout';
 import { PdfBuilder } from './pdf';
 import type { RGB } from './pdf';
@@ -37,6 +44,10 @@ export interface MindMapPdfOptions {
   paper: PdfPaper;
   landscape: boolean;
   guides: PdfGuides;
+  /** Print only one lecture's contribution to the tree. The point of a
+   *  course-sized map is that it holds everything; the point of printing is
+   *  usually that you are about to sit through one session. */
+  lectureId?: string;
 }
 
 export const DEFAULT_PDF_OPTIONS: MindMapPdfOptions = {
@@ -92,6 +103,27 @@ function tint(c: RGB, amount: number): RGB {
     c[1] + (1 - c[1]) * amount,
     c[2] + (1 - c[2]) * amount,
   ];
+}
+
+/** The tree cut down to one lecture's contribution, plus the ancestors that
+ *  connect those nodes back to the root. Without the ancestors the result is
+ *  a forest of orphans; with them it still reads as the same map, just
+ *  emptier — which is exactly what "where does this lecture sit" looks
+ *  like. */
+function sliceToLecture(nodes: MindMapNode[], lectureId: string): MindMapNode[] {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const keep = new Set<string>();
+  for (const n of nodes) {
+    if (n.lectureId !== lectureId) continue;
+    let cur: string | null = n.id;
+    while (cur && !keep.has(cur)) {
+      keep.add(cur);
+      cur = byId.get(cur)?.parentId ?? null;
+    }
+  }
+  const root = nodes.find((n) => n.parentId === null);
+  if (root) keep.add(root.id);
+  return nodes.filter((n) => keep.has(n.id));
 }
 
 interface Frame {
@@ -219,11 +251,12 @@ function drawTree(
 function overviewPage(
   pdf: PdfBuilder,
   map: MindMap,
+  nodes: MindMapNode[],
   rootId: string,
   frame: Frame,
   headline: string | null
 ): void {
-  const layout = layoutMap(map.nodes);
+  const layout = layoutMap(nodes);
   const body: Frame = {
     x: frame.x,
     y: frame.y + HEADER_H + 18,
@@ -240,7 +273,7 @@ function overviewPage(
     h: body.h,
   };
   const all = new Set(layout.nodes.map((n) => n.node.id));
-  drawTree(pdf, layout, map.nodes, {
+  drawTree(pdf, layout, nodes, {
     colorRoot: rootId,
     anchorId: rootId,
     frame: drawn,
@@ -264,20 +297,25 @@ function overviewPage(
 function branchPages(
   pdf: PdfBuilder,
   map: MindMap,
+  nodes: MindMapNode[],
   rootId: string,
   branch: MindMapNode,
-  branchIndex: number,
   opts: MindMapPdfOptions,
   frame: Frame,
   pageH: number,
   startNewPage: () => void,
-  stamp: string
+  stamp: string,
+  onFirstPage?: (page: number) => void
 ): void {
-  const color = hexToRgb(BRANCH_COLORS[branchIndex % BRANCH_COLORS.length]);
+  const hex = branchColorOf(branch.id, nodes, rootId);
+  const color = hexToRgb(hex ?? BRANCH_COLORS[0]);
+  // A unit's page stops at the next section inside it, which gets its own —
+  // otherwise a nested section is drawn on both pages.
+  const stopAt = nestedSections(nodes, branch.id);
   const bodyTop = frame.y + HEADER_H + 14;
   const bodyH = frame.h - HEADER_H - FOOTER_H - 14;
 
-  const hasKids = map.nodes.some((n) => n.parentId === branch.id) && !branch.collapsed;
+  const hasKids = nodes.some((n) => n.parentId === branch.id) && !branch.collapsed && !stopAt.has(branch.id);
   // Hiding the anchor shifts every remaining node one column to the left.
   const originX = hasKids ? PRINT_COL_W : 0;
 
@@ -287,10 +325,11 @@ function branchPages(
   // First pass sizes the tree; the second lays it out at the lane height that
   // actually fills the page, so a branch with three children gets three tall
   // lanes rather than three short ones and a lot of blank paper.
-  const probe = layoutMap(map.nodes, {
+  const probe = layoutMap(nodes, {
     rowH: PRINT_ROW_H,
     colW: PRINT_COL_W,
     rootId: branch.id,
+    forceCollapsed: stopAt,
   });
   const treeW = Math.max(probe.width - originX, 1);
   const treeMaxW = frame.w * 0.52;
@@ -299,10 +338,11 @@ function branchPages(
   const leafCount = Math.max(probe.nodes.filter(isLeaf).length, 1);
   const laneH = Math.min(Math.max(bodyH / leafCount, PRINT_ROW_H * scale), MAX_LANE_H);
 
-  const layout = layoutMap(map.nodes, {
+  const layout = layoutMap(nodes, {
     rowH: laneH / scale,
     colW: PRINT_COL_W,
     rootId: branch.id,
+    forceCollapsed: stopAt,
   });
   const rowH = laneH / scale;
 
@@ -362,7 +402,7 @@ function branchPages(
     }
     if (hasKids) visible.delete(branch.id);
 
-    drawTree(pdf, layout, map.nodes, {
+    drawTree(pdf, layout, nodes, {
       colorRoot: rootId,
       anchorId: hasKids ? null : branch.id,
       frame: { x: frame.x, y: bodyTop, w: treeW * scale, h: bodyH },
@@ -372,8 +412,13 @@ function branchPages(
       visible,
     });
 
-    drawHeader(pdf, branch.text, part === 0 ? map.title : `${map.title} — continued`, frame);
+    const trail = pathToRoot(nodes, branch.id)
+      .slice(0, -1)
+      .map((n) => n.text)
+      .join('  ›  ');
+    drawHeader(pdf, branch.text, part === 0 ? trail || map.title : `${trail || map.title} — continued`, frame);
     drawFooter(pdf, stamp, `Page ${pdf.pageCount}`, frame, pageH);
+    if (part === 0) onFirstPage?.(pdf.pageCount);
     part++;
   }
 }
@@ -382,6 +427,7 @@ function branchPages(
 function worksheetPages(
   pdf: PdfBuilder,
   map: MindMap,
+  nodes: MindMapNode[],
   rootId: string,
   opts: MindMapPdfOptions,
   frame: Frame,
@@ -390,7 +436,7 @@ function worksheetPages(
   stamp: string
 ): void {
   const childrenOf = new Map<string, MindMapNode[]>();
-  for (const n of map.nodes) {
+  for (const n of nodes) {
     if (n.parentId === null) continue;
     const arr = childrenOf.get(n.parentId);
     if (arr) arr.push(n);
@@ -406,7 +452,7 @@ function worksheetPages(
   const rows: Row[] = [];
   const walk = (id: string, depth: number) => {
     for (const kid of childrenOf.get(id) ?? []) {
-      const hex = branchColorOf(kid.id, map.nodes, rootId);
+      const hex = branchColorOf(kid.id, nodes, rootId);
       const kids = childrenOf.get(kid.id) ?? [];
       // A heading with children is a signpost; a leaf is where the content
       // goes, so that is where the room goes too.
@@ -471,11 +517,70 @@ export interface MindMapPdfResult {
   pages: number;
 }
 
+/** The contents page. Worth its own page once a tree holds a course: twenty
+ *  sections with page numbers is the difference between a reference you can
+ *  open at the right place and a forty-page stack you flip through. Page
+ *  numbers come from a first pass, because you cannot know them until the
+ *  document has been laid out once. */
+function contentsPages(
+  pdf: PdfBuilder,
+  units: MindMapNode[],
+  nodes: MindMapNode[],
+  rootId: string,
+  pageOf: Map<string, number>,
+  offset: number,
+  frame: Frame,
+  pageH: number,
+  startNewPage: () => void,
+  stamp: string
+): void {
+  const bodyTop = frame.y + HEADER_H + 18;
+  const bodyBottom = frame.y + frame.h - FOOTER_H;
+  const ROW = 22;
+  let y = bodyTop;
+  let first = true;
+
+  const depthOf = (id: string) => Math.max(0, pathToRoot(nodes, id).length - 2);
+
+  for (const unit of units) {
+    if (y + ROW > bodyBottom) {
+      drawFooter(pdf, stamp, `Page ${pdf.pageCount}`, frame, pageH);
+      startNewPage();
+      drawHeader(pdf, 'Contents', 'continued', frame);
+      y = bodyTop;
+      first = false;
+    }
+    if (first) {
+      drawHeader(pdf, 'Contents', null, frame);
+      first = false;
+    }
+    const indent = Math.min(depthOf(unit.id), 3) * 16;
+    const hex = branchColorOf(unit.id, nodes, rootId);
+    const color = hex ? hexToRgb(hex) : INK;
+    const x = frame.x + indent;
+    pdf.dot(x + 3, y + 4, 2.4, color);
+    const page = (pageOf.get(unit.id) ?? 0) + offset;
+    const label = pdf.fit(unit.text, frame.w - indent - 60, 10.5, indent === 0);
+    pdf.text(label, x + 11, y + 8, { size: 10.5, bold: indent === 0, color: INK });
+    pdf.text(String(page), frame.x + frame.w, y + 8, { size: 9.5, color: MUTED, align: 'right' });
+    // A leader rule, so the eye gets from a short title to its page number.
+    const from = x + 15 + pdf.widthOf(label, 10.5, indent === 0);
+    pdf.line(from, y + 6, frame.x + frame.w - 18, y + 6, { color: FAINT, width: 0.6, dash: [1, 3] });
+    y += ROW;
+  }
+  if (first) drawHeader(pdf, 'Contents', null, frame);
+  drawFooter(pdf, stamp, `Page ${pdf.pageCount}`, frame, pageH);
+}
+
+export interface MindMapPdfResult {
+  blob: Blob;
+  pages: number;
+}
+
 export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapPdfResult {
   const [pw, ph] = PAPER[opts.paper];
   const pageW = opts.landscape ? ph : pw;
   const pageH = opts.landscape ? pw : ph;
-  const pdf = new PdfBuilder(pageW, pageH);
   const frame: Frame = {
     x: MARGIN,
     y: MARGIN,
@@ -492,33 +597,64 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
       })
     : '';
 
-  const root = map.nodes.find((n) => n.parentId === null);
-  if (!root) {
-    drawHeader(pdf, map.title, 'Empty map', frame);
-    return { blob: pdf.blob(), pages: pdf.pageCount };
-  }
-  const branches = map.nodes.filter((n) => n.parentId === root.id);
-  const startNewPage = () => pdf.addPage();
+  const nodes = opts.lectureId ? sliceToLecture(map.nodes, opts.lectureId) : map.nodes;
+  const root = nodes.find((n) => n.parentId === null);
 
-  if (opts.layout === 'worksheet') {
-    worksheetPages(pdf, map, root.id, opts, frame, pageH, startNewPage, stamp);
-    return { blob: pdf.blob(), pages: pdf.pageCount };
-  }
+  const render = (withContents: Map<string, number> | null, contentsOffset: number) => {
+    const pdf = new PdfBuilder(pageW, pageH);
+    if (!root) {
+      drawHeader(pdf, map.title, 'Empty map', frame);
+      return { pdf, pageOf: new Map<string, number>(), units: [] as MindMapNode[] };
+    }
+    const startNewPage = () => pdf.addPage();
+    const pageOf = new Map<string, number>();
 
-  overviewPage(pdf, map, root.id, frame, map.course ?? null);
-  drawFooter(pdf, stamp, branches.length ? 'Overview' : 'Page 1', frame, pageH);
+    if (opts.layout === 'worksheet') {
+      worksheetPages(pdf, map, nodes, root.id, opts, frame, pageH, startNewPage, stamp);
+      return { pdf, pageOf, units: [] as MindMapNode[] };
+    }
 
-  if (opts.layout === 'roomy') {
-    branches.forEach((branch, i) => {
+    const units = opts.layout === 'roomy' ? pageUnits(nodes) : [];
+    const headline = opts.lectureId
+      ? (nodes.find((n) => n.lectureId === opts.lectureId)?.lectureTitle ?? map.course ?? null)
+      : (map.course ?? null);
+
+    overviewPage(pdf, map, nodes, root.id, frame, headline);
+    drawFooter(pdf, stamp, units.length ? 'Overview' : 'Page 1', frame, pageH);
+
+    if (withContents && units.length >= 2) {
       startNewPage();
-      branchPages(pdf, map, root.id, branch, i, opts, frame, pageH, startNewPage, stamp);
-    });
+      contentsPages(pdf, units, nodes, root.id, withContents, contentsOffset, frame, pageH, startNewPage, stamp);
+    }
+
+    for (const unit of units) {
+      startNewPage();
+      branchPages(pdf, map, nodes, root.id, unit, opts, frame, pageH, startNewPage, stamp, (page) =>
+        pageOf.set(unit.id, page)
+      );
+    }
+    return { pdf, pageOf, units };
+  };
+
+  // Pass one learns where each unit lands; pass two can then print a
+  // contents page whose numbers are right, shifted by however many pages
+  // the contents itself takes.
+  const first = render(null, 0);
+  if (opts.layout !== 'roomy' || first.units.length < 2) {
+    return { blob: first.pdf.blob(), pages: first.pdf.pageCount };
   }
-  return { blob: pdf.blob(), pages: pdf.pageCount };
+  const contentsRows = Math.floor((frame.h - HEADER_H - FOOTER_H - 18) / 22);
+  const contentsCount = Math.max(1, Math.ceil(first.units.length / Math.max(contentsRows, 1)));
+  const second = render(first.pageOf, contentsCount);
+  return { blob: second.pdf.blob(), pages: second.pdf.pageCount };
 }
 
-/** A filename that sorts and reads well in Files and GoodNotes. */
-export function pdfFileName(map: MindMap): string {
-  const safe = map.title.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-').slice(0, 60);
-  return `${safe || 'mind-map'}.pdf`;
+/** A filename that sorts and reads well in Files and GoodNotes. A sliced
+ *  export says which lecture it is, or two prints of the same course tree
+ *  overwrite each other in the notes app. */
+export function pdfFileName(map: MindMap, slice?: string): string {
+  const clean = (t: string) => t.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '-');
+  const base = clean(map.title).slice(0, 50) || 'mind-map';
+  const tail = slice ? clean(slice).slice(0, 40) : '';
+  return tail ? `${base}--${tail}.pdf` : `${base}.pdf`;
 }
