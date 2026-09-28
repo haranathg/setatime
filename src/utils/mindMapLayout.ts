@@ -34,6 +34,18 @@ export const ROW_H = 38;          // vertical pitch between leaves
 export const COL_W = 210;         // horizontal pitch between depths
 const PAD = 24;
 
+/** The screen canvas and the print sheet want the same tidy tree at very
+ *  different pitches — on paper each node needs a band of blank space beside
+ *  it, which on screen would just be scrolling. Same algorithm, different
+ *  numbers, rather than a second layout that can drift from this one. */
+export interface LayoutOptions {
+  rowH?: number;
+  colW?: number;
+  /** Lay out the subtree under this node instead of the whole map, used to
+   *  give each top-level branch its own printed page. */
+  rootId?: string;
+}
+
 /** Node box width, grown a little for longer text so the label has room
  *  without wrapping into an unpredictable height. */
 function boxWidth(text: string, depth: number): number {
@@ -42,8 +54,12 @@ function boxWidth(text: string, depth: number): number {
   return grown;
 }
 
-export function layoutMap(nodes: MindMapNode[]): MapLayout {
-  const root = nodes.find((n) => n.parentId === null);
+export function layoutMap(nodes: MindMapNode[], opts: LayoutOptions = {}): MapLayout {
+  const rowH = opts.rowH ?? ROW_H;
+  const colW = opts.colW ?? COL_W;
+  const root = opts.rootId
+    ? nodes.find((n) => n.id === opts.rootId)
+    : nodes.find((n) => n.parentId === null);
   if (!root) {
     return { nodes: [], byId: new Map(), edges: [], width: 0, height: 0 };
   }
@@ -70,7 +86,7 @@ export function layoutMap(nodes: MindMapNode[]): MapLayout {
     let y: number;
     if (visibleKids.length === 0) {
       y = cursorY;
-      cursorY += ROW_H;
+      cursorY += rowH;
     } else {
       const placed = visibleKids.map((k) => place(k, depth + 1));
       y = (placed[0].y + placed[placed.length - 1].y) / 2;
@@ -80,7 +96,7 @@ export function layoutMap(nodes: MindMapNode[]): MapLayout {
     const laid: LaidOutNode = {
       node,
       depth,
-      x: depth * COL_W,
+      x: depth * colW,
       y,
       w,
       h: 28,
