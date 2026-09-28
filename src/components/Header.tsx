@@ -20,6 +20,7 @@ export type ActiveView =
   | 'triage'
   | 'notes'
   | 'principles'
+  | 'maps'
   | 'projects'
   | 'lectures';
 
@@ -31,7 +32,7 @@ export function hubForView(view: ActiveView): Hub {
   if (view === 'today' || view === 'triage') return 'today'; // Triage is an activation move launched from Today
   if (view === 'projects' || view === 'lectures') return 'projects';
   if (view === 'inbox' || view === 'braindump') return 'log'; // Hold merged into Log
-  if (view === 'chart' || view === 'notes' || view === 'principles' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats' || view === 'horizon') {
+  if (view === 'chart' || view === 'notes' || view === 'principles' || view === 'maps' || view === 'stars' || view === 'books' || view === 'habits' || view === 'stats' || view === 'horizon') {
     return 'charts';
   }
   return 'sail'; // calendar + grounding + predictions (Lab)
@@ -263,6 +264,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
             { view: 'notes',      label: 'Journal',    title: 'Free-form reflections, observations, ideas' },
             { view: 'chart',      label: 'Notes',      title: 'Chart notes: SOAP-style self check-ins' },
             { view: 'stars',      label: 'Stars',      title: 'North Stars: 1–3 long-term anchors' },
+            { view: 'maps',       label: 'Maps',       title: 'Mind-map a lecture into its shape' },
             { view: 'principles', label: 'Principles', title: 'Regret → value → action: your personal creed' },
           ]}
           secondary={[

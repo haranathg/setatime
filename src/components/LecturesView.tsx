@@ -47,6 +47,9 @@ interface LecturesViewProps {
    *  retyping its name somewhere else. */
   onStartSession: (label: string) => void;
   onAddToToday: (label: string) => void;
+  /** Start a mind map from a row — breaking a lecture into its shape is the
+   *  other thing you do with it besides ticking a pass. */
+  onMapIt: (item: LectureItem) => void;
   onTogglePass: (id: string, pass: PassNumber) => void;
   onSetHidden: (id: string, hidden: boolean) => void;
   onRemoveAll: () => void;
@@ -117,6 +120,7 @@ export default function LecturesView({
   nextAssessment,
   onStartSession,
   onAddToToday,
+  onMapIt,
 }: LecturesViewProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [filter, setFilter] = useState<Filter>('due');
@@ -433,6 +437,7 @@ export default function LecturesView({
                       onSetHidden={onSetHidden}
                       onStart={onStartSession}
                       onAddToToday={onAddToToday}
+                      onMapIt={onMapIt}
                     />
                   ))}
                 </ul>
@@ -451,6 +456,7 @@ export default function LecturesView({
                 onSetHidden={onSetHidden}
                 onStart={onStartSession}
                 onAddToToday={onAddToToday}
+                onMapIt={onMapIt}
               />
             ))}
           </ul>
@@ -709,6 +715,7 @@ function LectureRow({
   onSetHidden,
   onStart,
   onAddToToday,
+  onMapIt,
 }: {
   item: LectureItem;
   /** The view's shared clock — see useLectures. Rows must not read the
@@ -719,6 +726,7 @@ function LectureRow({
   onSetHidden: (id: string, hidden: boolean) => void;
   onStart: (label: string) => void;
   onAddToToday: (label: string) => void;
+  onMapIt: (item: LectureItem) => void;
 }) {
   const guided = kindOf(item) === 'guided';
   const n = passCount(item);
@@ -880,6 +888,13 @@ function LectureRow({
             className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
           >
             → Today
+          </button>
+          <button
+            onClick={() => onMapIt(item)}
+            className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+            title="Break this into a mind map"
+          >
+            Map it
           </button>
           {item.resourceUrl && (
             <a

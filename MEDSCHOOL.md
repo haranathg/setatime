@@ -61,6 +61,29 @@ the board is the plan.
 with a next action already written down is one you can start without
 deciding anything first — that's the entire reason the field exists.
 
+## Mapping a lecture
+
+**Charts → Maps**, or **Map it** on any row of the Lectures page — that
+seeds a map with the lecture's title already at the centre.
+
+The rule of the surface is that you never place anything. You type, and it
+lays itself out:
+
+- **Tab** — new branch off whatever's selected
+- **Enter** — new sibling
+- **Shift+Tab** or **[** — move it out a level · **]** — move it in
+- **Delete** — remove it and everything under it
+
+Every move has a button too, so it works one-handed on a phone.
+
+Use it in the ten minutes *after* a lecture, while the shape is still in
+your head — that's the window this exists for. A map isn't notes; it's the
+skeleton you hang notes on, and if it takes longer than the gap between
+sessions it won't happen.
+
+**Outline** copies the whole map as markdown, so it can become the spine of
+a chart note or a set of cards without retyping anything.
+
 ## Arranging Today
 
 Today has a lot on it, and which parts earn their place is personal. Tap
