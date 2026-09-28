@@ -157,12 +157,19 @@ Three layouts, and the choice is really about how much you plan to write:
 
 - **Overview** — the whole map on one page with wide margins. The shape at
   a glance. Good for a pre-read, or for a lecture you already know.
-- **Roomy map** — the overview, then one page per **section** with a ruled
-  lane beside every node. You keep the structure *and* get real room. This
-  is the default and the one to use during a lecture. A tree with two or
-  more sections also gets a contents page with page numbers. If you have
-  marked no sections, it falls back to one page per top-level branch, which
-  is what it always did.
+- **Roomy map** — the overview, then one page per unit with a ruled lane
+  beside every node. You keep the structure *and* get real room. This is
+  the default and the one to use during a lecture. Two or more units also
+  get a contents page with page numbers.
+
+**Split pages by** chooses what a unit is: **Sections** (the default),
+**Top-level branches** (what maps did before sections existed), or
+**Lectures** (a page per session). The sheet tells you how many pages each
+choice produces before you commit to it, and says so plainly if you pick
+Sections on a map where nothing is marked yet.
+
+A node with no children never gets its own page — one lane on an empty
+sheet is not worth the paper. It stays on the overview instead.
 - **Worksheet** — no picture; every node becomes a heading over a block of
   ruled space. The most room per node. Use it when you're rebuilding a
   topic from scratch rather than annotating what you already mapped.
@@ -170,6 +177,18 @@ Three layouts, and the choice is really about how much you plan to write:
 Short branches stretch to fill the page rather than leaving the bottom
 blank, so a three-point branch gives you three deep lanes instead of three
 shallow ones. Long ones carry on to a second page.
+
+Long labels **wrap onto up to three lines** rather than being cut off with
+an ellipsis — "Preserved vs reduced ejection fraction" does not fit one line
+at any size you can annotate around, and a map whose labels end in "..." is
+not a map of anything.
+
+### Printing just one branch
+
+Focus on a node, then **Export**: it offers that branch by default, printed
+as a document in its own right — its own overview, its own sections, its own
+filename. The branch keeps the colour it has on screen, so the printout and
+the canvas still agree. Tap **Whole map** if you wanted the lot after all.
 
 **Paper** matters more than it sounds: *iPad 4:3* fills the screen in a
 notes app with no letterboxing, while Letter and A4 are the right choice if

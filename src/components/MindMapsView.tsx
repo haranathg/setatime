@@ -7,6 +7,7 @@ import {
   pathToRoot,
   depthsOf,
   subtreeIds,
+  pageUnits,
 } from '../utils/mindMapLayout';
 import { snapshotsFor, orphanedSnapshots } from '../utils/mapSnapshots';
 import type { MapSnapshot } from '../utils/mapSnapshots';
@@ -22,6 +23,7 @@ import type {
   PdfLayoutKind,
   PdfPaper,
 } from '../utils/mindMapPdf';
+import type { SplitMode } from '../utils/mindMapLayout';
 
 // Mind maps for breaking a lecture down.
 //
@@ -572,7 +574,13 @@ function MapEditor({
       </header>
 
       {exporting && (
-        <ExportSheet map={map} lectureFilter={lectureFilter} onClose={() => setExporting(false)} />
+        <ExportSheet
+          map={map}
+          lectureFilter={lectureFilter}
+          focusId={focusId}
+          focusTitle={focusId ? (map.nodes.find((n) => n.id === focusId)?.text ?? null) : null}
+          onClose={() => setExporting(false)}
+        />
       )}
 
       {showHistory && (
@@ -819,7 +827,9 @@ function MapEditor({
                           className="block text-[9px] uppercase tracking-wider font-bold leading-none mb-0.5 truncate"
                           style={{ color: color ?? undefined }}
                         >
-                          {l.node.lectureTitle || 'Section'}
+                          {l.node.lectureTitle && l.node.lectureTitle !== l.node.text
+                            ? l.node.lectureTitle
+                            : 'Section'}
                         </span>
                       )}
                       <span
@@ -1106,6 +1116,13 @@ function Pill({
   );
 }
 
+const splitHint: Record<SplitMode, string> = {
+  section:
+    'Nothing is marked as a section yet. Select a node on the map and tap Section to make it a page — or split by branches for now.',
+  branch: 'This map has no top-level branches yet.',
+  lecture: 'No nodes in this map carry a lecture tag yet.',
+};
+
 const LAYOUT_BLURB: Record<PdfLayoutKind, string> = {
   overview: 'The whole map on one page, with wide margins to write in.',
   roomy: 'The map first, then a page per branch with a ruled lane beside every node.',
@@ -1115,6 +1132,8 @@ const LAYOUT_BLURB: Record<PdfLayoutKind, string> = {
 function ExportSheet({
   map,
   lectureFilter,
+  focusId,
+  focusTitle,
   onClose,
 }: {
   map: MindMap;
@@ -1122,11 +1141,16 @@ function ExportSheet({
    *  if you filtered down to one lecture and then hit Export, printing the
    *  whole course is not what you meant. */
   lectureFilter: string | null;
+  /** Likewise for focus: exporting from inside a focused branch almost
+   *  always means that branch, not the course it belongs to. */
+  focusId: string | null;
+  focusTitle: string | null;
   onClose: () => void;
 }) {
   const [opts, setOpts] = useState<MindMapPdfOptions>(() => ({
     ...loadPdfPrefs(),
     lectureId: lectureFilter ?? undefined,
+    rootId: focusId ?? undefined,
   }));
   const [status, setStatus] = useState<string | null>(null);
 
@@ -1144,8 +1168,12 @@ function ExportSheet({
     try {
       // The lecture slice is a decision about this one export, not a
       // preference — remembering it would silently truncate the next print.
-      const { lectureId: _slice, ...durable } = next;
+      // Neither the slice nor the focus is a preference — both are
+      // decisions about this one export, and remembering either would
+      // silently truncate the next print.
+      const { lectureId: _slice, rootId: _root, ...durable } = next;
       void _slice;
+      void _root;
       localStorage.setItem(PDF_PREFS_KEY, JSON.stringify(durable));
     } catch {
       // A device that will not persist the preference still exports fine.
@@ -1155,6 +1183,18 @@ function ExportSheet({
   // Building is cheap and pure, so the sheet can just show the real page
   // count rather than an estimate that could disagree with the file.
   const built = useMemo(() => buildMindMapPdf(map, opts), [map, opts]);
+
+  // How many note pages the chosen split actually produces. Zero is worth
+  // saying out loud — "Sections" on a map with nothing marked would
+  // otherwise silently print an overview and stop.
+  const unitCount = useMemo(() => {
+    const scoped = opts.rootId
+      ? map.nodes
+          .filter((n) => subtreeIds(map.nodes, opts.rootId!).has(n.id))
+          .map((n) => (n.id === opts.rootId ? { ...n, parentId: null } : n))
+      : map.nodes;
+    return pageUnits(scoped, opts.splitBy ?? 'section').length;
+  }, [map.nodes, opts.splitBy, opts.rootId]);
 
   return (
     <div
@@ -1183,6 +1223,22 @@ function ExportSheet({
           </button>
         </div>
 
+        {focusId && focusTitle && (
+          <>
+            <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-semibold mb-1.5">
+              What to print
+            </div>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              <Pill active={!!opts.rootId} onClick={() => set({ rootId: focusId })}>
+                {focusTitle}
+              </Pill>
+              <Pill active={!opts.rootId} onClick={() => set({ rootId: undefined })}>
+                Whole map
+              </Pill>
+            </div>
+          </>
+        )}
+
         <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-semibold mb-1.5">
           Layout
         </div>
@@ -1200,6 +1256,36 @@ function ExportSheet({
         <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
           {LAYOUT_BLURB[opts.layout]}
         </p>
+
+        {opts.layout === 'roomy' && (
+          <>
+            <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-semibold mt-4 mb-1.5">
+              Split pages by
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(['section', 'branch', 'lecture'] as SplitMode[]).map((m) => (
+                <Pill
+                  key={m}
+                  active={(opts.splitBy ?? 'section') === m}
+                  onClick={() => set({ splitBy: m })}
+                >
+                  {m === 'section' ? 'Sections' : m === 'branch' ? 'Top-level branches' : 'Lectures'}
+                </Pill>
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+              {unitCount === 0
+                ? splitHint[opts.splitBy ?? 'section']
+                : `${unitCount} page${unitCount === 1 ? '' : 's'} of note space, one per ${
+                    (opts.splitBy ?? 'section') === 'section'
+                      ? 'section'
+                      : (opts.splitBy ?? 'section') === 'branch'
+                        ? 'top-level branch'
+                        : 'lecture'
+                  }.`}
+            </p>
+          </>
+        )}
 
         <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-semibold mt-4 mb-1.5">
           Paper
@@ -1263,7 +1349,8 @@ function ExportSheet({
             const slice = opts.lectureId
               ? lecturesInMap.find((l) => l.id === opts.lectureId)?.title
               : undefined;
-            const how = await deliverPdf(built.blob, pdfFileName(map, slice));
+            const scoped = opts.rootId && focusTitle ? { ...map, title: focusTitle } : map;
+            const how = await deliverPdf(built.blob, pdfFileName(scoped, slice));
             setStatus(how === 'shared' ? 'Sent to the share sheet' : 'Saved to your downloads');
             setTimeout(() => setStatus(null), 2600);
           }}

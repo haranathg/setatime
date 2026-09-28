@@ -53,6 +53,43 @@ export interface LayoutOptions {
    *  the path to a match without writing collapsed:false all over the tree
    *  and leaving it that way once the search is cleared. */
   forceExpanded?: Set<string>;
+  /** How tall a node's box is once its label has wrapped. The default
+   *  estimates from character count, which is all the canvas needs; the PDF
+   *  passes a version backed by real Helvetica metrics so the printed box
+   *  is never a line short. */
+  heightOf?: (node: MindMapNode, depth: number, w: number) => number;
+}
+
+/** Labels wrap rather than truncate, but not without limit — one runaway
+ *  node should not be allowed to push a whole branch down the page. */
+export const MAX_NODE_LINES = 3;
+const LINE_H = 16.5;
+const BOX_PAD_Y = 12;
+const SECTION_LABEL_H = 12;
+
+/** Lines a label needs, estimated from character count. Deliberately rough:
+ *  the canvas lets the box grow to fit its own text anyway, so this only has
+ *  to be close enough that the tidy tree reserves the right amount of room
+ *  and connectors meet boxes where they actually are. */
+export function estimateLines(text: string, boxW: number, fontPx = 12): number {
+  const avgChar = fontPx * 0.52;
+  const perLine = Math.max(6, Math.floor((boxW - 16) / avgChar));
+  return Math.min(MAX_NODE_LINES, Math.max(1, Math.ceil((text.length || 1) / perLine)));
+}
+
+/** The small line above a section's label. A section whose text already IS
+ *  its lecture title needs no tag repeating it back — the coloured border
+ *  says it is a section on its own. */
+export function sectionLabelOf(node: MindMapNode, depth: number): string | null {
+  if (!node.section || depth === 0) return null;
+  if (node.lectureTitle && node.lectureTitle !== node.text) return node.lectureTitle;
+  return null;
+}
+
+export function defaultHeightOf(node: MindMapNode, depth: number, w: number): number {
+  const lines = estimateLines(node.text, w);
+  const label = sectionLabelOf(node, depth) ? SECTION_LABEL_H : 0;
+  return Math.round(BOX_PAD_Y + lines * LINE_H + label);
 }
 
 /** Node box width, grown a little for longer text so the label has room
@@ -66,6 +103,7 @@ function boxWidth(text: string, depth: number): number {
 export function layoutMap(nodes: MindMapNode[], opts: LayoutOptions = {}): MapLayout {
   const rowH = opts.rowH ?? ROW_H;
   const colW = opts.colW ?? COL_W;
+  const measure = opts.heightOf ?? defaultHeightOf;
   const root = opts.rootId
     ? nodes.find((n) => n.id === opts.rootId)
     : nodes.find((n) => n.parentId === null);
@@ -88,6 +126,8 @@ export function layoutMap(nodes: MindMapNode[], opts: LayoutOptions = {}): MapLa
 
   // Post-order walk: place the subtree, then centre the parent on it.
   const place = (node: MindMapNode, depth: number): LaidOutNode => {
+    const w = boxWidth(node.text, depth);
+    const h = measure(node, depth, w);
     const kids = childrenOf.get(node.id) ?? [];
     const forced = opts.forceCollapsed?.has(node.id)
       ? true
@@ -100,22 +140,21 @@ export function layoutMap(nodes: MindMapNode[], opts: LayoutOptions = {}): MapLa
     let y: number;
     if (visibleKids.length === 0) {
       y = cursorY;
-      cursorY += rowH;
+      // Whichever is larger: the pitch, or what this node's own box needs.
+      // A wrapped three-line label used to be drawn over its neighbour.
+      cursorY += Math.max(rowH, h + 10);
     } else {
       const placed = visibleKids.map((k) => place(k, depth + 1));
       y = (placed[0].y + placed[placed.length - 1].y) / 2;
     }
 
-    const w = boxWidth(node.text, depth);
     const laid: LaidOutNode = {
       node,
       depth,
       x: depth * colW,
       y,
       w,
-      // A section carries a label line above its text, so it needs the room
-      // — otherwise its connector meets the box a third of the way down.
-      h: node.section && depth > 0 ? 40 : 28,
+      h,
       childIds: kids.map((k) => k.id),
       hiddenChildren: collapsed ? kids.length : 0,
     };
@@ -248,7 +287,49 @@ export function pathToRoot(nodes: MindMapNode[], id: string): MindMapNode[] {
  *
  *  Falls back to top-level branches when nothing is marked, which is what
  *  every map made before sections existed will hit. */
-export function pageUnits(nodes: MindMapNode[]): MindMapNode[] {
+export type SplitMode = 'section' | 'branch' | 'lecture';
+
+export function pageUnits(nodes: MindMapNode[], mode: SplitMode = 'section'): MindMapNode[] {
+  const root = nodes.find((n) => n.parentId === null);
+  if (!root) return [];
+  const order = new Map(nodes.map((n, i) => [n.id, i]));
+  const byOrder = (a: MindMapNode, b: MindMapNode) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0);
+  const hasChildren = (n: MindMapNode) => nodes.some((k) => k.parentId === n.id);
+
+  /** A page of note lanes is only worth printing for something that has
+   *  leaves to lane. A childless node would get a page holding one lane, so
+   *  it stays on the overview instead — unless it was explicitly marked a
+   *  section, which is an instruction rather than a guess. Focusing on a
+   *  branch used to hit this hard: the branch became the root, no sections
+   *  remained inside it, and the fallback handed every leaf its own page. */
+  const worthAPage = (units: MindMapNode[]): MindMapNode[] => {
+    const kept = units.filter((u) => u.section || hasChildren(u));
+    if (kept.length > 0) return kept.sort(byOrder);
+    return hasChildren(root) ? [root] : [];
+  };
+
+  if (mode === 'branch') {
+    return worthAPage(nodes.filter((n) => n.parentId === root.id));
+  }
+
+  if (mode === 'lecture') {
+    // The head of each lecture's contribution: a tagged node whose parent
+    // is not part of the same lecture. Usually one per lecture, but a
+    // session whose material landed in two places gets a page for each
+    // rather than being silently reduced to one.
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const heads = nodes.filter((n) => {
+      if (!n.lectureId) return false;
+      const parent = n.parentId ? byId.get(n.parentId) : null;
+      return !parent || parent.lectureId !== n.lectureId;
+    });
+    return worthAPage(heads);
+  }
+
+  return worthAPage(sectionUnits(nodes));
+}
+
+function sectionUnits(nodes: MindMapNode[]): MindMapNode[] {
   const root = nodes.find((n) => n.parentId === null);
   if (!root) return [];
   const topLevel = nodes.filter((n) => n.parentId === root.id);
@@ -269,9 +350,7 @@ export function pageUnits(nodes: MindMapNode[]): MindMapNode[] {
     }
     if (!holdsSection) units.push(branch);
   }
-  // Document order, so the PDF reads in the order the tree does.
-  const order = new Map(nodes.map((n, i) => [n.id, i]));
-  return units.sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+  return units;
 }
 
 /** Sections nested strictly inside `unitId` — where its printed page stops. */

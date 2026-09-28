@@ -29,8 +29,11 @@ import {
   pageUnits,
   nestedSections,
   pathToRoot,
+  MAX_NODE_LINES,
+  sectionLabelOf,
+  subtreeIds,
 } from './mindMapLayout';
-import type { MapLayout } from './mindMapLayout';
+import type { MapLayout, SplitMode } from './mindMapLayout';
 import { PdfBuilder } from './pdf';
 import type { RGB } from './pdf';
 import type { MindMap, MindMapNode } from '../types';
@@ -44,6 +47,13 @@ export interface MindMapPdfOptions {
   paper: PdfPaper;
   landscape: boolean;
   guides: PdfGuides;
+  /** Where the page breaks fall. Sections is the default and the one that
+   *  matches how a course tree is actually organised; branches is what maps
+   *  did before sections existed; lectures gives a page per session. */
+  splitBy?: SplitMode;
+  /** Print one branch rather than the whole tree — the node you are focused
+   *  on, re-rooted so it prints as a document in its own right. */
+  rootId?: string;
   /** Print only one lecture's contribution to the tree. The point of a
    *  course-sized map is that it holds everything; the point of printing is
    *  usually that you are about to sit through one session. */
@@ -55,6 +65,7 @@ export const DEFAULT_PDF_OPTIONS: MindMapPdfOptions = {
   paper: 'letter',
   landscape: false,
   guides: 'ruled',
+  splitBy: 'section',
 };
 
 /** Points, at 72/inch. The iPad size is 4:3 so it fills the screen in a
@@ -126,6 +137,34 @@ function sliceToLecture(nodes: MindMapNode[], lectureId: string): MindMapNode[] 
   return nodes.filter((n) => keep.has(n.id));
 }
 
+/** The nominal label size in LAYOUT units. Boxes and text scale together,
+ *  so wrapping can be decided once here and stays correct at any scale. */
+const NOMINAL_SIZE = 9.2;
+
+/** Node heights backed by real Helvetica metrics rather than the canvas'
+ *  character-count estimate, so a printed box is never a line short of the
+ *  text it is about to hold. */
+function pdfHeightOf(pdf: PdfBuilder) {
+  return (node: MindMapNode, depth: number, w: number): number => {
+    const lines = Math.min(
+      MAX_NODE_LINES,
+      Math.max(1, pdf.wrap(node.text || ' ', w - 10, NOMINAL_SIZE, depth === 0).length)
+    );
+    const label = sectionLabelOf(node, depth) ? 12 : 0;
+    return Math.round(12 + lines * 16.5 + label);
+  };
+}
+
+/** One branch as a standalone tree. The focus node becomes the root, so
+ *  every downstream step — sections, colours, the contents page — treats it
+ *  as a document rather than as a fragment of a bigger one. */
+function sliceToSubtree(nodes: MindMapNode[], rootId: string): MindMapNode[] {
+  const keep = subtreeIds(nodes, rootId);
+  return nodes
+    .filter((n) => keep.has(n.id))
+    .map((n) => (n.id === rootId ? { ...n, parentId: null } : n));
+}
+
 interface Frame {
   x: number;
   y: number;
@@ -190,8 +229,12 @@ function drawTree(
     /** The map's real root. Branch colour is always resolved against THIS,
      *  never against whatever subtree happens to be on the page — otherwise
      *  every branch page recolours its own children from the top of the
-     *  palette and the colours stop meaning anything across the document. */
+     *  palette and the colours stop meaning anything across the document.
+     *  For a focused export that means the ORIGINAL root and the ORIGINAL
+     *  node list, even though the page is laid out from a re-rooted slice:
+     *  a branch printed on its own should be the colour it is on screen. */
     colorRoot: string;
+    colorNodes?: MindMapNode[];
     /** The node drawn as the anchor box, if any. */
     anchorId: string | null;
     frame: Frame;
@@ -202,6 +245,7 @@ function drawTree(
   }
 ): void {
   const { colorRoot, anchorId, frame, scale, originX, originY, visible } = opts;
+  const palette = opts.colorNodes ?? nodes;
   const px = (x: number) => frame.x + (x - originX) * scale;
   const py = (y: number) => frame.y + (y - originY) * scale;
 
@@ -212,13 +256,13 @@ function drawTree(
     const x2 = px(to.x);
     const y2 = py(to.y + to.h / 2);
     const mid = (x1 + x2) / 2;
-    const color = hexToRgb(branchColorOf(to.node.id, nodes, colorRoot) ?? '#94a3b8');
+    const color = hexToRgb(branchColorOf(to.node.id, palette, colorRoot) ?? '#94a3b8');
     pdf.curve(x1, y1, mid, y1, mid, y2, x2, y2, { color: tint(color, 0.45), width: 1.1 });
   }
 
   for (const l of layout.nodes) {
     if (!visible.has(l.node.id)) continue;
-    const hex = branchColorOf(l.node.id, nodes, colorRoot);
+    const hex = branchColorOf(l.node.id, palette, colorRoot);
     const color = hex ? hexToRgb(hex) : INK;
     const x = px(l.x);
     const y = py(l.y);
@@ -227,15 +271,46 @@ function drawTree(
     const size = Math.max(6.5, Math.min(10, 9.2 * scale));
     const isRoot = l.node.id === anchorId;
 
+    const isSection = !!l.node.section && !isRoot;
     if (isRoot) {
       pdf.rect(x, y, w, h, { fill: tint(INK, 0.9), color: MUTED, width: 0.8, radius: 5 * scale });
     } else {
-      pdf.rect(x, y, w, h, { fill: tint(color, 0.9), color: tint(color, 0.35), width: 0.9, radius: 5 * scale });
+      pdf.rect(x, y, w, h, {
+        fill: tint(color, 0.9),
+        color: isSection ? color : tint(color, 0.35),
+        width: isSection ? 1.4 : 0.9,
+        radius: 5 * scale,
+      });
     }
-    pdf.text(pdf.fit(l.node.text, w - 10 * scale, size, isRoot), x + 5 * scale, y + h / 2 + size * 0.36, {
-      size,
-      bold: isRoot,
-      color: isRoot ? INK : color,
+    const sectionLabel = sectionLabelOf(l.node, l.depth);
+    if (sectionLabel) {
+      pdf.text(pdf.fit(sectionLabel, w - 10 * scale, size * 0.72), x + 5 * scale, y + size * 0.95, {
+        size: size * 0.72,
+        bold: true,
+        color,
+      });
+    }
+    // Wrap rather than truncate. Medical labels are long — "Preserved vs
+    // reduced ejection fraction" does not fit one line at any size a pencil
+    // can annotate around — and a map whose labels end in "..." is not a
+    // map of anything. Each line is still fitted individually, which is what
+    // catches a single word longer than the whole box.
+    const inner = w - 10 * scale;
+    const wrapped = pdf.wrap(l.node.text || ' ', inner, size, isRoot);
+    const lines = wrapped.slice(0, MAX_NODE_LINES);
+    if (wrapped.length > MAX_NODE_LINES) {
+      lines[MAX_NODE_LINES - 1] = `${lines[MAX_NODE_LINES - 1]} ${wrapped.slice(MAX_NODE_LINES).join(' ')}`;
+    }
+    const lineH = size * 1.22;
+    // Section labels sit above the text, so the block centres below them.
+    const labelDrop = sectionLabel ? size * 0.9 : 0;
+    const top = y + labelDrop + (h - labelDrop - lines.length * lineH) / 2 + size * 0.82;
+    lines.forEach((ln, i) => {
+      pdf.text(pdf.fit(ln, inner, size, isRoot), x + 5 * scale, top + i * lineH, {
+        size,
+        bold: isRoot,
+        color: isRoot ? INK : color,
+      });
     });
     if (l.hiddenChildren > 0) {
       pdf.text(`+${l.hiddenChildren}`, x + w + 4 * scale, y + h / 2 + size * 0.34, {
@@ -254,9 +329,10 @@ function overviewPage(
   nodes: MindMapNode[],
   rootId: string,
   frame: Frame,
-  headline: string | null
+  headline: string | null,
+  palette: { nodes: MindMapNode[]; root: string }
 ): void {
-  const layout = layoutMap(nodes);
+  const layout = layoutMap(nodes, { heightOf: pdfHeightOf(pdf) });
   const body: Frame = {
     x: frame.x,
     y: frame.y + HEADER_H + 18,
@@ -274,7 +350,8 @@ function overviewPage(
   };
   const all = new Set(layout.nodes.map((n) => n.node.id));
   drawTree(pdf, layout, nodes, {
-    colorRoot: rootId,
+    colorRoot: palette.root,
+    colorNodes: palette.nodes,
     anchorId: rootId,
     frame: drawn,
     scale,
@@ -298,16 +375,17 @@ function branchPages(
   pdf: PdfBuilder,
   map: MindMap,
   nodes: MindMapNode[],
-  rootId: string,
   branch: MindMapNode,
   opts: MindMapPdfOptions,
   frame: Frame,
   pageH: number,
   startNewPage: () => void,
   stamp: string,
+  palette: { nodes: MindMapNode[]; root: string },
+  fallbackTrail: string | null,
   onFirstPage?: (page: number) => void
 ): void {
-  const hex = branchColorOf(branch.id, nodes, rootId);
+  const hex = branchColorOf(branch.id, palette.nodes, palette.root);
   const color = hexToRgb(hex ?? BRANCH_COLORS[0]);
   // A unit's page stops at the next section inside it, which gets its own —
   // otherwise a nested section is drawn on both pages.
@@ -330,19 +408,36 @@ function branchPages(
     colW: PRINT_COL_W,
     rootId: branch.id,
     forceCollapsed: stopAt,
+    heightOf: pdfHeightOf(pdf),
   });
   const treeW = Math.max(probe.width - originX, 1);
   const treeMaxW = frame.w * 0.52;
   const scale = Math.min(treeMaxW / treeW, 1);
 
-  const leafCount = Math.max(probe.nodes.filter(isLeaf).length, 1);
-  const laneH = Math.min(Math.max(bodyH / leafCount, PRINT_ROW_H * scale), MAX_LANE_H);
+  const leaves0 = probe.nodes.filter(isLeaf);
+  const leafCount = Math.max(leaves0.length, 1);
+  // The tallest leaf sets the floor. Without it a two-line label needs more
+  // than its lane, the layout gives it more, and the page no longer divides
+  // into equal lanes — leaving one leaf stranded on a page of its own.
+  const tallest = leaves0.reduce((m, n) => Math.max(m, n.h), 0);
+  const shortest = leaves0.reduce((m, n) => Math.min(m, n.h), tallest);
+  // A lane is centred on its node's BOX, and boxes now differ in height, so
+  // the run of lanes spans half the tallest-to-shortest spread more than
+  // leafCount * laneH. Without allowing for it, a page that should hold
+  // exactly five lanes holds four and strands the fifth on a page of its
+  // own.
+  const spread = ((tallest - shortest) / 2) * scale;
+  const laneH = Math.min(
+    Math.max((bodyH - spread) / leafCount, PRINT_ROW_H * scale, (tallest + 14) * scale),
+    MAX_LANE_H
+  );
 
   const layout = layoutMap(nodes, {
     rowH: laneH / scale,
     colW: PRINT_COL_W,
     rootId: branch.id,
     forceCollapsed: stopAt,
+    heightOf: pdfHeightOf(pdf),
   });
   const rowH = laneH / scale;
 
@@ -403,7 +498,8 @@ function branchPages(
     if (hasKids) visible.delete(branch.id);
 
     drawTree(pdf, layout, nodes, {
-      colorRoot: rootId,
+      colorRoot: palette.root,
+      colorNodes: palette.nodes,
       anchorId: hasKids ? null : branch.id,
       frame: { x: frame.x, y: bodyTop, w: treeW * scale, h: bodyH },
       scale,
@@ -412,11 +508,15 @@ function branchPages(
       visible,
     });
 
-    const trail = pathToRoot(nodes, branch.id)
-      .slice(0, -1)
-      .map((n) => n.text)
-      .join('  ›  ');
-    drawHeader(pdf, branch.text, part === 0 ? trail || map.title : `${trail || map.title} — continued`, frame);
+    // The path above this unit. Empty when the unit IS the page's root,
+    // which a focused export hits — then the branch's place in the original
+    // map is more use than its own name repeated back.
+    const trail =
+      pathToRoot(nodes, branch.id)
+        .slice(0, -1)
+        .map((n) => n.text)
+        .join('  ›  ') || fallbackTrail || '';
+    drawHeader(pdf, branch.text, part === 0 ? trail || null : `${trail || map.title} — continued`, frame);
     drawFooter(pdf, stamp, `Page ${pdf.pageCount}`, frame, pageH);
     if (part === 0) onFirstPage?.(pdf.pageCount);
     part++;
@@ -597,29 +697,48 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
       })
     : '';
 
-  const nodes = opts.lectureId ? sliceToLecture(map.nodes, opts.lectureId) : map.nodes;
+  const focusName = opts.rootId
+    ? (map.nodes.find((n) => n.id === opts.rootId)?.text ?? null)
+    : null;
+  // Headers, the filename and the overview all read the title off the map,
+  // so a focused export gets a map-shaped object carrying the branch's name.
+  const doc: MindMap = focusName ? { ...map, title: focusName } : map;
+
+  let nodes = opts.rootId ? sliceToSubtree(map.nodes, opts.rootId) : map.nodes;
+  if (opts.lectureId) nodes = sliceToLecture(nodes, opts.lectureId);
   const root = nodes.find((n) => n.parentId === null);
 
   const render = (withContents: Map<string, number> | null, contentsOffset: number) => {
     const pdf = new PdfBuilder(pageW, pageH);
     if (!root) {
-      drawHeader(pdf, map.title, 'Empty map', frame);
+      drawHeader(pdf, doc.title, 'Empty map', frame);
       return { pdf, pageOf: new Map<string, number>(), units: [] as MindMapNode[] };
     }
     const startNewPage = () => pdf.addPage();
     const pageOf = new Map<string, number>();
+    const palette = {
+      nodes: map.nodes,
+      root: map.nodes.find((n) => n.parentId === null)?.id ?? root.id,
+    };
 
     if (opts.layout === 'worksheet') {
-      worksheetPages(pdf, map, nodes, root.id, opts, frame, pageH, startNewPage, stamp);
+      worksheetPages(pdf, doc, nodes, root.id, opts, frame, pageH, startNewPage, stamp);
       return { pdf, pageOf, units: [] as MindMapNode[] };
     }
 
-    const units = opts.layout === 'roomy' ? pageUnits(nodes) : [];
-    const headline = opts.lectureId
-      ? (nodes.find((n) => n.lectureId === opts.lectureId)?.lectureTitle ?? map.course ?? null)
-      : (map.course ?? null);
+    const units = opts.layout === 'roomy' ? pageUnits(nodes, opts.splitBy ?? 'section') : [];
+    // A focused export names where the branch came from rather than
+    // repeating the branch's own name back at it.
+    const headline = focusName
+      ? pathToRoot(map.nodes, opts.rootId!)
+          .slice(0, -1)
+          .map((n) => n.text)
+          .join('  ›  ') || map.title
+      : opts.lectureId
+        ? (nodes.find((n) => n.lectureId === opts.lectureId)?.lectureTitle ?? map.course ?? null)
+        : (map.course ?? null);
 
-    overviewPage(pdf, map, nodes, root.id, frame, headline);
+    overviewPage(pdf, doc, nodes, root.id, frame, headline, palette);
     drawFooter(pdf, stamp, units.length ? 'Overview' : 'Page 1', frame, pageH);
 
     if (withContents && units.length >= 2) {
@@ -629,8 +748,9 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
 
     for (const unit of units) {
       startNewPage();
-      branchPages(pdf, map, nodes, root.id, unit, opts, frame, pageH, startNewPage, stamp, (page) =>
-        pageOf.set(unit.id, page)
+      branchPages(
+        pdf, doc, nodes, unit, opts, frame, pageH, startNewPage, stamp,
+        palette, headline, (page) => pageOf.set(unit.id, page)
       );
     }
     return { pdf, pageOf, units };
