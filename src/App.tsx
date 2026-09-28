@@ -229,6 +229,12 @@ function AppMain({
     insertTemplate: insertMapTemplate,
     ensureLectureBranch,
     graftMap,
+    undo: undoMap,
+    redo: redoMap,
+    undoDepth: mapUndoDepth,
+    redoDepth: mapRedoDepth,
+    restoreSnapshot: restoreMapSnapshot,
+    discardHistory: discardMapHistory,
   } = useMindMaps();
   // Set when a lecture row starts a map, so Maps opens straight into it —
   // and which node inside it to focus on arrival.
@@ -810,6 +816,12 @@ function AppMain({
           onCollapseToDepth={collapseMapToDepth}
           onInsertTemplate={insertMapTemplate}
           onGraftMap={graftMap}
+          onUndo={undoMap}
+          onRedo={redoMap}
+          undoDepth={mapUndoDepth}
+          redoDepth={mapRedoDepth}
+          onRestore={restoreMapSnapshot}
+          onDiscardHistory={discardMapHistory}
           lectures={mapLectureRefs}
           initialMapId={openMapId}
           initialFocusId={openMapFocusId}

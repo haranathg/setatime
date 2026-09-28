@@ -6,7 +6,11 @@ import {
   toOutline,
   pathToRoot,
   depthsOf,
+  subtreeIds,
+  pageUnits,
 } from '../utils/mindMapLayout';
+import { snapshotsFor, orphanedSnapshots } from '../utils/mapSnapshots';
+import type { MapSnapshot } from '../utils/mapSnapshots';
 import {
   buildMindMapPdf,
   pdfFileName,
@@ -19,6 +23,7 @@ import type {
   PdfLayoutKind,
   PdfPaper,
 } from '../utils/mindMapPdf';
+import type { SplitMode } from '../utils/mindMapLayout';
 
 // Mind maps for breaking a lecture down.
 //
@@ -51,6 +56,12 @@ export default function MindMapsView({
   onCollapseToDepth,
   onInsertTemplate,
   onGraftMap,
+  onUndo,
+  onRedo,
+  undoDepth,
+  redoDepth,
+  onRestore,
+  onDiscardHistory,
   initialMapId,
   initialFocusId,
   onConsumedInitialMap,
@@ -69,6 +80,12 @@ export default function MindMapsView({
   onCollapseToDepth: (mapId: string, depth: number) => void;
   onInsertTemplate: (mapId: string, parentId: string, labels: string[]) => void;
   onGraftMap: (sourceId: string, targetId: string, parentId: string) => void;
+  onUndo: (mapId: string) => void;
+  onRedo: (mapId: string) => void;
+  undoDepth: (mapId: string) => number;
+  redoDepth: (mapId: string) => number;
+  onRestore: (mapId: string, nodes: MindMapNode[], title: string) => void;
+  onDiscardHistory: (mapId: string) => void;
   /** Set when a lecture row started a map — opens straight into it. */
   initialMapId?: string | null;
   /** The node within that map to focus on arrival, when the hand-off came
@@ -113,8 +130,18 @@ export default function MindMapsView({
         onSetWorkingLecture={onSetWorkingLecture}
         onCollapseToDepth={onCollapseToDepth}
         onInsertTemplate={onInsertTemplate}
+        onUndo={onUndo}
+        onRedo={onRedo}
+        undoDepth={undoDepth}
+        redoDepth={redoDepth}
+        onRestore={onRestore}
         onDelete={() => {
-          if (confirm(`Delete "${open.title}"? This cannot be undone.`)) {
+          if (
+            confirm(
+              `Delete "${open.title}"?\n\nA restore point is kept on this device, so you can ` +
+                `bring it back from the Maps list afterwards.`
+            )
+          ) {
             onDelete(open.id);
             setOpenId(null);
           }
@@ -161,6 +188,15 @@ export default function MindMapsView({
             New map
           </button>
         </form>
+
+        <RecoverableMaps
+          liveIds={new Set(maps.map((m) => m.id))}
+          onRestore={(mapId, snap) => {
+            onRestore(mapId, snap.nodes, snap.title);
+            setOpenId(mapId);
+          }}
+          onDiscard={onDiscardHistory}
+        />
 
         {maps.length === 0 ? (
           <div className="bg-white dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-8 text-center">
@@ -239,6 +275,11 @@ function MapEditor({
   onSetWorkingLecture,
   onCollapseToDepth,
   onInsertTemplate,
+  onUndo,
+  onRedo,
+  undoDepth,
+  redoDepth,
+  onRestore,
   onDelete,
   initialFocusId,
 }: {
@@ -254,6 +295,11 @@ function MapEditor({
   onSetWorkingLecture: (mapId: string, lectureId?: string, lectureTitle?: string) => void;
   onCollapseToDepth: (mapId: string, depth: number) => void;
   onInsertTemplate: (mapId: string, parentId: string, labels: string[]) => void;
+  onUndo: (mapId: string) => void;
+  onRedo: (mapId: string) => void;
+  undoDepth: (mapId: string) => number;
+  redoDepth: (mapId: string) => number;
+  onRestore: (mapId: string, nodes: MindMapNode[], title: string) => void;
   onDelete: () => void;
   initialFocusId?: string | null;
 }) {
@@ -269,6 +315,7 @@ function MapEditor({
   const [query, setQuery] = useState('');
   const [lectureFilter, setLectureFilter] = useState<string | null>(null);
   const [menu, setMenu] = useState<null | 'lecture' | 'template'>(null);
+  const [showHistory, setShowHistory] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -426,11 +473,13 @@ function MapEditor({
     if (isEditing) return;
     if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
-      if (selected !== rootId) {
-        const up = parentOf.get(selected) ?? rootId;
-        onDeleteNode(map.id, selected);
-        setSelected(up);
-      }
+      deleteSelected();
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) onRedo(map.id);
+      else onUndo(map.id);
       return;
     }
     if (e.key === '[') { e.preventDefault(); outdent(selected); return; }
@@ -457,6 +506,28 @@ function MapEditor({
     return Array.from(seen, ([id, title]) => ({ id, title }));
   }, [lectures, map.course, taggedLectures]);
 
+  /** The only way a node is deleted. Delete takes the whole subtree with it,
+   *  so anything with children asks first and says how much is going — the
+   *  keystroke that caused this is the same one people press to correct a
+   *  typo. */
+  const deleteSelected = useCallback(() => {
+    if (!selected || selected === rootId) return;
+    const node = map.nodes.find((n) => n.id === selected);
+    if (!node) return;
+    const count = subtreeIds(map.nodes, selected).size;
+    if (count > 1) {
+      const label = node.text || 'this node';
+      const ok = confirm(
+        `Delete “${label}” and the ${count - 1} node${count - 1 === 1 ? '' : 's'} under it?\n\n` +
+          `You can undo this, and a restore point is saved either way.`
+      );
+      if (!ok) return;
+    }
+    const up = parentOf.get(selected) ?? rootId;
+    onDeleteNode(map.id, selected);
+    setSelected(up);
+  }, [selected, rootId, map.nodes, map.id, parentOf, onDeleteNode]);
+
   const selectedNode = map.nodes.find((n) => n.id === selected) ?? null;
   const siblingsOfSelected = useMemo(
     () => (selectedNode?.parentId ? map.nodes.filter((n) => n.parentId === selectedNode.parentId) : []),
@@ -481,6 +552,13 @@ function MapEditor({
           {map.title}
         </span>
         <button
+          onClick={() => setShowHistory(true)}
+          className="text-[11px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 shrink-0"
+          title="Restore an earlier version of this map"
+        >
+          History
+        </button>
+        <button
           onClick={() => setExporting(true)}
           className="text-[11px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 shrink-0"
           title="Save as a PDF to annotate, or copy as an outline"
@@ -496,7 +574,25 @@ function MapEditor({
       </header>
 
       {exporting && (
-        <ExportSheet map={map} lectureFilter={lectureFilter} onClose={() => setExporting(false)} />
+        <ExportSheet
+          map={map}
+          lectureFilter={lectureFilter}
+          focusId={focusId}
+          focusTitle={focusId ? (map.nodes.find((n) => n.id === focusId)?.text ?? null) : null}
+          onClose={() => setExporting(false)}
+        />
+      )}
+
+      {showHistory && (
+        <HistorySheet
+          mapId={map.id}
+          currentCount={map.nodes.length}
+          onClose={() => setShowHistory(false)}
+          onRestore={(snap) => {
+            onRestore(map.id, snap.nodes, snap.title);
+            setShowHistory(false);
+          }}
+        />
       )}
 
       {/* Navigation strip. A map that holds one lecture never needs this; a
@@ -731,7 +827,9 @@ function MapEditor({
                           className="block text-[9px] uppercase tracking-wider font-bold leading-none mb-0.5 truncate"
                           style={{ color: color ?? undefined }}
                         >
-                          {l.node.lectureTitle || 'Section'}
+                          {l.node.lectureTitle && l.node.lectureTitle !== l.node.text
+                            ? l.node.lectureTitle
+                            : 'Section'}
                         </span>
                       )}
                       <span
@@ -878,16 +976,14 @@ function MapEditor({
               {selectedNode?.collapsed ? 'Expand' : 'Collapse'}
             </Act>
           )}
-          <Act
-            onClick={() => {
-              if (!selected || selected === rootId) return;
-              const up = parentOf.get(selected) ?? rootId;
-              onDeleteNode(map.id, selected);
-              setSelected(up);
-            }}
-            disabled={selected === rootId}
-          >
+          <Act onClick={deleteSelected} disabled={selected === rootId}>
             Delete
+          </Act>
+          <Act onClick={() => onUndo(map.id)} disabled={undoDepth(map.id) === 0} title="Undo (Cmd/Ctrl+Z)">
+            ↶ Undo
+          </Act>
+          <Act onClick={() => onRedo(map.id)} disabled={redoDepth(map.id) === 0} title="Redo (Cmd/Ctrl+Shift+Z)">
+            ↷
           </Act>
           <span className="ml-auto flex items-center gap-1">
             <Act onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}>−</Act>
@@ -898,7 +994,8 @@ function MapEditor({
           </span>
         </div>
         <p className="text-[10px] text-gray-400 dark:text-gray-500">
-          Tab = branch · Enter = sibling · [ / ] = out / in · Alt+↑ / Alt+↓ = reorder · Delete removes
+          Tab = branch · Enter = sibling · [ / ] = out / in · Alt+↑ / Alt+↓ = reorder ·
+          Cmd/Ctrl+Z = undo · Delete removes the node and everything under it
         </p>
       </footer>
     </div>
@@ -1019,6 +1116,13 @@ function Pill({
   );
 }
 
+const splitHint: Record<SplitMode, string> = {
+  section:
+    'Nothing is marked as a section yet. Select a node on the map and tap Section to make it a page — or split by branches for now.',
+  branch: 'This map has no top-level branches yet.',
+  lecture: 'No nodes in this map carry a lecture tag yet.',
+};
+
 const LAYOUT_BLURB: Record<PdfLayoutKind, string> = {
   overview: 'The whole map on one page, with wide margins to write in.',
   roomy: 'The map first, then a page per branch with a ruled lane beside every node.',
@@ -1028,6 +1132,8 @@ const LAYOUT_BLURB: Record<PdfLayoutKind, string> = {
 function ExportSheet({
   map,
   lectureFilter,
+  focusId,
+  focusTitle,
   onClose,
 }: {
   map: MindMap;
@@ -1035,11 +1141,16 @@ function ExportSheet({
    *  if you filtered down to one lecture and then hit Export, printing the
    *  whole course is not what you meant. */
   lectureFilter: string | null;
+  /** Likewise for focus: exporting from inside a focused branch almost
+   *  always means that branch, not the course it belongs to. */
+  focusId: string | null;
+  focusTitle: string | null;
   onClose: () => void;
 }) {
   const [opts, setOpts] = useState<MindMapPdfOptions>(() => ({
     ...loadPdfPrefs(),
     lectureId: lectureFilter ?? undefined,
+    rootId: focusId ?? undefined,
   }));
   const [status, setStatus] = useState<string | null>(null);
 
@@ -1057,8 +1168,12 @@ function ExportSheet({
     try {
       // The lecture slice is a decision about this one export, not a
       // preference — remembering it would silently truncate the next print.
-      const { lectureId: _slice, ...durable } = next;
+      // Neither the slice nor the focus is a preference — both are
+      // decisions about this one export, and remembering either would
+      // silently truncate the next print.
+      const { lectureId: _slice, rootId: _root, ...durable } = next;
       void _slice;
+      void _root;
       localStorage.setItem(PDF_PREFS_KEY, JSON.stringify(durable));
     } catch {
       // A device that will not persist the preference still exports fine.
@@ -1068,6 +1183,18 @@ function ExportSheet({
   // Building is cheap and pure, so the sheet can just show the real page
   // count rather than an estimate that could disagree with the file.
   const built = useMemo(() => buildMindMapPdf(map, opts), [map, opts]);
+
+  // How many note pages the chosen split actually produces. Zero is worth
+  // saying out loud — "Sections" on a map with nothing marked would
+  // otherwise silently print an overview and stop.
+  const unitCount = useMemo(() => {
+    const scoped = opts.rootId
+      ? map.nodes
+          .filter((n) => subtreeIds(map.nodes, opts.rootId!).has(n.id))
+          .map((n) => (n.id === opts.rootId ? { ...n, parentId: null } : n))
+      : map.nodes;
+    return pageUnits(scoped, opts.splitBy ?? 'section').length;
+  }, [map.nodes, opts.splitBy, opts.rootId]);
 
   return (
     <div
@@ -1096,6 +1223,22 @@ function ExportSheet({
           </button>
         </div>
 
+        {focusId && focusTitle && (
+          <>
+            <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-semibold mb-1.5">
+              What to print
+            </div>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              <Pill active={!!opts.rootId} onClick={() => set({ rootId: focusId })}>
+                {focusTitle}
+              </Pill>
+              <Pill active={!opts.rootId} onClick={() => set({ rootId: undefined })}>
+                Whole map
+              </Pill>
+            </div>
+          </>
+        )}
+
         <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-semibold mb-1.5">
           Layout
         </div>
@@ -1113,6 +1256,36 @@ function ExportSheet({
         <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
           {LAYOUT_BLURB[opts.layout]}
         </p>
+
+        {opts.layout === 'roomy' && (
+          <>
+            <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-semibold mt-4 mb-1.5">
+              Split pages by
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(['section', 'branch', 'lecture'] as SplitMode[]).map((m) => (
+                <Pill
+                  key={m}
+                  active={(opts.splitBy ?? 'section') === m}
+                  onClick={() => set({ splitBy: m })}
+                >
+                  {m === 'section' ? 'Sections' : m === 'branch' ? 'Top-level branches' : 'Lectures'}
+                </Pill>
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+              {unitCount === 0
+                ? splitHint[opts.splitBy ?? 'section']
+                : `${unitCount} page${unitCount === 1 ? '' : 's'} of note space, one per ${
+                    (opts.splitBy ?? 'section') === 'section'
+                      ? 'section'
+                      : (opts.splitBy ?? 'section') === 'branch'
+                        ? 'top-level branch'
+                        : 'lecture'
+                  }.`}
+            </p>
+          </>
+        )}
 
         <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-semibold mt-4 mb-1.5">
           Paper
@@ -1176,7 +1349,8 @@ function ExportSheet({
             const slice = opts.lectureId
               ? lecturesInMap.find((l) => l.id === opts.lectureId)?.title
               : undefined;
-            const how = await deliverPdf(built.blob, pdfFileName(map, slice));
+            const scoped = opts.rootId && focusTitle ? { ...map, title: focusTitle } : map;
+            const how = await deliverPdf(built.blob, pdfFileName(scoped, slice));
             setStatus(how === 'shared' ? 'Sent to the share sheet' : 'Saved to your downloads');
             setTimeout(() => setStatus(null), 2600);
           }}
@@ -1305,6 +1479,161 @@ function GraftSheet({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Relative time, because "14 minutes ago" is the question you are actually
+ *  asking of a restore point. */
+function ago(iso: string, now: number): string {
+  const mins = Math.round((now - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.round(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs === 1 ? '' : 's'} ago`;
+  const days = Math.round(hrs / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+function HistorySheet({
+  mapId,
+  currentCount,
+  onClose,
+  onRestore,
+}: {
+  mapId: string;
+  currentCount: number;
+  onClose: () => void;
+  onRestore: (snap: MapSnapshot) => void;
+}) {
+  // Read once on open. The list is a point-in-time view and re-reading it on
+  // every render would also mean reading localStorage during render.
+  const [snaps] = useState<MapSnapshot[]>(() => snapshotsFor(mapId));
+  const [now] = useState(() => Date.now());
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4"
+      onClick={onClose}
+    >
+      <div
+        className="w-full sm:max-w-md bg-white dark:bg-gray-900 rounded-t-2xl sm:rounded-2xl shadow-xl p-5 max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start gap-3 mb-1">
+          <div className="flex-1">
+            <div className="text-[11px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-semibold">
+              Version history
+            </div>
+            <div className="text-base font-semibold text-gray-900 dark:text-gray-100">
+              {currentCount} node{currentCount === 1 ? '' : 's'} right now
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 text-lg leading-none px-1"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        </div>
+        <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
+          Kept on this device only, so it survives a reload — and survives the cloud copy being
+          overwritten. Restoring is itself undoable.
+        </p>
+
+        {snaps.length === 0 ? (
+          <div className="border-2 border-dashed border-gray-200 dark:border-gray-800 rounded-xl px-4 py-6 text-center">
+            <p className="text-[12px] text-gray-500 dark:text-gray-400 leading-snug">
+              No restore points yet. One is written before anything destructive, and every few
+              minutes while you work.
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-1.5">
+            {snaps.map((s) => {
+              const delta = s.nodes.length - currentCount;
+              return (
+                <li key={s.at}>
+                  <button
+                    onClick={() => {
+                      if (confirm(`Restore this map to its state ${ago(s.at, now)}?`)) onRestore(s);
+                    }}
+                    className="w-full text-left bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-indigo-300 dark:hover:border-indigo-700 rounded-xl px-3 py-2.5 transition-colors"
+                  >
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">
+                        {ago(s.at, now)}
+                      </span>
+                      <span className="text-[11px] text-gray-400 dark:text-gray-500">
+                        {s.nodes.length} node{s.nodes.length === 1 ? '' : 's'}
+                        {delta > 0 ? ` · ${delta} more than now` : delta < 0 ? ` · ${-delta} fewer` : ''}
+                      </span>
+                    </div>
+                    {s.reason && s.reason !== 'autosave' && (
+                      <div className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">
+                        {s.reason}
+                      </div>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Maps whose history outlived them. A deleted map is not gone until its
+ *  restore points are, so the list offers them back rather than leaving the
+ *  only trace in localStorage where nothing can reach it. */
+function RecoverableMaps({
+  liveIds,
+  onRestore,
+  onDiscard,
+}: {
+  liveIds: Set<string>;
+  onRestore: (mapId: string, snap: MapSnapshot) => void;
+  onDiscard: (mapId: string) => void;
+}) {
+  const [orphans, setOrphans] = useState(() => orphanedSnapshots(liveIds));
+  const [now] = useState(() => Date.now());
+  if (orphans.length === 0) return null;
+
+  return (
+    <div className="border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 rounded-2xl px-3 py-3">
+      <div className="text-[11px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-400">
+        Deleted, but recoverable
+      </div>
+      <ul className="mt-2 space-y-1.5">
+        {orphans.map(({ mapId, snaps }) => (
+          <li key={mapId} className="flex items-center gap-2">
+            <button
+              onClick={() => onRestore(mapId, snaps[0])}
+              className="flex-1 min-w-0 text-left bg-white dark:bg-gray-900 border border-amber-200 dark:border-amber-900 rounded-lg px-3 py-2 hover:border-amber-400"
+            >
+              <div className="text-[13px] font-semibold text-gray-900 dark:text-gray-100 truncate">
+                {snaps[0].title}
+              </div>
+              <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                {snaps[0].nodes.length} nodes · {ago(snaps[0].at, now)}
+              </div>
+            </button>
+            <button
+              onClick={() => {
+                if (!confirm(`Forget “${snaps[0].title}” for good? This cannot be undone.`)) return;
+                onDiscard(mapId);
+                setOrphans((prev) => prev.filter((o) => o.mapId !== mapId));
+              }}
+              className="text-[10px] uppercase tracking-wider font-bold text-amber-600/60 dark:text-amber-500/60 hover:text-red-500 shrink-0 px-1"
+            >
+              Forget
+            </button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
