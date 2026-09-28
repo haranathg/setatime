@@ -12,6 +12,7 @@ import BooksView from './components/BooksView';
 import GroundingView from './components/GroundingView';
 import RegulateView from './components/RegulateView';
 import TodayLayoutEditor from './components/TodayLayoutEditor';
+import MindMapsView from './components/MindMapsView';
 import UnderwayView from './components/UnderwayView';
 import CompassView from './components/CompassView';
 import TriageView from './components/TriageView';
@@ -40,6 +41,7 @@ import { useHorizon } from './hooks/useHorizon';
 import { useStateLog } from './hooks/useStateLog';
 import { useRegulate } from './hooks/useRegulate';
 import { useTodayLayout } from './hooks/useTodayLayout';
+import { useMindMaps } from './hooks/useMindMaps';
 import { useUnderway } from './hooks/useUnderway';
 import { useCompass } from './hooks/useCompass';
 import { usePlan } from './hooks/usePlan';
@@ -211,6 +213,18 @@ function AppMain({
     resetLayout: resetTodayLayout,
   } = useTodayLayout();
   const [customisingToday, setCustomisingToday] = useState(false);
+
+  const {
+    maps: mindMaps,
+    createMap,
+    deleteMap,
+    addNode: addMapNode,
+    updateNode: updateMapNode,
+    deleteNode: deleteMapNode,
+    reparent: reparentMapNode,
+  } = useMindMaps();
+  // Set when a lecture row starts a map, so Maps opens straight into it.
+  const [openMapId, setOpenMapId] = useState<string | null>(null);
 
   const {
     activities: resetActivities,
@@ -759,6 +773,18 @@ function AppMain({
           onScheduleThis={scheduleThis}
           onSendToDump={addManualTask}
         />
+      ) : activeView === 'maps' ? (
+        <MindMapsView
+          maps={mindMaps}
+          onCreate={createMap}
+          onDelete={deleteMap}
+          onAddNode={addMapNode}
+          onUpdateNode={updateMapNode}
+          onDeleteNode={deleteMapNode}
+          onReparent={reparentMapNode}
+          initialMapId={openMapId}
+          onConsumedInitialMap={() => setOpenMapId(null)}
+        />
       ) : activeView === 'grounding' ? (
         <GroundingView />
       ) : activeView === 'regulate' ? (
@@ -877,6 +903,11 @@ function AppMain({
             setActiveView('underway');
           }}
           onAddToToday={(label) => addToPlan('medium', label)}
+          onMapIt={(item) => {
+            const m = createMap(item.title, { lectureId: item.id, course: item.course });
+            setOpenMapId(m.id);
+            setActiveView('maps');
+          }}
           onTogglePass={toggleLecturePass}
           onSetHidden={setLectureHidden}
           onRemoveAll={removeAllLectures}

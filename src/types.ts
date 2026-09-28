@@ -508,6 +508,7 @@ export interface AppState {
   stateLog?: StateLogState;
   regulate?: RegulateState;
   todayLayout?: TodayLayoutState;
+  mindMaps?: MindMapsState;
   horizon?: HorizonState;
   underway?: UnderwayState;
   compass?: CompassState;
@@ -592,6 +593,43 @@ export interface StateLogEntry {
 
 export interface StateLogState {
   entries: StateLogEntry[];
+}
+
+// ---------- Mind maps ----------
+//
+// A lecture arrives as a linear hour of speech; what you need afterwards is
+// its shape. These maps exist to capture that shape fast, during or straight
+// after the session, which is the only time it is still in your head.
+//
+// Nodes carry no coordinates on purpose. Positions are computed from the
+// tree every render, so the only thing you ever do is type — no dragging,
+// no tidying, no deciding where anything goes. That constraint is what
+// makes a map takeable in the ten minutes after a lecture rather than an
+// afternoon project.
+
+export interface MindMapNode {
+  id: string;
+  text: string;
+  /** null for the single root. Every other node has exactly one parent. */
+  parentId: string | null;
+  collapsed?: boolean;
+  /** Longer detail that would clutter the map — shown on the selected node. */
+  note?: string;
+}
+
+export interface MindMap {
+  id: string;
+  title: string;
+  nodes: MindMapNode[];
+  createdAt: string;
+  updatedAt: string;
+  /** Set when the map was started from a lecture row, so the two stay linked. */
+  lectureId?: string;
+  course?: string;
+}
+
+export interface MindMapsState {
+  maps: MindMap[];
 }
 
 // ---------- Today layout ----------
