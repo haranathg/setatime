@@ -193,6 +193,12 @@ export function useMindMaps() {
 
   const touch = (m: MindMap): MindMap => ({ ...m, updatedAt: new Date().toISOString() });
 
+  /** What a new node picks up from the map it is added to. */
+  const inheritedTag = (m: MindMap): Partial<MindMapNode> =>
+    m.workingLabel
+      ? { label: m.workingLabel, ...(m.workingLectureId ? { lectureId: m.workingLectureId } : {}) }
+      : {};
+
   const createMap = useCallback((title: string, opts?: { lectureId?: string; course?: string }) => {
     const m = newMap(title, opts);
     setMaps((prev) => [m, ...prev]);
@@ -236,17 +242,10 @@ export function useMindMaps() {
       setMaps((prev) =>
         prev.map((m) => {
           if (m.id !== mapId) return m;
-          // New nodes inherit whichever lecture you are working under, which
-          // is the whole mechanism behind "one tree, many lectures": you set
-          // the working lecture once and then just type.
-          const node: MindMapNode = {
-            id,
-            text,
-            parentId,
-            ...(m.workingLectureId
-              ? { lectureId: m.workingLectureId, lectureTitle: m.workingLectureTitle }
-              : {}),
-          };
+          // New nodes inherit whatever label you are working under. That is
+          // the whole mechanism behind "one tree, many lectures" — you set
+          // the label once and then just type.
+          const node: MindMapNode = { id, text, parentId, ...inheritedTag(m) };
           if (!afterSiblingId) return touch({ ...m, nodes: [...m.nodes, node] });
           const at = m.nodes.findIndex((n) => n.id === afterSiblingId);
           const nodes = [...m.nodes];
@@ -340,11 +339,13 @@ export function useMindMaps() {
     );
   }, [pushHistory]);
 
-  /** Tag a node and everything under it with a lecture — the retrofit path
-   *  for material typed before the working lecture was set, and how an old
-   *  per-lecture map keeps its provenance when grafted into a course tree. */
+  /** Label a node and everything under it — the retrofit path for material
+   *  typed before the working label was set, and how an old per-lecture map
+   *  keeps its provenance when grafted into a course tree. Clearing the
+   *  label also clears the inherited lecture title, or the old tag would
+   *  keep showing through. */
   const tagSubtree = useCallback(
-    (mapId: string, nodeId: string, lectureId?: string, lectureTitle?: string) => {
+    (mapId: string, nodeId: string, label?: string) => {
       pushHistory(mapId);
       setMaps((prev) =>
         prev.map((m) => {
@@ -353,7 +354,7 @@ export function useMindMaps() {
           return touch({
             ...m,
             nodes: m.nodes.map((n) =>
-              sub.has(n.id) ? { ...n, lectureId, lectureTitle } : n
+              sub.has(n.id) ? { ...n, label, lectureTitle: label ? n.lectureTitle : undefined } : n
             ),
           });
         })
@@ -362,11 +363,18 @@ export function useMindMaps() {
     [pushHistory]
   );
 
-  const setWorkingLecture = useCallback(
-    (mapId: string, lectureId?: string, lectureTitle?: string) => {
+  const setWorkingLabel = useCallback(
+    (mapId: string, label?: string, lectureId?: string) => {
       setMaps((prev) =>
         prev.map((m) =>
-          m.id === mapId ? touch({ ...m, workingLectureId: lectureId, workingLectureTitle: lectureTitle }) : m
+          m.id === mapId
+            ? touch({
+                ...m,
+                workingLabel: label,
+                workingLectureId: lectureId,
+                workingLectureTitle: label,
+              })
+            : m
         )
       );
     },
@@ -400,14 +408,11 @@ export function useMindMaps() {
       setMaps((prev) =>
         prev.map((m) => {
           if (m.id !== mapId) return m;
-          const tag = m.workingLectureId
-            ? { lectureId: m.workingLectureId, lectureTitle: m.workingLectureTitle }
-            : {};
           const made: MindMapNode[] = labels.map((text) => ({
             id: uuidv4(),
             text,
             parentId,
-            ...tag,
+            ...inheritedTag(m),
           }));
           return touch({ ...m, nodes: [...m.nodes, ...made] });
         })
@@ -427,7 +432,12 @@ export function useMindMaps() {
           if (m.id !== mapId) return m;
           const existing = m.nodes.find((n) => n.lectureId === lectureId && n.section);
           if (existing) {
-            return touch({ ...m, workingLectureId: lectureId, workingLectureTitle: lectureTitle });
+            return touch({
+              ...m,
+              workingLabel: lectureTitle,
+              workingLectureId: lectureId,
+              workingLectureTitle: lectureTitle,
+            });
           }
           const root = m.nodes.find((n) => n.parentId === null);
           if (!root) return m;
@@ -439,11 +449,12 @@ export function useMindMaps() {
             parentId: root.id,
             section: true,
             lectureId,
-            lectureTitle,
+            label: lectureTitle,
           };
           return touch({
             ...m,
             nodes: [...m.nodes, node],
+            workingLabel: lectureTitle,
             workingLectureId: lectureId,
             workingLectureTitle: lectureTitle,
           });
@@ -472,14 +483,11 @@ export function useMindMaps() {
 
       // Ids are uuids and so cannot collide across maps; re-pointing the
       // source root at the target is the whole move.
-      const tag =
-        source.lectureId && !sourceRoot.lectureId
-          ? { lectureId: source.lectureId, lectureTitle: source.title }
-          : {};
+      const tag = !sourceRoot.label && !sourceRoot.lectureTitle ? { label: source.title } : {};
       const moved = source.nodes.map((n) =>
         n.id === sourceRoot.id
           ? { ...n, parentId, section: true, ...tag }
-          : { ...n, ...(tag.lectureId && !n.lectureId ? tag : {}) }
+          : { ...n, ...(tag.label && !n.label && !n.lectureTitle ? tag : {}) }
       );
       return prev
         .filter((m) => m.id !== sourceId)
@@ -533,7 +541,7 @@ export function useMindMaps() {
     reparent,
     moveNode,
     tagSubtree,
-    setWorkingLecture,
+    setWorkingLabel,
     collapseToDepth,
     insertTemplate,
     ensureLectureBranch,

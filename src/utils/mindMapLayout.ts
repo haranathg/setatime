@@ -77,13 +77,20 @@ export function estimateLines(text: string, boxW: number, fontPx = 12): number {
   return Math.min(MAX_NODE_LINES, Math.max(1, Math.ceil((text.length || 1) / perLine)));
 }
 
+/** What a node is tagged with. A hand-typed label wins over the lecture
+ *  title a map inherited, so relabelling something never has to mean
+ *  untangling it from the lecture it arrived with. */
+export function tagOf(node: MindMapNode): string | undefined {
+  return node.label || node.lectureTitle || undefined;
+}
+
 /** The small line above a section's label. A section whose text already IS
  *  its lecture title needs no tag repeating it back — the coloured border
  *  says it is a section on its own. */
 export function sectionLabelOf(node: MindMapNode, depth: number): string | null {
   if (!node.section || depth === 0) return null;
-  if (node.lectureTitle && node.lectureTitle !== node.text) return node.lectureTitle;
-  return null;
+  const tag = tagOf(node);
+  return tag && tag !== node.text ? tag : null;
 }
 
 export function defaultHeightOf(node: MindMapNode, depth: number, w: number): number {
@@ -287,7 +294,7 @@ export function pathToRoot(nodes: MindMapNode[], id: string): MindMapNode[] {
  *
  *  Falls back to top-level branches when nothing is marked, which is what
  *  every map made before sections existed will hit. */
-export type SplitMode = 'section' | 'branch' | 'lecture';
+export type SplitMode = 'section' | 'branch' | 'label';
 
 export function pageUnits(nodes: MindMapNode[], mode: SplitMode = 'section'): MindMapNode[] {
   const root = nodes.find((n) => n.parentId === null);
@@ -312,16 +319,17 @@ export function pageUnits(nodes: MindMapNode[], mode: SplitMode = 'section'): Mi
     return worthAPage(nodes.filter((n) => n.parentId === root.id));
   }
 
-  if (mode === 'lecture') {
-    // The head of each lecture's contribution: a tagged node whose parent
-    // is not part of the same lecture. Usually one per lecture, but a
-    // session whose material landed in two places gets a page for each
-    // rather than being silently reduced to one.
+  if (mode === 'label') {
+    // The head of each label's run: a tagged node whose parent does not
+    // carry the same tag. Usually one per label, but material that landed
+    // in two places gets a page for each rather than being silently
+    // reduced to one.
     const byId = new Map(nodes.map((n) => [n.id, n]));
     const heads = nodes.filter((n) => {
-      if (!n.lectureId) return false;
+      const tag = tagOf(n);
+      if (!tag) return false;
       const parent = n.parentId ? byId.get(n.parentId) : null;
-      return !parent || parent.lectureId !== n.lectureId;
+      return !parent || tagOf(parent) !== tag;
     });
     return worthAPage(heads);
   }

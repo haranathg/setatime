@@ -224,7 +224,7 @@ function AppMain({
     reparent: reparentMapNode,
     moveNode: moveMapNode,
     tagSubtree: tagMapSubtree,
-    setWorkingLecture: setMapWorkingLecture,
+    setWorkingLabel: setMapWorkingLabel,
     collapseToDepth: collapseMapToDepth,
     insertTemplate: insertMapTemplate,
     ensureLectureBranch,
@@ -812,7 +812,7 @@ function AppMain({
           onReparent={reparentMapNode}
           onMoveNode={moveMapNode}
           onTagSubtree={tagMapSubtree}
-          onSetWorkingLecture={setMapWorkingLecture}
+          onSetWorkingLabel={setMapWorkingLabel}
           onCollapseToDepth={collapseMapToDepth}
           onInsertTemplate={insertMapTemplate}
           onGraftMap={graftMap}

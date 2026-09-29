@@ -620,9 +620,18 @@ export interface MindMapNode {
    *  makes a course-sized tree readable: the grain of the split is yours to
    *  choose rather than "top-level branches, always". */
   section?: boolean;
-  /** Which lecture contributed this node. Set automatically from the map's
-   *  working lecture as you type, so one tree can hold a whole course and
-   *  still be filtered back down to a single session's worth of material. */
+  /** High yield. One tap, and the PDF gives it a marker and more room to
+   *  write — the only per-node priority worth maintaining while a lecture is
+   *  actually happening. */
+  star?: boolean;
+  /** A short free-text tag: "Lec 4", "Week 2", "Exam 1". Replaces choosing a
+   *  lecture from a list, which was more bookkeeping than it was worth. New
+   *  nodes inherit the map's working label, so you set it once and type.
+   *  Labels group, filter and split the PDF exactly as lecture tags did. */
+  label?: string;
+  /** Which lecture contributed this node. Still set when a map is started
+   *  from a lecture row, because that costs nothing — but it is no longer
+   *  something you maintain by hand. */
   lectureId?: string;
   /** Denormalised on purpose: a map outlives the lecture list it was built
    *  from (re-importing a schedule can change ids), and a tag that renders
@@ -642,10 +651,13 @@ export interface MindMap {
    *  course". */
   lectureId?: string;
   course?: string;
-  /** The lecture whose tag new nodes inherit while you are working. Stored
-   *  rather than held in component state because coming back to a map the
-   *  next day and silently tagging everything onto the wrong lecture is a
-   *  mistake you would not notice until the filter stopped working. */
+  /** The label new nodes inherit while you are working. Stored rather than
+   *  held in component state because coming back to a map the next day and
+   *  silently tagging everything with the wrong label is a mistake you would
+   *  not notice until the filter stopped working. */
+  workingLabel?: string;
+  /** Kept for maps made before labels existed, and set alongside the label
+   *  when a map is opened from a lecture row. */
   workingLectureId?: string;
   workingLectureTitle?: string;
 }

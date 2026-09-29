@@ -32,6 +32,7 @@ import {
   MAX_NODE_LINES,
   sectionLabelOf,
   subtreeIds,
+  tagOf,
 } from './mindMapLayout';
 import type { MapLayout, SplitMode } from './mindMapLayout';
 import { PdfBuilder } from './pdf';
@@ -41,12 +42,25 @@ import type { MindMap, MindMapNode } from '../types';
 export type PdfLayoutKind = 'overview' | 'roomy' | 'worksheet';
 export type PdfGuides = 'ruled' | 'dots' | 'blank';
 export type PdfPaper = 'letter' | 'a4' | 'ipad';
+export type PdfNodeStyle = 'outline' | 'map';
 
 export interface MindMapPdfOptions {
   layout: PdfLayoutKind;
   paper: PdfPaper;
   landscape: boolean;
   guides: PdfGuides;
+  /** How the writing pages render a unit.
+   *
+   *  'outline' is the default because it is the only one that cannot
+   *  truncate: an indented list uses the page's full width, so text stays at
+   *  full size however deep the branch goes. The tree drawn as a tree has to
+   *  fit its whole width into the column beside the writing space, which at
+   *  four levels meant rendering at about a third scale against a 6pt font
+   *  floor — the point where labels stop fitting their boxes.
+   *
+   *  The map picture is still on the overview page, where it is a picture
+   *  rather than something you write next to. */
+  nodeStyle?: PdfNodeStyle;
   /** Where the page breaks fall. Sections is the default and the one that
    *  matches how a course tree is actually organised; branches is what maps
    *  did before sections existed; lectures gives a page per session. */
@@ -54,9 +68,9 @@ export interface MindMapPdfOptions {
   /** Print one branch rather than the whole tree — the node you are focused
    *  on, re-rooted so it prints as a document in its own right. */
   rootId?: string;
-  /** Print only one lecture's contribution to the tree. The point of a
-   *  course-sized map is that it holds everything; the point of printing is
-   *  usually that you are about to sit through one session. */
+  /** Print only the nodes carrying this label. The point of a course-sized
+   *  map is that it holds everything; the point of printing is usually that
+   *  you are about to sit through one session. */
   lectureId?: string;
 }
 
@@ -66,6 +80,7 @@ export const DEFAULT_PDF_OPTIONS: MindMapPdfOptions = {
   landscape: false,
   guides: 'ruled',
   splitBy: 'section',
+  nodeStyle: 'outline',
 };
 
 /** Points, at 72/inch. The iPad size is 4:3 so it fills the screen in a
@@ -121,11 +136,11 @@ function tint(c: RGB, amount: number): RGB {
  *  a forest of orphans; with them it still reads as the same map, just
  *  emptier — which is exactly what "where does this lecture sit" looks
  *  like. */
-function sliceToLecture(nodes: MindMapNode[], lectureId: string): MindMapNode[] {
+function sliceToLecture(nodes: MindMapNode[], label: string): MindMapNode[] {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const keep = new Set<string>();
   for (const n of nodes) {
-    if (n.lectureId !== lectureId) continue;
+    if (tagOf(n) !== label) continue;
     let cur: string | null = n.id;
     while (cur && !keep.has(cur)) {
       keep.add(cur);
@@ -523,6 +538,219 @@ function branchPages(
   }
 }
 
+/** Typographic weight by depth. A printed skeleton has to be scannable
+ *  while somebody is talking, and depth is the hierarchy — so it is carried
+ *  by size and weight rather than left for the reader to infer from
+ *  indentation alone. */
+function rowStyle(depth: number): { size: number; bold: boolean; space: number } {
+  if (depth <= 1) return { size: 11.5, bold: true, space: 8 };
+  if (depth === 2) return { size: 10, bold: true, space: 6 };
+  return { size: 9.2, bold: false, space: 5 };
+}
+
+const INDENT = 15;
+const RULED = 26;          // handwriting line spacing
+const LEAF_LINES = 3;      // room under something with no children
+const STAR_LINES = 5;      // a starred node is where the detail goes
+
+interface OutlineRow {
+  node: MindMapNode;
+  depth: number;
+  color: RGB;
+  /** Ruled lines below this row. Headings get none: their children are
+   *  their content, and lines under a heading are lines you never use. */
+  lines: number;
+  /** The label, already wrapped to the width it will be drawn at, so
+   *  pagination measures the row that actually gets printed. */
+  text: string[];
+  /** The node's tag, but only when it differs from its parent's. */
+  tag: string | null;
+  textH: number;
+  height: number;
+}
+
+/** Where the first rule sits below the label, and how much room to leave
+ *  under the last one. Kept next to the drawing code because the reserved
+ *  height and the drawn lines have to agree exactly — reserving three lines
+ *  and drawing two is how a page ends up two thirds full. */
+const RULE_TOP_GAP = 6;
+const RULE_TAIL = 12;
+
+function rowHeight(textH: number, lines: number, space: number): number {
+  if (lines === 0) return textH + space + 6;
+  return textH + RULE_TOP_GAP + (lines - 1) * RULED + RULE_TAIL;
+}
+
+function buildRows(
+  pdf: PdfBuilder,
+  nodes: MindMapNode[],
+  unitId: string,
+  stopAt: Set<string>,
+  palette: { nodes: MindMapNode[]; root: string },
+  frame: Frame
+): OutlineRow[] {
+  const childrenOf = new Map<string, MindMapNode[]>();
+  for (const n of nodes) {
+    if (n.parentId === null) continue;
+    const arr = childrenOf.get(n.parentId);
+    if (arr) arr.push(n);
+    else childrenOf.set(n.parentId, [n]);
+  }
+  const rows: OutlineRow[] = [];
+  const walk = (id: string, depth: number) => {
+    for (const kid of childrenOf.get(id) ?? []) {
+      const hex = branchColorOf(kid.id, palette.nodes, palette.root);
+      const kids = stopAt.has(kid.id) || kid.collapsed ? [] : (childrenOf.get(kid.id) ?? []);
+      const isLeaf = kids.length === 0;
+      const lines = isLeaf ? (kid.star ? STAR_LINES : LEAF_LINES) : 0;
+      const st = rowStyle(depth);
+      const textX = frame.x + (depth - 1) * INDENT + 13;
+      const wrapped = pdf.wrap(kid.text || ' ', frame.x + frame.w - textX, st.size, st.bold);
+      // The tag is printed only where it CHANGES. Repeating "Lec 4" down
+      // every row of a page that is entirely Lec 4 is noise; printing it
+      // once, where the material starts, is the actual information.
+      const parent = kid.parentId ? nodes.find((x) => x.id === kid.parentId) : undefined;
+      const tag = tagOf(kid);
+      const showTag = !!tag && tag !== kid.text && (!parent || tagOf(parent) !== tag);
+      const textH = st.size * 0.85 + (wrapped.length - 1) * st.size * 1.2;
+      rows.push({
+        node: kid,
+        depth,
+        color: hex ? hexToRgb(hex) : INK,
+        lines,
+        text: wrapped,
+        tag: showTag ? tag! : null,
+        textH,
+        height: rowHeight(textH, lines, st.space),
+      });
+      walk(kid.id, depth + 1);
+    }
+  };
+  walk(unitId, 1);
+  return rows;
+}
+
+/** One unit as an indented outline with writing room under every leaf. */
+function unitOutlinePages(
+  pdf: PdfBuilder,
+  map: MindMap,
+  nodes: MindMapNode[],
+  unit: MindMapNode,
+  opts: MindMapPdfOptions,
+  frame: Frame,
+  pageH: number,
+  startNewPage: () => void,
+  stamp: string,
+  palette: { nodes: MindMapNode[]; root: string },
+  fallbackTrail: string | null,
+  onFirstPage?: (page: number) => void
+): void {
+  const stopAt = nestedSections(nodes, unit.id);
+  const rows = buildRows(pdf, nodes, unit.id, stopAt, palette, frame);
+  const unitColor = hexToRgb(branchColorOf(unit.id, palette.nodes, palette.root) ?? BRANCH_COLORS[0]);
+
+  const trail =
+    pathToRoot(nodes, unit.id)
+      .slice(0, -1)
+      .map((n) => n.text)
+      .join('  \u203a  ') || fallbackTrail || '';
+
+  const bodyTop = frame.y + HEADER_H + 16;
+  const bodyBottom = frame.y + frame.h - FOOTER_H;
+  const Q_H = 30;
+
+  let y = bodyTop;
+  let part = 0;
+  let index = 0;
+  const openPage = () => {
+    drawHeader(pdf, unit.text, part === 0 ? trail || null : `${trail || map.title} \u2014 continued`, frame);
+    if (part === 0) onFirstPage?.(pdf.pageCount);
+  };
+  openPage();
+
+  while (index < rows.length) {
+    const row = rows[index];
+    // Reserve the Q: line only on what will be the last page of the unit.
+    const isLast = index === rows.length - 1;
+    // A heading is never left alone at the foot of a page. It carries no
+    // writing room of its own, so stranded there it is a line of text with
+    // nothing to do and its content starts on the next sheet.
+    const widow = row.lines === 0 && index + 1 < rows.length ? rows[index + 1].height : 0;
+    const need = row.height + widow + (isLast ? Q_H : 0);
+    if (y + need > bodyBottom && y > bodyTop) {
+      drawFooter(pdf, stamp, `Page ${pdf.pageCount}`, frame, pageH);
+      startNewPage();
+      part++;
+      y = bodyTop;
+      openPage();
+    }
+
+    const st = rowStyle(row.depth);
+    const x = frame.x + (row.depth - 1) * INDENT;
+    const textX = x + 13;
+
+    // A rule down the left of every level: the hierarchy you can see at a
+    // glance without counting indents.
+    pdf.line(x + 3, y - 2, x + 3, y + row.height - 4, { color: tint(row.color, 0.55), width: 1.6 });
+
+    if (row.node.star) {
+      // Filled dot rather than a glyph: the base-14 fonts have no star, and
+      // a solid mark reads faster in a margin than any character would.
+      pdf.dot(x + 3, y + st.size * 0.45, 3.1, row.color);
+    }
+
+    row.text.forEach((ln, i) => {
+      pdf.text(ln, textX, y + st.size * 0.85 + i * st.size * 1.2, {
+        size: st.size,
+        bold: st.bold,
+        color: row.depth <= 2 ? INK : [0.25, 0.27, 0.32],
+      });
+    });
+
+    if (row.tag) {
+      pdf.text(row.tag, frame.x + frame.w, y + st.size * 0.85, {
+        size: 7.5,
+        color: MUTED,
+        align: 'right',
+      });
+    }
+
+    if (row.lines > 0) {
+      // drawGuides puts its first rule one gap below the band's top, so the
+      // band starts a gap high and is a hair taller than the last rule — the
+      // count then matches what rowHeight reserved.
+      const top = y + row.textH + RULE_TOP_GAP;
+      drawGuides(
+        pdf,
+        { x: textX, y: top - RULED, w: frame.x + frame.w - textX, h: row.lines * RULED + 4 },
+        opts.guides
+      );
+    } else if (row.depth <= 2) {
+      // A hairline under a heading, so a page of nested headings still has
+      // visible structure.
+      pdf.line(textX, y + row.textH + 4, frame.x + frame.w, y + row.textH + 4, {
+        color: FAINT,
+        width: 0.6,
+      });
+    }
+
+    y += row.height;
+    index++;
+  }
+
+  // The question this material answers. Written in the room, it turns a page
+  // of notes into something you can be tested by later instead of re-read.
+  const qy = Math.min(y + 10, bodyBottom - Q_H + 10);
+  pdf.text('Q:', frame.x, qy + 8, { size: 10, bold: true, color: tint(unitColor, 0.15) });
+  pdf.line(frame.x + 18, qy + 10, frame.x + frame.w, qy + 10, { color: GUIDE, width: 0.8 });
+  pdf.line(frame.x + 18, qy + 10 + RULED, frame.x + frame.w, qy + 10 + RULED, {
+    color: GUIDE,
+    width: 0.8,
+  });
+
+  drawFooter(pdf, stamp, `Page ${pdf.pageCount}`, frame, pageH);
+}
+
 /** No picture: every node as a heading over a block of ruled space. */
 function worksheetPages(
   pdf: PdfBuilder,
@@ -735,7 +963,7 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
           .map((n) => n.text)
           .join('  ›  ') || map.title
       : opts.lectureId
-        ? (nodes.find((n) => n.lectureId === opts.lectureId)?.lectureTitle ?? map.course ?? null)
+        ? (opts.lectureId ?? map.course ?? null)
         : (map.course ?? null);
 
     overviewPage(pdf, doc, nodes, root.id, frame, headline, palette);
@@ -748,7 +976,8 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
 
     for (const unit of units) {
       startNewPage();
-      branchPages(
+      const render = (opts.nodeStyle ?? 'outline') === 'map' ? branchPages : unitOutlinePages;
+      render(
         pdf, doc, nodes, unit, opts, frame, pageH, startNewPage, stamp,
         palette, headline, (page) => pageOf.set(unit.id, page)
       );

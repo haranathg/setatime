@@ -81,6 +81,19 @@ your head — that's the window this exists for. A map isn't notes; it's the
 skeleton you hang notes on, and if it takes longer than the gap between
 sessions it won't happen.
 
+### Labels instead of lecture tags
+
+Tap **Label** in the bar and type whatever you want — "Lec 4", "Week 2",
+"Exam 1". Everything you type from then on carries it, and labels already in
+the tree are offered as one-tap suggestions. There is no list to pick from
+and no lecture to keep track of.
+
+Labels do everything lecture tags did: the **Label** strip filters the
+canvas, **Export → Include** prints one label's material, and **Split pages
+by → Labels** gives each one its own pages. Maps tagged before labels
+existed keep working — a lecture title reads as a label until you type over
+it.
+
 ### One tree per course
 
 **Map it** on a lecture row no longer starts a fresh map. It opens that
@@ -164,9 +177,18 @@ Three layouts, and the choice is really about how much you plan to write:
 
 **Split pages by** chooses what a unit is: **Sections** (the default),
 **Top-level branches** (what maps did before sections existed), or
-**Lectures** (a page per session). The sheet tells you how many pages each
+**Labels** (a page per label). The sheet tells you how many pages each
 choice produces before you commit to it, and says so plainly if you pick
 Sections on a map where nothing is marked yet.
+
+**Writing pages** chooses how a unit is drawn. **Indented outline** is the
+default and the one to use: full-width rows at full size, so nothing is ever
+cut off however deep the branch goes. Hierarchy reads as indentation plus a
+coloured rule down each level, which is easier to scan while someone is
+talking. **Map** draws the branch as a tree beside the writing column, which
+looks better but has to shrink to fit — at four levels deep that means about
+a third size, and long labels get tight. The map picture is on page 1 either
+way.
 
 A node with no children never gets its own page — one lane on an empty
 sheet is not worth the paper. It stays on the overview instead.
@@ -178,10 +200,19 @@ Short branches stretch to fill the page rather than leaving the bottom
 blank, so a three-point branch gives you three deep lanes instead of three
 shallow ones. Long ones carry on to a second page.
 
-Long labels **wrap onto up to three lines** rather than being cut off with
-an ellipsis — "Preserved vs reduced ejection fraction" does not fit one line
-at any size you can annotate around, and a map whose labels end in "..." is
-not a map of anything.
+Long labels wrap rather than being cut off. Wrapping now breaks at hyphens
+and slashes too, which matters more than it sounds: "Renin-angiotensin-
+aldosterone" is a single 29-character token with no spaces, and a wrapper
+that only breaks on spaces has nowhere to put it.
+
+**Starred nodes get more room.** Tap **☆ High yield** on anything worth
+writing a lot about; it prints with a marker in the margin and roughly
+double the ruled lines.
+
+**Every section page ends with a `Q:` line.** Write the question this
+material answers while you are still in the room. Turning a heading into a
+question is the cheapest thing that improves a first pass, because it makes
+the next pass retrieval instead of re-reading.
 
 ### Printing just one branch
 
