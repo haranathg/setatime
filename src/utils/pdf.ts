@@ -148,14 +148,68 @@ export class PdfBuilder {
     return s.slice(0, lo).trimEnd() + '...';
   }
 
+  /** Split a single over-wide word into pieces that fit.
+   *
+   *  Medical vocabulary is full of hyphenated compounds — a label like
+   *  "Renin-angiotensin-aldosterone system activation" carries a 29-character
+   *  token with no spaces in it. Breaking on whitespace alone cannot place
+   *  that token anywhere, so the line was simply truncated. Hyphens and
+   *  slashes are the natural break points and the reader loses nothing,
+   *  since the hyphen stays at the end of the line where it belongs. */
+  private breakWord(word: string, maxWidth: number, size: number, bold: boolean): string[] {
+    if (this.widthOf(word, size, bold) <= maxWidth) return [word];
+
+    // Break after each hyphen or slash, keeping the separator on the left.
+    const parts = word.split(/(?<=[-/\u2013])/).filter(Boolean);
+    const out: string[] = [];
+    let cur = '';
+    for (const part of parts) {
+      const next = cur + part;
+      if (!cur || this.widthOf(next, size, bold) <= maxWidth) {
+        cur = next;
+        continue;
+      }
+      out.push(cur);
+      cur = part;
+    }
+    if (cur) out.push(cur);
+
+    // A piece with no break points left and still too wide — a long single
+    // word — is cut by character rather than dropped.
+    const final: string[] = [];
+    for (const piece of out) {
+      if (this.widthOf(piece, size, bold) <= maxWidth) {
+        final.push(piece);
+        continue;
+      }
+      let buf = '';
+      for (const ch of piece) {
+        if (buf && this.widthOf(buf + ch, size, bold) > maxWidth) {
+          final.push(buf);
+          buf = ch;
+        } else {
+          buf += ch;
+        }
+      }
+      if (buf) final.push(buf);
+    }
+    return final.length ? final : [word];
+  }
+
   /** Greedy word wrap into lines no wider than `maxWidth`. */
   wrap(s: string, maxWidth: number, size: number, bold = false): string[] {
-    const words = s.split(/\s+/).filter(Boolean);
+    const words = s
+      .split(/\s+/)
+      .filter(Boolean)
+      .flatMap((w) => this.breakWord(w, maxWidth, size, bold));
     if (words.length === 0) return [];
     const lines: string[] = [];
     let line = words[0];
     for (let i = 1; i < words.length; i++) {
-      const next = `${line} ${words[i]}`;
+      // A piece that came from breaking a hyphenated word joins without a
+      // space, or "Renin-" and "angiotensin-" would print as two words.
+      const glue = /[-/\u2013]$/.test(line) ? '' : ' ';
+      const next = `${line}${glue}${words[i]}`;
       if (this.widthOf(next, size, bold) <= maxWidth) line = next;
       else {
         lines.push(line);

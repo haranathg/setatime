@@ -8,6 +8,7 @@ import {
   depthsOf,
   subtreeIds,
   pageUnits,
+  tagOf,
 } from '../utils/mindMapLayout';
 import { snapshotsFor, orphanedSnapshots } from '../utils/mapSnapshots';
 import type { MapSnapshot } from '../utils/mapSnapshots';
@@ -24,6 +25,7 @@ import type {
   PdfPaper,
 } from '../utils/mindMapPdf';
 import type { SplitMode } from '../utils/mindMapLayout';
+import type { PdfNodeStyle } from '../utils/mindMapPdf';
 
 // Mind maps for breaking a lecture down.
 //
@@ -52,7 +54,7 @@ export default function MindMapsView({
   onReparent,
   onMoveNode,
   onTagSubtree,
-  onSetWorkingLecture,
+  onSetWorkingLabel,
   onCollapseToDepth,
   onInsertTemplate,
   onGraftMap,
@@ -75,8 +77,8 @@ export default function MindMapsView({
   onDeleteNode: (mapId: string, nodeId: string) => void;
   onReparent: (mapId: string, nodeId: string, newParentId: string) => void;
   onMoveNode: (mapId: string, nodeId: string, delta: -1 | 1) => void;
-  onTagSubtree: (mapId: string, nodeId: string, lectureId?: string, lectureTitle?: string) => void;
-  onSetWorkingLecture: (mapId: string, lectureId?: string, lectureTitle?: string) => void;
+  onTagSubtree: (mapId: string, nodeId: string, label?: string) => void;
+  onSetWorkingLabel: (mapId: string, label?: string, lectureId?: string) => void;
   onCollapseToDepth: (mapId: string, depth: number) => void;
   onInsertTemplate: (mapId: string, parentId: string, labels: string[]) => void;
   onGraftMap: (sourceId: string, targetId: string, parentId: string) => void;
@@ -127,7 +129,7 @@ export default function MindMapsView({
         onReparent={onReparent}
         onMoveNode={onMoveNode}
         onTagSubtree={onTagSubtree}
-        onSetWorkingLecture={onSetWorkingLecture}
+        onSetWorkingLabel={onSetWorkingLabel}
         onCollapseToDepth={onCollapseToDepth}
         onInsertTemplate={onInsertTemplate}
         onUndo={onUndo}
@@ -272,7 +274,7 @@ function MapEditor({
   onReparent,
   onMoveNode,
   onTagSubtree,
-  onSetWorkingLecture,
+  onSetWorkingLabel,
   onCollapseToDepth,
   onInsertTemplate,
   onUndo,
@@ -291,8 +293,8 @@ function MapEditor({
   onDeleteNode: (mapId: string, nodeId: string) => void;
   onReparent: (mapId: string, nodeId: string, newParentId: string) => void;
   onMoveNode: (mapId: string, nodeId: string, delta: -1 | 1) => void;
-  onTagSubtree: (mapId: string, nodeId: string, lectureId?: string, lectureTitle?: string) => void;
-  onSetWorkingLecture: (mapId: string, lectureId?: string, lectureTitle?: string) => void;
+  onTagSubtree: (mapId: string, nodeId: string, label?: string) => void;
+  onSetWorkingLabel: (mapId: string, label?: string, lectureId?: string) => void;
   onCollapseToDepth: (mapId: string, depth: number) => void;
   onInsertTemplate: (mapId: string, parentId: string, labels: string[]) => void;
   onUndo: (mapId: string) => void;
@@ -314,7 +316,8 @@ function MapEditor({
   const [focusRaw, setFocus] = useState<string | null>(() => initialFocusId ?? null);
   const [query, setQuery] = useState('');
   const [lectureFilter, setLectureFilter] = useState<string | null>(null);
-  const [menu, setMenu] = useState<null | 'lecture' | 'template'>(null);
+  const [menu, setMenu] = useState<null | 'label' | 'template'>(null);
+  const [labelDraft, setLabelDraft] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -363,7 +366,7 @@ function MapEditor({
     if (!lectureFilter) return null;
     const keep = new Set<string>();
     for (const n of map.nodes) {
-      if (n.lectureId !== lectureFilter) continue;
+      if (tagOf(n) !== lectureFilter) continue;
       keep.add(n.id);
       let cur = n.parentId;
       while (cur) {
@@ -376,12 +379,13 @@ function MapEditor({
 
   /** Lectures already present in this tree, for the filter menu. A map that
    *  was never tagged shows no lecture controls at all. */
-  const taggedLectures = useMemo(() => {
-    const seen = new Map<string, string>();
+  const usedLabels = useMemo(() => {
+    const seen = new Set<string>();
     for (const n of map.nodes) {
-      if (n.lectureId && !seen.has(n.lectureId)) seen.set(n.lectureId, n.lectureTitle || 'Untitled lecture');
+      const t = tagOf(n);
+      if (t) seen.add(t);
     }
-    return Array.from(seen, ([id, title]) => ({ id, title }));
+    return Array.from(seen).sort();
   }, [map.nodes]);
 
   useEffect(() => {
@@ -496,15 +500,16 @@ function MapEditor({
   /** The course's lectures, plus anything already tagged in this tree even
    *  if it is no longer in the schedule — a map must not lose the ability to
    *  name a tag just because a re-import changed the lecture list. */
-  const lectureOptions = useMemo(() => {
-    const seen = new Map<string, string>();
+  /** Labels already used in this tree, plus this course's lecture titles as
+   *  ready-made suggestions. You can always just type something else. */
+  const labelSuggestions = useMemo(() => {
+    const seen = new Set<string>(usedLabels);
     for (const l of lectures) {
       if (map.course && l.course && l.course !== map.course) continue;
-      seen.set(l.id, l.title);
+      seen.add(l.title);
     }
-    for (const t of taggedLectures) if (!seen.has(t.id)) seen.set(t.id, t.title);
-    return Array.from(seen, ([id, title]) => ({ id, title }));
-  }, [lectures, map.course, taggedLectures]);
+    return Array.from(seen).slice(0, 12);
+  }, [lectures, map.course, usedLabels]);
 
   /** The only way a node is deleted. Delete takes the whole subtree with it,
    *  so anything with children asks first and says how much is going — the
@@ -664,10 +669,10 @@ function MapEditor({
 
       {/* Lecture strip. Absent entirely until a map actually holds tagged
           material, so a single-lecture map stays as plain as it was. */}
-      {taggedLectures.length > 0 && (
+      {usedLabels.length > 0 && (
         <div className="flex-shrink-0 px-3 py-1.5 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/60 flex items-center gap-1.5 overflow-x-auto">
           <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 shrink-0">
-            Lecture
+            Label
           </span>
           <button
             onClick={() => setLectureFilter(null)}
@@ -679,17 +684,17 @@ function MapEditor({
           >
             All
           </button>
-          {taggedLectures.map((l) => (
+          {usedLabels.map((l) => (
             <button
-              key={l.id}
-              onClick={() => setLectureFilter(lectureFilter === l.id ? null : l.id)}
+              key={l}
+              onClick={() => setLectureFilter(lectureFilter === l ? null : l)}
               className={`px-2 py-0.5 text-[11px] rounded-full border shrink-0 max-w-[11rem] truncate ${
-                lectureFilter === l.id
+                lectureFilter === l
                   ? 'bg-indigo-600 border-indigo-600 text-white font-semibold'
                   : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-400'
               }`}
             >
-              {l.title}
+              {l}
             </button>
           ))}
         </div>
@@ -827,9 +832,18 @@ function MapEditor({
                           className="block text-[9px] uppercase tracking-wider font-bold leading-none mb-0.5 truncate"
                           style={{ color: color ?? undefined }}
                         >
-                          {l.node.lectureTitle && l.node.lectureTitle !== l.node.text
-                            ? l.node.lectureTitle
+                          {tagOf(l.node) && tagOf(l.node) !== l.node.text
+                            ? tagOf(l.node)
                             : 'Section'}
+                        </span>
+                      )}
+                      {l.node.star && (
+                        <span
+                          className="float-right ml-1 text-[11px] leading-none"
+                          style={{ color: color ?? undefined }}
+                          title="High yield"
+                        >
+                          ★
                         </span>
                       )}
                       <span
@@ -868,9 +882,9 @@ function MapEditor({
             <span className="truncate">
               Selected: <span className="text-gray-700 dark:text-gray-300 font-medium">{selectedNode.text || 'untitled'}</span>
             </span>
-            {selectedNode.lectureTitle && (
+            {tagOf(selectedNode) && (
               <span className="shrink-0 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 max-w-[10rem] truncate">
-                {selectedNode.lectureTitle}
+                {tagOf(selectedNode)}
               </span>
             )}
           </div>
@@ -879,39 +893,76 @@ function MapEditor({
         {/* Working lecture. Everything typed from here inherits this tag,
             which is the whole mechanism that lets one tree hold a course
             and still be filtered back down to one session. */}
-        {menu === 'lecture' && (
-          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-2 max-h-52 overflow-y-auto space-y-1">
+        {menu === 'label' && (
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-2 space-y-2">
             <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
-              Tag new nodes as
+              Label new nodes
             </div>
-            <button
-              onClick={() => { onSetWorkingLecture(map.id); setMenu(null); }}
-              className={`block w-full text-left px-2 py-1 text-[12px] rounded ${
-                !map.workingLectureId ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-semibold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                onSetWorkingLabel(map.id, labelDraft.trim() || undefined);
+                setMenu(null);
+              }}
+              className="flex items-center gap-1.5"
             >
-              Nothing — leave new nodes untagged
-            </button>
-            {lectureOptions.map((l) => (
+              <input
+                value={labelDraft}
+                onChange={(e) => setLabelDraft(e.target.value)}
+                placeholder="Lec 4, Week 2, Exam 1…"
+                autoFocus
+                className="flex-1 min-w-0 px-2.5 py-1.5 text-[12px] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
               <button
-                key={l.id}
-                onClick={() => { onSetWorkingLecture(map.id, l.id, l.title); setMenu(null); }}
-                className={`block w-full text-left px-2 py-1 text-[12px] rounded truncate ${
-                  map.workingLectureId === l.id ? 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 font-semibold' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}
+                type="submit"
+                className="px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
               >
-                {l.title}
+                Set
               </button>
-            ))}
+              {map.workingLabel && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLabelDraft('');
+                    onSetWorkingLabel(map.id, undefined);
+                    setMenu(null);
+                  }}
+                  className="px-2 py-1.5 text-[11px] font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg"
+                >
+                  Clear
+                </button>
+              )}
+            </form>
+
+            {labelSuggestions.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {labelSuggestions.map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => {
+                      setLabelDraft(l);
+                      onSetWorkingLabel(map.id, l);
+                      setMenu(null);
+                    }}
+                    className="px-2 py-0.5 text-[11px] rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-400 max-w-[11rem] truncate"
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {selectedNode && selectedNode.id !== rootId && (
               <button
                 onClick={() => {
-                  onTagSubtree(map.id, selected, map.workingLectureId, map.workingLectureTitle);
+                  onTagSubtree(map.id, selected, labelDraft.trim() || undefined);
                   setMenu(null);
                 }}
-                className="block w-full text-left px-2 py-1 text-[12px] rounded text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 border-t border-gray-100 dark:border-gray-800 mt-1 pt-1.5"
+                className="block w-full text-left px-2 py-1 text-[12px] rounded text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 border-t border-gray-100 dark:border-gray-800 pt-1.5"
               >
-                Apply that tag to “{selectedNode.text || 'untitled'}” and everything under it
+                {labelDraft.trim()
+                  ? `Apply “${labelDraft.trim()}” to “${selectedNode.text || 'untitled'}” and everything under it`
+                  : `Clear the label on “${selectedNode.text || 'untitled'}” and everything under it`}
               </button>
             )}
           </div>
@@ -956,6 +1007,14 @@ function MapEditor({
             {selectedNode?.section ? 'Section ✓' : 'Section'}
           </Act>
           <Act
+            onClick={() => selected && onUpdateNode(map.id, selected, { star: !selectedNode?.star })}
+            disabled={selected === rootId}
+            active={!!selectedNode?.star}
+            title="High yield — printed with a marker and extra writing room"
+          >
+            {selectedNode?.star ? '★ High yield' : '☆ High yield'}
+          </Act>
+          <Act
             onClick={() => {
               if (!selected || selected === rootId) return;
               setFocus(selected);
@@ -968,8 +1027,14 @@ function MapEditor({
           <Act onClick={() => setMenu(menu === 'template' ? null : 'template')} active={menu === 'template'}>
             Scaffold
           </Act>
-          <Act onClick={() => setMenu(menu === 'lecture' ? null : 'lecture')} active={menu === 'lecture'}>
-            {map.workingLectureTitle ? `⌁ ${map.workingLectureTitle}` : 'Lecture'}
+          <Act
+            onClick={() => {
+              setLabelDraft(map.workingLabel ?? '');
+              setMenu(menu === 'label' ? null : 'label');
+            }}
+            active={menu === 'label'}
+          >
+            {map.workingLabel ? `⌁ ${map.workingLabel}` : 'Label'}
           </Act>
           {hasKids && (
             <Act onClick={() => selected && onUpdateNode(map.id, selected, { collapsed: !selectedNode?.collapsed })}>
@@ -1120,7 +1185,7 @@ const splitHint: Record<SplitMode, string> = {
   section:
     'Nothing is marked as a section yet. Select a node on the map and tap Section to make it a page — or split by branches for now.',
   branch: 'This map has no top-level branches yet.',
-  lecture: 'No nodes in this map carry a lecture tag yet.',
+  label: 'No nodes in this map carry a label yet.',
 };
 
 const LAYOUT_BLURB: Record<PdfLayoutKind, string> = {
@@ -1154,12 +1219,13 @@ function ExportSheet({
   }));
   const [status, setStatus] = useState<string | null>(null);
 
-  const lecturesInMap = useMemo(() => {
-    const seen = new Map<string, string>();
+  const labelsInMap = useMemo(() => {
+    const seen = new Set<string>();
     for (const n of map.nodes) {
-      if (n.lectureId && !seen.has(n.lectureId)) seen.set(n.lectureId, n.lectureTitle || 'Untitled lecture');
+      const t = tagOf(n);
+      if (t) seen.add(t);
     }
-    return Array.from(seen, ([id, title]) => ({ id, title }));
+    return Array.from(seen).sort();
   }, [map.nodes]);
 
   const set = (patch: Partial<MindMapPdfOptions>) => {
@@ -1263,16 +1329,36 @@ function ExportSheet({
               Split pages by
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {(['section', 'branch', 'lecture'] as SplitMode[]).map((m) => (
+              {(['section', 'branch', 'label'] as SplitMode[]).map((m) => (
                 <Pill
                   key={m}
                   active={(opts.splitBy ?? 'section') === m}
                   onClick={() => set({ splitBy: m })}
                 >
-                  {m === 'section' ? 'Sections' : m === 'branch' ? 'Top-level branches' : 'Lectures'}
+                  {m === 'section' ? 'Sections' : m === 'branch' ? 'Top-level branches' : 'Labels'}
                 </Pill>
               ))}
             </div>
+            <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-semibold mt-4 mb-1.5">
+              Writing pages
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(['outline', 'map'] as PdfNodeStyle[]).map((st) => (
+                <Pill
+                  key={st}
+                  active={(opts.nodeStyle ?? 'outline') === st}
+                  onClick={() => set({ nodeStyle: st })}
+                >
+                  {st === 'outline' ? 'Indented outline' : 'Map'}
+                </Pill>
+              ))}
+            </div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+              {(opts.nodeStyle ?? 'outline') === 'outline'
+                ? 'Full-width rows at full size — nothing gets cut off however deep the branch goes. The map picture stays on page 1.'
+                : 'The branch drawn as a tree beside the writing column. Deeper branches have to shrink to fit, so long labels can still be tight.'}
+            </p>
+
             <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
               {unitCount === 0
                 ? splitHint[opts.splitBy ?? 'section']
@@ -1281,7 +1367,7 @@ function ExportSheet({
                       ? 'section'
                       : (opts.splitBy ?? 'section') === 'branch'
                         ? 'top-level branch'
-                        : 'lecture'
+                        : 'label'
                   }.`}
             </p>
           </>
@@ -1305,7 +1391,7 @@ function ExportSheet({
           </Pill>
         </div>
 
-        {lecturesInMap.length > 0 && (
+        {labelsInMap.length > 0 && (
           <>
             <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-semibold mt-4 mb-1.5">
               Include
@@ -1314,19 +1400,15 @@ function ExportSheet({
               <Pill active={!opts.lectureId} onClick={() => set({ lectureId: undefined })}>
                 Whole map
               </Pill>
-              {lecturesInMap.map((l) => (
-                <Pill
-                  key={l.id}
-                  active={opts.lectureId === l.id}
-                  onClick={() => set({ lectureId: l.id })}
-                >
-                  {l.title}
+              {labelsInMap.map((l) => (
+                <Pill key={l} active={opts.lectureId === l} onClick={() => set({ lectureId: l })}>
+                  {l}
                 </Pill>
               ))}
             </div>
             {opts.lectureId && (
               <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
-                Only this lecture's nodes, plus the branches above them so you can still see
+                Only nodes with this label, plus the branches above them so you can still see
                 where it sits in the tree.
               </p>
             )}
@@ -1346,9 +1428,7 @@ function ExportSheet({
 
         <button
           onClick={async () => {
-            const slice = opts.lectureId
-              ? lecturesInMap.find((l) => l.id === opts.lectureId)?.title
-              : undefined;
+            const slice = opts.lectureId;
             const scoped = opts.rootId && focusTitle ? { ...map, title: focusTitle } : map;
             const how = await deliverPdf(built.blob, pdfFileName(scoped, slice));
             setStatus(how === 'shared' ? 'Sent to the share sheet' : 'Saved to your downloads');
