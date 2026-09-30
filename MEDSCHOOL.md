@@ -138,6 +138,26 @@ stops a map getting made.
 
 Sibling order is yours: **↑ / ↓** in the bar, or **Alt+↑ / Alt+↓**.
 
+### Dragging a node somewhere else
+
+Drag a node onto another to re-file it. **On a touchscreen, hold it first** —
+about a third of a second — because the canvas pans in both directions and an
+immediate drag would be indistinguishable from a swipe. With a mouse it just
+drags.
+
+Where you let go decides what happens, and the indicator tells you before you
+commit:
+
+- **Middle of the box** — becomes a child of it. A ring appears around the
+  target.
+- **Near its top or bottom edge** — becomes its sibling above or below. A
+  line appears on that side.
+
+Dropping a node inside itself is refused, so a branch can never be cut off
+from the root. Nothing shows and nothing moves. Drag near the edge of the
+canvas and it scrolls, so the destination doesn't have to be on screen when
+you start. `Cmd/Ctrl+Z` undoes a move like anything else.
+
 ### If you delete something you didn't mean to
 
 **Delete removes the node and everything under it.** That is what it has
