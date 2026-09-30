@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import type { MindMap, MindMapNode } from '../types';
+import type { MindMap, MindMapNode, DropPosition } from '../types';
 import {
   layoutMap,
   branchColorOf,
@@ -11,6 +11,7 @@ import {
   tagOf,
 } from '../utils/mindMapLayout';
 import { snapshotsFor, orphanedSnapshots } from '../utils/mapSnapshots';
+import { useNodeDrag } from '../hooks/useNodeDrag';
 import type { MapSnapshot } from '../utils/mapSnapshots';
 import {
   buildMindMapPdf,
@@ -53,6 +54,7 @@ export default function MindMapsView({
   onDeleteNode,
   onReparent,
   onMoveNode,
+  onMoveNodeTo,
   onTagSubtree,
   onSetWorkingLabel,
   onCollapseToDepth,
@@ -77,6 +79,7 @@ export default function MindMapsView({
   onDeleteNode: (mapId: string, nodeId: string) => void;
   onReparent: (mapId: string, nodeId: string, newParentId: string) => void;
   onMoveNode: (mapId: string, nodeId: string, delta: -1 | 1) => void;
+  onMoveNodeTo: (mapId: string, nodeId: string, targetId: string, position: DropPosition) => void;
   onTagSubtree: (mapId: string, nodeId: string, label?: string) => void;
   onSetWorkingLabel: (mapId: string, label?: string, lectureId?: string) => void;
   onCollapseToDepth: (mapId: string, depth: number) => void;
@@ -128,6 +131,7 @@ export default function MindMapsView({
         onDeleteNode={onDeleteNode}
         onReparent={onReparent}
         onMoveNode={onMoveNode}
+        onMoveNodeTo={onMoveNodeTo}
         onTagSubtree={onTagSubtree}
         onSetWorkingLabel={onSetWorkingLabel}
         onCollapseToDepth={onCollapseToDepth}
@@ -273,6 +277,7 @@ function MapEditor({
   onDeleteNode,
   onReparent,
   onMoveNode,
+  onMoveNodeTo,
   onTagSubtree,
   onSetWorkingLabel,
   onCollapseToDepth,
@@ -293,6 +298,7 @@ function MapEditor({
   onDeleteNode: (mapId: string, nodeId: string) => void;
   onReparent: (mapId: string, nodeId: string, newParentId: string) => void;
   onMoveNode: (mapId: string, nodeId: string, delta: -1 | 1) => void;
+  onMoveNodeTo: (mapId: string, nodeId: string, targetId: string, position: DropPosition) => void;
   onTagSubtree: (mapId: string, nodeId: string, label?: string) => void;
   onSetWorkingLabel: (mapId: string, label?: string, lectureId?: string) => void;
   onCollapseToDepth: (mapId: string, depth: number) => void;
@@ -510,6 +516,30 @@ function MapEditor({
     }
     return Array.from(seen).slice(0, 12);
   }, [lectures, map.course, usedLabels]);
+
+  /** Drag to rearrange. The rules live here rather than in the interaction
+   *  so the hook stays about pointers: you cannot drop a node on itself, on
+   *  one of its own descendants, or beside the root (which has no siblings). */
+  const canDrop = useCallback(
+    (id: string, targetId: string, position: DropPosition) => {
+      if (id === targetId) return false;
+      if (subtreeIds(map.nodes, id).has(targetId)) return false;
+      if (position !== 'child' && targetId === rootId) return false;
+      return true;
+    },
+    [map.nodes, rootId]
+  );
+
+  const { dragId, drop, start: startDrag } = useNodeDrag({
+    scrollRef,
+    canDrop,
+    onDrop: (id, targetId, position) => {
+      onMoveNodeTo(map.id, id, targetId, position);
+      setSelected(id);
+    },
+    // Dragging while renaming would fight the text field for the pointer.
+    enabled: editing === null,
+  });
 
   /** The only way a node is deleted. Delete takes the whole subtree with it,
    *  so anything with children asks first and says how much is going — the
@@ -759,12 +789,31 @@ function MapEditor({
                 (inFilter !== null && !inFilter.has(l.node.id)) ||
                 (matches !== null && matches.size > 0 && !matches.has(l.node.id));
               const isMatch = matches !== null && matches.has(l.node.id);
+              const isDragging = dragId === l.node.id;
+              const hint = drop && drop.id === l.node.id && dragId
+                ? (canDrop(dragId, l.node.id, drop.position) ? drop.position : null)
+                : null;
               return (
                 <div
                   key={l.node.id}
+                  data-node-id={l.node.id}
                   style={{ left: l.x + 12, top: l.y + 20, width: l.w, minHeight: l.h }}
-                  className={`absolute transition-opacity ${dimmed ? 'opacity-25' : ''}`}
+                  className={`absolute transition-opacity ${dimmed ? 'opacity-25' : ''} ${
+                    isDragging ? 'opacity-40' : ''
+                  }`}
                 >
+                  {/* Where it will land. A rule above or below means "become
+                      a sibling on that side"; a ring around the whole box
+                      means "become a child of this". */}
+                  {hint === 'before' && (
+                    <span className="absolute -top-1 left-0 right-0 h-0.5 bg-indigo-500 rounded-full pointer-events-none" />
+                  )}
+                  {hint === 'after' && (
+                    <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-indigo-500 rounded-full pointer-events-none" />
+                  )}
+                  {hint === 'child' && (
+                    <span className="absolute -inset-1 rounded-xl ring-2 ring-indigo-500 ring-offset-0 pointer-events-none" />
+                  )}
                   {/* The editor is a bare input, never nested inside the
                       button. A text field inside a <button> means Space
                       activates the button — which unmounted the field and
@@ -799,7 +848,12 @@ function MapEditor({
                     />
                   ) : (
                     <button
+                      onPointerDown={(e) => startDrag(e, l.node.id)}
+                      // A drag must not also fire the click that selects, or
+                      // every rearrange would change the selection twice and
+                      // the second one would win.
                       onClick={() => {
+                        if (dragId) return;
                         setSelected(l.node.id);
                         setEditing(null);
                       }}
@@ -814,18 +868,22 @@ function MapEditor({
                       } ${isMatch ? 'ring-2 ring-amber-400' : ''} ${
                         isSection ? 'shadow-md' : 'shadow-sm'
                       }`}
-                      style={
+                      style={{
+                        // The canvas pans on touch, so the browser must keep
+                        // the pan gesture until the long press decides that
+                        // this is a drag instead.
+                        touchAction: 'pan-x pan-y',
                         // A section is the map's own structure, so it wears
                         // the branch colour on every edge rather than the
                         // single left rule an ordinary node gets.
-                        isSection && !isSel && color
+                        ...(isSection && !isSel && color
                           ? { borderColor: color }
                           : !isSel && color
-                          ? { borderLeftColor: color, borderLeftWidth: 3 }
-                          : isRoot && !isSel
-                          ? { borderColor: '#6b7280' }
-                          : undefined
-                      }
+                            ? { borderLeftColor: color, borderLeftWidth: 3 }
+                            : isRoot && !isSel
+                              ? { borderColor: '#6b7280' }
+                              : {}),
+                      }}
                     >
                       {isSection && (
                         <span
@@ -1060,7 +1118,9 @@ function MapEditor({
         </div>
         <p className="text-[10px] text-gray-400 dark:text-gray-500">
           Tab = branch · Enter = sibling · [ / ] = out / in · Alt+↑ / Alt+↓ = reorder ·
-          Cmd/Ctrl+Z = undo · Delete removes the node and everything under it
+          Cmd/Ctrl+Z = undo · Delete removes the node and everything under it.
+          Drag a node onto another to re-file it — hold first on a touchscreen; drop on the
+          middle to make it a child, or near the top or bottom edge to place it above or below.
         </p>
       </footer>
     </div>

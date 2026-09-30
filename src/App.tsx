@@ -223,6 +223,7 @@ function AppMain({
     deleteNode: deleteMapNode,
     reparent: reparentMapNode,
     moveNode: moveMapNode,
+    moveNodeTo: moveMapNodeTo,
     tagSubtree: tagMapSubtree,
     setWorkingLabel: setMapWorkingLabel,
     collapseToDepth: collapseMapToDepth,
@@ -811,6 +812,7 @@ function AppMain({
           onDeleteNode={deleteMapNode}
           onReparent={reparentMapNode}
           onMoveNode={moveMapNode}
+          onMoveNodeTo={moveMapNodeTo}
           onTagSubtree={tagMapSubtree}
           onSetWorkingLabel={setMapWorkingLabel}
           onCollapseToDepth={collapseMapToDepth}

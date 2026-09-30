@@ -607,6 +607,10 @@ export interface StateLogState {
 // makes a map takeable in the ten minutes after a lecture rather than an
 // afternoon project.
 
+/** Where a dragged node lands relative to whatever it was dropped on.
+ *  'child' reparents; 'before' and 'after' reorder among siblings. */
+export type DropPosition = 'child' | 'before' | 'after';
+
 export interface MindMapNode {
   id: string;
   text: string;

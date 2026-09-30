@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { MindMap, MindMapNode } from '../types';
+import type { MindMap, MindMapNode, DropPosition } from '../types';
 import { subtreeIds, depthsOf } from '../utils/mindMapLayout';
 import { snapshotMap, forgetSnapshots } from '../utils/mapSnapshots';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
@@ -339,6 +339,61 @@ export function useMindMaps() {
     );
   }, [pushHistory]);
 
+  /** Move a node to a new place in the tree — the one action behind drag.
+   *
+   *  `position` is relative to `targetId`: 'child' makes it the target's last
+   *  child, 'before'/'after' make it the target's sibling on that side.
+   *
+   *  Only the node's own array entry moves. Its descendants are found by
+   *  parentId and follow it wherever it lands, and sibling order IS array
+   *  order, so placing the entry correctly among its new siblings is the
+   *  whole job. */
+  const moveNodeTo = useCallback(
+    (mapId: string, nodeId: string, targetId: string, position: DropPosition) => {
+      pushHistory(mapId);
+      setMaps((prev) =>
+        prev.map((m) => {
+          if (m.id !== mapId) return m;
+          const node = m.nodes.find((n) => n.id === nodeId);
+          const target = m.nodes.find((n) => n.id === targetId);
+          if (!node || !target || node.parentId === null) return m;
+          if (nodeId === targetId) return m;
+          // Never inside yourself: that severs the subtree from the root and
+          // leaves it unreachable and unprintable.
+          if (subtreeIds(m.nodes, nodeId).has(targetId)) return m;
+
+          const newParentId = position === 'child' ? targetId : target.parentId;
+          // The root has no siblings, so there is no before or after it.
+          if (newParentId === null) return m;
+
+          const without = m.nodes.filter((n) => n.id !== nodeId);
+          let at: number;
+          if (position === 'child') {
+            const lastChild = without.reduce(
+              (acc, n, i) => (n.parentId === targetId ? i : acc),
+              without.findIndex((n) => n.id === targetId)
+            );
+            at = lastChild + 1;
+          } else {
+            const ti = without.findIndex((n) => n.id === targetId);
+            at = position === 'before' ? ti : ti + 1;
+          }
+
+          const moved = { ...node, parentId: newParentId };
+          const nodes = [...without.slice(0, at), moved, ...without.slice(at)];
+          // A drop into a collapsed parent must open it, or what you just
+          // moved is invisible and looks lost.
+          const opened =
+            position === 'child'
+              ? nodes.map((n) => (n.id === targetId ? { ...n, collapsed: false } : n))
+              : nodes;
+          return touch({ ...m, nodes: opened });
+        })
+      );
+    },
+    [pushHistory]
+  );
+
   /** Label a node and everything under it — the retrofit path for material
    *  typed before the working label was set, and how an old per-lecture map
    *  keeps its provenance when grafted into a course tree. Clearing the
@@ -540,6 +595,7 @@ export function useMindMaps() {
     deleteNode,
     reparent,
     moveNode,
+    moveNodeTo,
     tagSubtree,
     setWorkingLabel,
     collapseToDepth,
