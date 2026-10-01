@@ -105,7 +105,10 @@ export function useAppState() {
     if (!key) return;
     try {
       setSyncing(true);
-      const cloud = await syncLoad(key);
+      // Forced: an explicit refresh has to go past the shared mount-time read,
+      // and it is also the one thing that reopens the write gate after a failed
+      // read — so it must not be answered from cache.
+      const cloud = await syncLoad(key, { force: true });
       if (cloud.blocks) {
         setBlocks(cloud.blocks);
         // Preserve brainDump from cloud if present, else keep local brainDump.

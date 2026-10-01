@@ -19,6 +19,17 @@ export function loadState(): AppState {
   }
 }
 
+// Whether the most recent local write was rejected. The cloud sync reads this:
+// it normally prefers localStorage over a caller's own payload, because
+// localStorage is a superset of any single slice. That stops being true the
+// moment a write is dropped for quota, and pushing the older copy would then
+// lose the newest edit in the cloud as well as locally.
+let localWriteFailed = false;
+
+export function lastLocalWriteFailed(): boolean {
+  return localWriteFailed;
+}
+
 // Returns false when the write was rejected (quota) rather than throwing.
 // Callers that add bulky data — plan photos are the only one today — check
 // the result so a too-large payload surfaces as a message instead of an
@@ -28,8 +39,10 @@ export function saveState(state: AppState): boolean {
   const data: StoredData = { version: STORAGE_VERSION, state };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localWriteFailed = false;
     return true;
   } catch {
+    localWriteFailed = true;
     return false;
   }
 }

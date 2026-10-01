@@ -1,5 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { getSecretKey, setSecretKey, clearSecretKey } from '../services/syncService';
+import {
+  getSecretKey,
+  setSecretKey,
+  clearSecretKey,
+  getSyncStatus,
+  subscribeSyncStatus,
+  forcePushLocal,
+  retryCloudLoad,
+  type SyncStatus,
+} from '../services/syncService';
 
 export type ActiveView =
   | 'calendar'
@@ -68,6 +77,42 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
   const [key, setKey] = useState(getSecretKey());
   const [saved, setSaved] = useState(false);
   const isConnected = !!getSecretKey();
+
+  // The write gate's own state. Worth its own line in the panel because
+  // "Syncing automatically" was previously shown whenever no request had
+  // failed — including while nothing was being sent up at all.
+  const [gate, setGate] = useState<SyncStatus>(() => getSyncStatus());
+  useEffect(() => subscribeSyncStatus(setGate), []);
+  const [forcing, setForcing] = useState(false);
+  const [forceError, setForceError] = useState<string | null>(null);
+
+  const handleForcePush = async () => {
+    const k = getSecretKey();
+    if (!k || forcing) return;
+    setForcing(true);
+    setForceError(null);
+    try {
+      await forcePushLocal(k);
+    } catch {
+      setForceError('Still could not reach the cloud.');
+    } finally {
+      setForcing(false);
+    }
+  };
+
+  const handleRetryLoad = async () => {
+    const k = getSecretKey();
+    if (!k || forcing) return;
+    setForcing(true);
+    setForceError(null);
+    try {
+      await retryCloudLoad(k);
+    } catch {
+      setForceError('Still could not reach the cloud.');
+    } finally {
+      setForcing(false);
+    }
+  };
 
   const activeHub = hubForView(activeView);
 
@@ -165,8 +210,47 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
               {syncError && (
                 <p className="text-xs text-red-500 dark:text-red-400 mt-2">{syncError}</p>
               )}
-              {isConnected && !syncError && (
-                <p className="text-xs text-green-600 dark:text-green-400 mt-2">Syncing automatically</p>
+
+              {/* The gate, in its own words. Until the cloud copy has been read
+                  once, nothing is sent up — saying so is the difference between
+                  a deliberate hold and a silent one. */}
+              {isConnected && gate.state === 'blocked' && (
+                <div className="mt-2 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900">
+                  <p className="text-xs text-amber-700 dark:text-amber-300">
+                    Couldn't read the cloud copy, so nothing is being sent up. Your
+                    edits are safe on this device.
+                  </p>
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={handleRetryLoad}
+                      disabled={forcing}
+                      className="flex-1 px-2 py-1 text-xs font-medium text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-800 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/60 disabled:opacity-50 transition-colors"
+                    >
+                      Try again
+                    </button>
+                    <button
+                      onClick={handleForcePush}
+                      disabled={forcing}
+                      className="flex-1 px-2 py-1 text-xs font-medium text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-800 rounded-md hover:bg-amber-100 dark:hover:bg-amber-900/60 disabled:opacity-50 transition-colors"
+                      title="Overwrites the cloud copy with what is on this device"
+                    >
+                      Push this device
+                    </button>
+                  </div>
+                  {forceError && (
+                    <p className="text-xs text-red-500 dark:text-red-400 mt-1.5">{forceError}</p>
+                  )}
+                </div>
+              )}
+              {isConnected && gate.state !== 'blocked' && gate.state !== 'ready' && (
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Reading the cloud copy before sending anything up…
+                </p>
+              )}
+              {isConnected && gate.state === 'ready' && !syncError && (
+                <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                  {gate.deferred ? 'Sending up your latest edit…' : 'Syncing automatically'}
+                </p>
               )}
 
               {/* iCal export */}
