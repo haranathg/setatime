@@ -397,3 +397,35 @@ dump tasks, plan tasks, week-board items, and calendar blocks;
 `northStarIds` is optional on projects. Existing data is untouched, and
 an untagged task behaves exactly as it always did. Nothing about this
 layer is load-bearing until you choose to use it.
+
+### When sync holds off
+
+Your data lives in one file in the cloud, keyed by your secret key, and
+every device overwrites that one file. So the app will not send anything
+up until it has first managed to *read* what is already there.
+
+In practice you never see this — the read takes a moment and then the
+green "Syncing automatically" appears as usual. It matters on a bad
+connection. If the read fails, the sync panel says so in amber:
+
+> Couldn't read the cloud copy, so nothing is being sent up. Your edits
+> are safe on this device.
+
+That is deliberate, not a failure to recover from. Everything you type
+still saves on the device you are using; it just waits before leaving.
+The alternative — pushing anyway — is how a phone that couldn't reach
+the network for ten seconds could replace a week of work with an empty
+file.
+
+Two buttons when it happens:
+
+- **Try again** — retries the read. If it works, syncing resumes and
+  whatever you typed in the meantime goes up straight away.
+- **Push this device** — a deliberate overwrite: send what is on this
+  device up, without having read what's there. Use it when you know this
+  device holds the newest copy, typically after working offline. It
+  replaces the cloud copy, so don't use it on the device you've been
+  using *least*.
+
+If you are ever unsure which device is newest, export before pressing
+anything: the safest move is always to get a copy off the device first.
