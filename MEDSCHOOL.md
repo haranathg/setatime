@@ -311,6 +311,40 @@ A reasonable starting move: pin **Log a moment** to the top during a hard
 block, so checking which state you're in is the first thing you see rather
 than something you have to go looking for.
 
+## The Activate now menu
+
+The strip at the top of Today is the rescue menu — the strategies you
+forget you have, on the day you most need them. **Map a lecture** is one
+of them now: one tap from Today into Maps, for building the tree before
+a lecture or filling in details after one.
+
+### Rearranging it
+
+Tap **⇅ arrange** in the Activate now header. Same controls as Arrange
+Today, because it is the same editor:
+
+- **↑ ↓** move a strategy one place.
+- **📌** sends it straight to the top — worth it when the thing you
+  reach for most is sitting sixth.
+- **Shown / Tucked** decides whether it is on the menu by default or
+  behind "+ more strategies". Tucking is not hiding: one tap still
+  reveals everything.
+- **Reset menu** puts it back to how it shipped.
+
+The arrangement syncs, so the order you settle on follows you to the
+phone.
+
+Two things worth knowing. **Surprise me** only picks from strategies
+still on the menu, so tucking something does not stop it being offered
+at random — tucked ones are still in the pool, because the whole point
+of the die is to reach past your habits. And if you un-tuck everything,
+the "+ more strategies" line disappears rather than offering to show you
+nothing.
+
+Worth doing once, early in a term: put the two or three you actually use
+at the top and tuck the rest. A menu you scan past is a menu you stop
+reading.
+
 ## When the problem is your state, not your plan
 
 Two different failures get confused constantly, and they need opposite

@@ -15,6 +15,7 @@ import type {
   RegulationZone,
   ResetActivity,
   TodaySectionKey,
+  ActivateKey,
   DailyPlanTask,
   DailyPlanSize,
   WeekBoardItem,
@@ -101,8 +102,13 @@ interface TodayViewProps {
   onGoTriage: () => void;        // → Triage session (batch cards)
   onGoPredict: () => void;       // → Predictions
   onGoReflect: () => void;       // → Chart notes (SOAP weekly reflection)
+  onGoMaps: () => void;          // → Maps
   onGoSort: () => void;          // → Compass
   onGoBreathe: () => void;       // → Grounding
+  // The Activate now menu's stored shape, and the way into editing it.
+  activateOrder: ActivateKey[];
+  isActivateTucked: (key: ActivateKey) => boolean;
+  onArrangeActivate: () => void;
   // Count of active (non-someday) dump tasks — surfaced as a badge on
   // the Triage button so the size of the pile is visible.
   activeDumpCount: number;
@@ -213,8 +219,12 @@ export default function TodayView({
   onGoTriage,
   onGoPredict,
   onGoReflect,
+  onGoMaps,
   onGoSort,
   onGoBreathe,
+  activateOrder,
+  isActivateTucked,
+  onArrangeActivate,
   activeDumpCount,
   todaysPlan,
   planCounts,
@@ -355,9 +365,13 @@ export default function TodayView({
                 onTriage={onGoTriage}
                 onPredict={onGoPredict}
                 onReflect={onGoReflect}
+                onMaps={onGoMaps}
                 onSort={onGoSort}
                 onBreathe={onGoBreathe}
                 activeDumpCount={activeDumpCount}
+                order={activateOrder}
+                isTucked={isActivateTucked}
+                onArrange={onArrangeActivate}
               />
       </>
     ),
@@ -1854,8 +1868,6 @@ function IndicatorSettingsModal({
 // the Stuck screen — pulled through so it's visible every time they
 // open the app, not just when they specifically go looking.
 
-type ActivateKey = 'stuck' | 'start' | 'knockOne' | 'triage' | 'predict' | 'reflect' | 'sort' | 'breathe';
-
 const ACTIVATE_OPTIONS: {
   key: ActivateKey;
   emoji: string;
@@ -1894,6 +1906,11 @@ const ACTIVATE_OPTIONS: {
     tone: 'bg-violet-50 dark:bg-violet-950/40 hover:bg-violet-100 dark:hover:bg-violet-800 dark:bg-violet-900/40 border-violet-200 dark:border-violet-800 text-violet-900 dark:text-violet-100',
   },
   {
+    key: 'maps', emoji: '🌳', label: 'Map a lecture',
+    sub: 'build the tree · fill in today\'s details · Maps',
+    tone: 'bg-lime-50 dark:bg-lime-950/40 hover:bg-lime-100 dark:hover:bg-lime-800 dark:bg-lime-900/40 border-lime-200 dark:border-lime-800 text-lime-900 dark:text-lime-100',
+  },
+  {
     key: 'sort', emoji: '🧭', label: 'Sort what\'s on my mind',
     sub: 'Circle of Control · Compass',
     tone: 'bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-800 dark:bg-sky-900/40 border-sky-200 dark:border-sky-800 text-sky-900 dark:text-sky-100',
@@ -1913,9 +1930,13 @@ function ActivateNowStrip({
   onTriage,
   onPredict,
   onReflect,
+  onMaps,
   onSort,
   onBreathe,
   activeDumpCount,
+  order,
+  isTucked,
+  onArrange,
 }: {
   mantra: string;
   onStuck: () => void;
@@ -1924,31 +1945,41 @@ function ActivateNowStrip({
   onTriage: () => void;
   onPredict: () => void;
   onReflect: () => void;
+  onMaps: () => void;
   onSort: () => void;
   onBreathe: () => void;
   activeDumpCount: number;
+  order: ActivateKey[];
+  isTucked: (key: ActivateKey) => boolean;
+  onArrange: () => void;
 }) {
   const handlers: Record<ActivateKey, () => void> = {
     stuck: onStuck, start: onStart, knockOne: onKnockOne, triage: onTriage,
-    predict: onPredict, reflect: onReflect, sort: onSort, breathe: onBreathe,
+    predict: onPredict, reflect: onReflect, maps: onMaps, sort: onSort,
+    breathe: onBreathe,
   };
 
-  // Split the menu into primary (default-visible) and secondary
-  // (behind "+ more strategies"). Keeps the daily surface calm without
-  // hiding anything — one tap reveals the rest. Ordered by
-  // frequency-of-use from the conversation with the user.
-  const PRIMARY_KEYS: ActivateKey[] = ['stuck', 'start', 'predict', 'triage', 'reflect'];
+  // Order and the shown/tucked split are both user-owned — the menu is
+  // reached for on a bad day, and one ordered for someone else is one you
+  // scan past. Defaults are frequency-of-use as it shipped; Arrange changes
+  // them for good, across devices.
+  const byKey = new Map(ACTIVATE_OPTIONS.map((o) => [o.key, o]));
+  const orderedOptions = order
+    .map((k) => byKey.get(k))
+    .filter((o): o is (typeof ACTIVATE_OPTIONS)[number] => !!o);
   const [showMoreStrategies, setShowMoreStrategies] = useState(false);
+  const tuckedCount = orderedOptions.filter((o) => isTucked(o.key)).length;
   const visibleOptions = showMoreStrategies
-    ? ACTIVATE_OPTIONS
-    : ACTIVATE_OPTIONS.filter((o) => PRIMARY_KEYS.includes(o.key));
+    ? orderedOptions
+    : orderedOptions.filter((o) => !isTucked(o.key));
 
   // "Surprise me" — random pick from the five when the user can't decide.
   // Direct anti-decision-paralysis affordance; the exact choice matters
   // less than moving at all. Draws from ALL options (including tucked)
   // so hidden strategies still get a fair shot.
   const surpriseMe = () => {
-    const pick = ACTIVATE_OPTIONS[Math.floor(Math.random() * ACTIVATE_OPTIONS.length)];
+    if (orderedOptions.length === 0) return;
+    const pick = orderedOptions[Math.floor(Math.random() * orderedOptions.length)];
     handlers[pick.key]();
   };
 
@@ -1956,13 +1987,22 @@ function ActivateNowStrip({
     <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden">
       <header className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex items-baseline justify-between">
         <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Activate now</h3>
-        <button
-          onClick={surpriseMe}
-          className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 dark:text-indigo-200"
-          title="Random pick — when you can't choose"
-        >
-          🎲 surprise me
-        </button>
+        <div className="flex items-baseline gap-3">
+          <button
+            onClick={surpriseMe}
+            className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-200 dark:text-indigo-200"
+            title="Random pick — when you can't choose"
+          >
+            🎲 surprise me
+          </button>
+          <button
+            onClick={onArrange}
+            className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400"
+            title="Reorder these strategies, or tuck ones you don't use"
+          >
+            ⇅ arrange
+          </button>
+        </div>
       </header>
 
       {/* Mantra — always visible, so the principle you forget shows up
@@ -2016,16 +2056,17 @@ function ActivateNowStrip({
         })}
       </ul>
 
-      {/* More strategies toggle — reveals Knock one out / Sort / Breathe.
-          Small, quiet; the whole point is the default surface stays calm. */}
-      <div className="px-3 pb-3">
+      {/* More strategies toggle. Small, quiet; the whole point is the default
+          surface stays calm. Hidden when nothing is tucked, so a menu you have
+          fully unpacked doesn't keep offering to show you nothing. */}
+      <div className={`px-3 pb-3 ${tuckedCount === 0 ? 'hidden' : ''}`}>
         <button
           onClick={() => setShowMoreStrategies((v) => !v)}
           className="w-full text-[11px] font-semibold text-gray-500 dark:text-gray-400 hover:text-indigo-700 dark:hover:text-indigo-300 dark:text-indigo-300 py-1"
         >
           {showMoreStrategies
             ? '− fewer strategies'
-            : `+ more strategies (${ACTIVATE_OPTIONS.length - PRIMARY_KEYS.length})`}
+            : `+ more strategies (${tuckedCount})`}
         </button>
       </div>
     </section>

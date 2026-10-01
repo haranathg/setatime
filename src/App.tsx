@@ -12,6 +12,7 @@ import BooksView from './components/BooksView';
 import GroundingView from './components/GroundingView';
 import RegulateView from './components/RegulateView';
 import TodayLayoutEditor from './components/TodayLayoutEditor';
+import ActivateLayoutEditor from './components/ActivateLayoutEditor';
 import MindMapsView from './components/MindMapsView';
 import UnderwayView from './components/UnderwayView';
 import CompassView from './components/CompassView';
@@ -41,6 +42,7 @@ import { useHorizon } from './hooks/useHorizon';
 import { useStateLog } from './hooks/useStateLog';
 import { useRegulate } from './hooks/useRegulate';
 import { useTodayLayout } from './hooks/useTodayLayout';
+import { useActivateLayout } from './hooks/useActivateLayout';
 import { useMindMaps } from './hooks/useMindMaps';
 import { useUnderway } from './hooks/useUnderway';
 import { useCompass } from './hooks/useCompass';
@@ -213,6 +215,16 @@ function AppMain({
     resetLayout: resetTodayLayout,
   } = useTodayLayout();
   const [customisingToday, setCustomisingToday] = useState(false);
+
+  const {
+    order: activateOrder,
+    isTucked: isActivateTucked,
+    move: moveActivateOption,
+    pinToTop: pinActivateOption,
+    toggleTucked: toggleActivateTucked,
+    resetLayout: resetActivateLayout,
+  } = useActivateLayout();
+  const [customisingActivate, setCustomisingActivate] = useState(false);
 
   const {
     maps: mindMaps,
@@ -545,6 +557,18 @@ function AppMain({
         />
       )}
 
+      {customisingActivate && (
+        <ActivateLayoutEditor
+          order={activateOrder}
+          isTucked={isActivateTucked}
+          onMove={moveActivateOption}
+          onPinToTop={pinActivateOption}
+          onToggleTucked={toggleActivateTucked}
+          onReset={resetActivateLayout}
+          onClose={() => setCustomisingActivate(false)}
+        />
+      )}
+
       {activeView === 'calendar' ? (
         <div className="flex-1 flex overflow-hidden">
           <div className={`flex-1 flex flex-col transition-all ${sidebarOpen ? 'sm:mr-80' : ''}`}>
@@ -725,8 +749,12 @@ function AppMain({
           onGoTriage={() => setActiveView('triage')}
           onGoPredict={() => setActiveView('predictions')}
           onGoReflect={() => setActiveView('chart')}
+          onGoMaps={() => setActiveView('maps')}
           onGoSort={() => setActiveView('compass')}
           onGoBreathe={() => setActiveView('grounding')}
+          activateOrder={activateOrder}
+          isActivateTucked={isActivateTucked}
+          onArrangeActivate={() => setCustomisingActivate(true)}
           activeDumpCount={activeDumpTasks.length}
           todaysPlan={todaysPlan}
           planCounts={planCounts}
