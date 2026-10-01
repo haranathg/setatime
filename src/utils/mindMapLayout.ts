@@ -58,6 +58,11 @@ export interface LayoutOptions {
    *  passes a version backed by real Helvetica metrics so the printed box
    *  is never a line short. */
   heightOf?: (node: MindMapNode, depth: number, w: number) => number;
+  /** Widest a node box may grow. The screen caps this tightly because the
+   *  canvas scrolls and a wide box pushes its siblings off-screen; a page
+   *  sized to the map has no such constraint and can let a long label
+   *  breathe sideways instead of wrapping four times. */
+  maxBoxW?: number;
 }
 
 /** Labels wrap rather than truncate, but not without limit — one runaway
@@ -101,10 +106,9 @@ export function defaultHeightOf(node: MindMapNode, depth: number, w: number): nu
 
 /** Node box width, grown a little for longer text so the label has room
  *  without wrapping into an unpredictable height. */
-function boxWidth(text: string, depth: number): number {
+function boxWidth(text: string, depth: number, maxW = 190): number {
   const base = depth === 0 ? 150 : 120;
-  const grown = Math.min(190, base + Math.max(0, text.length - 14) * 5);
-  return grown;
+  return Math.min(maxW, base + Math.max(0, text.length - 14) * 5);
 }
 
 export function layoutMap(nodes: MindMapNode[], opts: LayoutOptions = {}): MapLayout {
@@ -133,7 +137,7 @@ export function layoutMap(nodes: MindMapNode[], opts: LayoutOptions = {}): MapLa
 
   // Post-order walk: place the subtree, then centre the parent on it.
   const place = (node: MindMapNode, depth: number): LaidOutNode => {
-    const w = boxWidth(node.text, depth);
+    const w = boxWidth(node.text, depth, opts.maxBoxW);
     const h = measure(node, depth, w);
     const kids = childrenOf.get(node.id) ?? [];
     const forced = opts.forceCollapsed?.has(node.id)

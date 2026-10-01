@@ -1490,19 +1490,31 @@ function ExportSheet({
           Paper
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {(['letter', 'a4', 'ipad'] as PdfPaper[]).map((p) => (
+          {(['letter', 'a4', 'ipad', 'fit'] as PdfPaper[]).map((p) => (
             <Pill key={p} active={opts.paper === p} onClick={() => set({ paper: p })}>
               {PAPER_LABELS[p]}
             </Pill>
           ))}
-          <span className="w-px bg-gray-200 dark:bg-gray-700 mx-1" />
-          <Pill active={!opts.landscape} onClick={() => set({ landscape: false })}>
-            Portrait
-          </Pill>
-          <Pill active={opts.landscape} onClick={() => set({ landscape: true })}>
-            Landscape
-          </Pill>
+          {opts.paper !== 'fit' && (
+            <>
+              <span className="w-px bg-gray-200 dark:bg-gray-700 mx-1" />
+              <Pill active={!opts.landscape} onClick={() => set({ landscape: false })}>
+                Portrait
+              </Pill>
+              <Pill active={opts.landscape} onClick={() => set({ landscape: true })}>
+                Landscape
+              </Pill>
+            </>
+          )}
         </div>
+        {opts.paper === 'fit' && (
+          <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">
+            One page, {(built.pageW / 72).toFixed(0)} × {(built.pageH / 72).toFixed(0)} inches — as
+            large as the map needs, so nothing is scaled down, cut off or shrunk. Built for
+            pinching around on a tablet rather than for a printer. Collapse a level or two first
+            if that is bigger than you want.
+          </p>
+        )}
 
         {labelsInMap.length > 0 && (
           <>

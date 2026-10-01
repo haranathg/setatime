@@ -41,7 +41,7 @@ import type { MindMap, MindMapNode } from '../types';
 
 export type PdfLayoutKind = 'overview' | 'roomy' | 'worksheet';
 export type PdfGuides = 'ruled' | 'dots' | 'blank';
-export type PdfPaper = 'letter' | 'a4' | 'ipad';
+export type PdfPaper = 'letter' | 'a4' | 'ipad' | 'fit';
 export type PdfNodeStyle = 'outline' | 'map';
 
 export interface MindMapPdfOptions {
@@ -90,12 +90,15 @@ const PAPER: Record<PdfPaper, [number, number]> = {
   letter: [612, 792],
   a4: [595, 842],
   ipad: [612, 816],
+  // Unused: a fit-to-map page is measured from the map itself.
+  fit: [612, 792],
 };
 
 export const PAPER_LABELS: Record<PdfPaper, string> = {
   letter: 'Letter',
   a4: 'A4',
   ipad: 'iPad 4:3',
+  fit: 'Fit to map',
 };
 
 const MARGIN = 42;
@@ -105,6 +108,18 @@ const RULE_GAP = 26;      // handwriting line spacing
 const PRINT_ROW_H = 84;   // one lane per leaf, tall enough for ~3 lines
 const PRINT_COL_W = 208;  // wider than the widest node box, so columns never overlap
 const MAX_LANE_H = 240;   // ~9 ruled lines; past this a lane is just empty paper
+
+// Fit-to-map: one page, sized to the map rather than the map squeezed onto a
+// page. Nothing is scaled down, so nothing can be truncated or shrunk below
+// legibility — the page simply gets as big as it needs to be. Meant for a
+// tablet, where you pinch and pan around a large sheet; a printer would have
+// to tile it.
+const FIT_ROW_H = 68;     // room to write between rows rather than a tight tree
+const FIT_COL_W = 320;
+const FIT_BOX_W = 280;    // a long label spreads sideways instead of wrapping
+const FIT_MARGIN = 72;    // white space all round to annotate into
+/** PDF's own ceiling on a page dimension: 14400 units, i.e. 200 inches. */
+const PDF_MAX = 14400;
 
 const INK: RGB = [0.13, 0.15, 0.19];
 const MUTED: RGB = [0.55, 0.58, 0.63];
@@ -345,9 +360,10 @@ function overviewPage(
   rootId: string,
   frame: Frame,
   headline: string | null,
-  palette: { nodes: MindMapNode[]; root: string }
+  palette: { nodes: MindMapNode[]; root: string },
+  layoutOpts?: { rowH?: number; colW?: number; maxBoxW?: number }
 ): void {
-  const layout = layoutMap(nodes, { heightOf: pdfHeightOf(pdf) });
+  const layout = layoutMap(nodes, { ...layoutOpts, heightOf: pdfHeightOf(pdf) });
   const body: Frame = {
     x: frame.x,
     y: frame.y + HEADER_H + 18,
@@ -868,6 +884,10 @@ function worksheetPages(
 export interface MindMapPdfResult {
   blob: Blob;
   pages: number;
+  /** The page size in points, so the export sheet can say how big a
+   *  fit-to-map sheet turned out before you commit to it. */
+  pageW: number;
+  pageH: number;
 }
 
 /** The contents page. Worth its own page once a tree holds a course: twenty
@@ -928,18 +948,13 @@ function contentsPages(
 export interface MindMapPdfResult {
   blob: Blob;
   pages: number;
+  /** The page size in points, so the export sheet can say how big a
+   *  fit-to-map sheet turned out before you commit to it. */
+  pageW: number;
+  pageH: number;
 }
 
 export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapPdfResult {
-  const [pw, ph] = PAPER[opts.paper];
-  const pageW = opts.landscape ? ph : pw;
-  const pageH = opts.landscape ? pw : ph;
-  const frame: Frame = {
-    x: MARGIN,
-    y: MARGIN,
-    w: pageW - MARGIN * 2,
-    h: pageH - MARGIN * 2,
-  };
   // Only ever the map's own timestamp — reading the clock here would make
   // building a PDF an impure render-time call for the export sheet's preview.
   const stamp = map.updatedAt
@@ -961,6 +976,40 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
   if (opts.lectureId) nodes = sliceToLecture(nodes, opts.lectureId);
   const root = nodes.find((n) => n.parentId === null);
 
+  const fit = opts.paper === 'fit';
+  // The map's own size decides the page. Measuring needs a builder only for
+  // its font metrics, which do not depend on the page, so a throwaway one
+  // breaks what would otherwise be a circular dependency.
+  const fitLayout = fit
+    ? layoutMap(nodes, {
+        rowH: FIT_ROW_H,
+        colW: FIT_COL_W,
+        maxBoxW: FIT_BOX_W,
+        heightOf: pdfHeightOf(new PdfBuilder(1, 1)),
+      })
+    : null;
+
+  const margin = fit ? FIT_MARGIN : MARGIN;
+  let pageW: number;
+  let pageH: number;
+  if (fitLayout) {
+    pageW = Math.min(PDF_MAX, Math.max(360, fitLayout.width + margin * 2));
+    pageH = Math.min(
+      PDF_MAX,
+      Math.max(360, fitLayout.height + margin * 2 + HEADER_H + FOOTER_H)
+    );
+  } else {
+    const [pw, ph] = PAPER[opts.paper];
+    pageW = opts.landscape ? ph : pw;
+    pageH = opts.landscape ? pw : ph;
+  }
+  const frame: Frame = {
+    x: margin,
+    y: margin,
+    w: pageW - margin * 2,
+    h: pageH - margin * 2,
+  };
+
   const render = (withContents: Map<string, number> | null, contentsOffset: number) => {
     const pdf = new PdfBuilder(pageW, pageH);
     if (!root) {
@@ -973,6 +1022,16 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
       nodes: map.nodes,
       root: map.nodes.find((n) => n.parentId === null)?.id ?? root.id,
     };
+
+    if (fit) {
+      overviewPage(pdf, doc, nodes, root.id, frame, map.course ?? null, palette, {
+        rowH: FIT_ROW_H,
+        colW: FIT_COL_W,
+        maxBoxW: FIT_BOX_W,
+      });
+      drawFooter(pdf, stamp, 'Whole map', frame, pageH);
+      return { pdf, pageOf, units: [] as MindMapNode[] };
+    }
 
     if (opts.layout === 'worksheet') {
       worksheetPages(pdf, doc, nodes, root.id, opts, frame, pageH, startNewPage, stamp);
@@ -1015,12 +1074,12 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
   // the contents itself takes.
   const first = render(null, 0);
   if (opts.layout !== 'roomy' || first.units.length < 2) {
-    return { blob: first.pdf.blob(), pages: first.pdf.pageCount };
+    return { blob: first.pdf.blob(), pages: first.pdf.pageCount, pageW, pageH };
   }
   const contentsRows = Math.floor((frame.h - HEADER_H - FOOTER_H - 18) / 22);
   const contentsCount = Math.max(1, Math.ceil(first.units.length / Math.max(contentsRows, 1)));
   const second = render(first.pageOf, contentsCount);
-  return { blob: second.pdf.blob(), pages: second.pdf.pageCount };
+  return { blob: second.pdf.blob(), pages: second.pdf.pageCount, pageW, pageH };
 }
 
 /** A filename that sorts and reads well in Files and GoodNotes. A sliced

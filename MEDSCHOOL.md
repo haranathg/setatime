@@ -272,6 +272,20 @@ notes app with no letterboxing, while Letter and A4 are the right choice if
 the sheet is going to a printer. **Writing guides** are ruled lines, a dot
 grid (better if you draw diagrams in the margin), or blank.
 
+### Just the map, to annotate on the iPad
+
+Pick **Overview** and **Paper → Fit to map**. Instead of squeezing the map
+onto a sheet, it makes the sheet as big as the map: one page, nothing
+scaled down, every label on one line, and generous white space around each
+node to write in. The sheet tells you the size before you commit.
+
+This is the right shape for a tablet, where you pinch and pan around a large
+page — a printer would have to tile it. It is also the only export where
+nothing can be cut off by construction, because nothing is ever shrunk.
+
+If the size comes out bigger than you want, collapse a level or two with the
+depth buttons first; the export prints whatever is expanded.
+
 Whatever is collapsed on screen stays collapsed in the PDF — what you see
 is what you print.
 
