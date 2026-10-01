@@ -508,6 +508,7 @@ export interface AppState {
   stateLog?: StateLogState;
   regulate?: RegulateState;
   todayLayout?: TodayLayoutState;
+  activateLayout?: ActivateLayoutState;
   mindMaps?: MindMapsState;
   horizon?: HorizonState;
   underway?: UnderwayState;
@@ -735,6 +736,70 @@ export function resolveTodayOrder(stored?: TodaySectionKey[]): TodaySectionKey[]
     seen.add(k);
   });
   return out;
+}
+
+// ---------- Activate now (the strategy menu) ----------
+//
+// Which strategies show, and in what order, is personal in exactly the way
+// the Today layout is: the menu exists to be reached for on a bad day, and a
+// list ordered for someone else is a list you scan past. Same shape as the
+// Today layout for that reason — an order, a tucked set, and a resolver that
+// keeps a stored list working as strategies are added.
+
+export type ActivateKey =
+  | 'stuck'
+  | 'start'
+  | 'knockOne'
+  | 'triage'
+  | 'predict'
+  | 'reflect'
+  | 'maps'
+  | 'sort'
+  | 'breathe';
+
+/** Menu order out of the box. */
+export const DEFAULT_ACTIVATE_ORDER: ActivateKey[] = [
+  'stuck', 'start', 'predict', 'triage', 'reflect',
+  'maps', 'knockOne', 'sort', 'breathe',
+];
+
+/** Behind "+ more strategies" out of the box. */
+export const DEFAULT_ACTIVATE_TUCKED: ActivateKey[] = [
+  'knockOne', 'sort', 'breathe',
+];
+
+export interface ActivateLayoutState {
+  order?: ActivateKey[];
+  tucked?: ActivateKey[];
+}
+
+/** Resolve a stored menu order against the defaults — see
+ *  `resolveTodayOrder`, which this deliberately matches. A strategy added in
+ *  a later release lands near its default position rather than never showing
+ *  up, and a strategy that no longer exists is dropped rather than wedging
+ *  the list. */
+export function resolveActivateOrder(stored?: ActivateKey[]): ActivateKey[] {
+  if (!stored || stored.length === 0) return [...DEFAULT_ACTIVATE_ORDER];
+  const known = stored.filter((k) => DEFAULT_ACTIVATE_ORDER.includes(k));
+  const seen = new Set(known);
+  const out = [...known];
+  DEFAULT_ACTIVATE_ORDER.forEach((k, defaultIndex) => {
+    if (seen.has(k)) return;
+    const before = DEFAULT_ACTIVATE_ORDER.slice(0, defaultIndex).filter((x) => seen.has(x));
+    const anchorKey = before[before.length - 1];
+    const at = anchorKey ? out.indexOf(anchorKey) + 1 : 0;
+    out.splice(at, 0, k);
+    seen.add(k);
+  });
+  return out;
+}
+
+/** A stored tucked set, minus anything that no longer exists. A brand-new
+ *  strategy is shown rather than tucked: it is better to meet it once and
+ *  tuck it than never to discover it. */
+export function resolveActivateTucked(stored?: ActivateKey[]): ActivateKey[] {
+  if (!stored) return [...DEFAULT_ACTIVATE_TUCKED];
+  return stored.filter((k) => DEFAULT_ACTIVATE_ORDER.includes(k));
 }
 
 // ---------- Regulate (ways back into the window) ----------
