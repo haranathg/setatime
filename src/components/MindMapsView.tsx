@@ -322,7 +322,7 @@ function MapEditor({
   const [focusRaw, setFocus] = useState<string | null>(() => initialFocusId ?? null);
   const [query, setQuery] = useState('');
   const [lectureFilter, setLectureFilter] = useState<string | null>(null);
-  const [menu, setMenu] = useState<null | 'label' | 'template'>(null);
+  const [menu, setMenu] = useState<null | 'label' | 'template' | 'note'>(null);
   const [labelDraft, setLabelDraft] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -895,6 +895,14 @@ function MapEditor({
                             : 'Section'}
                         </span>
                       )}
+                      {l.node.note && (
+                        <span
+                          className="float-right ml-1 text-[10px] leading-none text-gray-400 dark:text-gray-500"
+                          title={l.node.note}
+                        >
+                          ≡
+                        </span>
+                      )}
                       {l.node.star && (
                         <span
                           className="float-right ml-1 text-[11px] leading-none"
@@ -1026,6 +1034,44 @@ function MapEditor({
           </div>
         )}
 
+        {menu === 'note' && selectedNode && (
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-2 space-y-1.5">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
+              Note on “{selectedNode.text || 'untitled'}”
+            </div>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-relaxed">
+              Something true of this heading as a whole. It prints under the heading and above
+              its children — which is where a remark about all the types belongs, rather than
+              beside them as if it were another one.
+            </p>
+            <textarea
+              value={selectedNode.note ?? ''}
+              onChange={(e) => onUpdateNode(map.id, selected, { note: e.target.value })}
+              onKeyDown={(e) => e.stopPropagation()}
+              rows={3}
+              autoFocus
+              placeholder="All types share…"
+              className="w-full px-2.5 py-1.5 text-[12px] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMenu(null)}
+                className="px-2.5 py-1 text-[11px] font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700"
+              >
+                Done
+              </button>
+              {selectedNode.note && (
+                <button
+                  onClick={() => onUpdateNode(map.id, selected, { note: undefined })}
+                  className="px-2 py-1 text-[11px] font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {menu === 'template' && (
           <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-2 space-y-1">
             <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
@@ -1081,6 +1127,13 @@ function MapEditor({
             disabled={selected === rootId || !hasKids}
           >
             Focus
+          </Act>
+          <Act
+            onClick={() => setMenu(menu === 'note' ? null : 'note')}
+            active={menu === 'note' || !!selectedNode?.note}
+            title="A remark about this heading as a whole"
+          >
+            {selectedNode?.note ? '≡ Note' : 'Note'}
           </Act>
           <Act onClick={() => setMenu(menu === 'template' ? null : 'template')} active={menu === 'template'}>
             Scaffold

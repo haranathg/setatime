@@ -138,6 +138,32 @@ stops a map getting made.
 
 Sibling order is yours: **↑ / ↓** in the bar, or **Alt+↑ / Alt+↓**.
 
+### Where a general note goes
+
+A remark that's true of *all* the types of something is **not** a sibling of
+those types. Filing it beside them is the mistake the tree makes easiest:
+on screen it reads as one more type, and on paper it gets its own writing
+lane exactly like a type does.
+
+The test: **"is this a kind of the thing above it?"** Allergic asthma is a
+kind of asthma. "All types involve reversible airflow obstruction" is not.
+
+So select the heading and tap **Note**. It prints under that heading and
+*above* its children, in grey, with no writing lane of its own — it reads as
+a remark about the heading rather than as another branch. Nodes carrying one
+show a small **≡** on the canvas.
+
+Three shapes worth telling apart, because only the first is a note:
+
+- **A property of the parent** — "all types share reversible obstruction".
+  That's a note on the parent.
+- **An axis every type answers differently** — "age of onset" feels general
+  but each type has its own answer, so it's a child *under each type*, or
+  honestly a table, which a tree is bad at.
+- **A shared sub-topic with substance under it** — `Shared pathophysiology`
+  with children of its own genuinely *is* a child; it earns its place
+  because there's structure beneath it.
+
 ### Dragging a node somewhere else
 
 Drag a node onto another to re-file it. **On a touchscreen, hold it first** —

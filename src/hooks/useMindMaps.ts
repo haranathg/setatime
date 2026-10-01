@@ -260,8 +260,13 @@ export function useMindMaps() {
 
   const updateNode = useCallback(
     (mapId: string, nodeId: string, patch: Partial<Omit<MindMapNode, 'id' | 'parentId'>>) => {
-      const onlyText = Object.keys(patch).length === 1 && 'text' in patch;
-      pushHistory(mapId, onlyText ? `text:${nodeId}` : undefined);
+      // Typed fields coalesce into one undo step per burst; structural flags
+      // (section, star, collapsed) do not, because each is a deliberate act.
+      // Without this a note would push an undo entry per keystroke and blow
+      // the history cap inside a single sentence.
+      const keys = Object.keys(patch);
+      const typed = keys.length === 1 && (keys[0] === 'text' || keys[0] === 'note');
+      pushHistory(mapId, typed ? `${keys[0]}:${nodeId}` : undefined);
       setMaps((prev) =>
         prev.map((m) => {
           if (m.id !== mapId) return m;

@@ -565,6 +565,12 @@ interface OutlineRow {
   text: string[];
   /** The node's tag, but only when it differs from its parent's. */
   tag: string | null;
+  /** The note, wrapped. Printed under the heading and ABOVE any children —
+   *  which is the whole point of it. A general remark about a disease is a
+   *  property of the disease, not a fourth type of it, and filing it as a
+   *  sibling of the types is the mistake a tree makes easy to commit. */
+  note: string[];
+  noteH: number;
   textH: number;
   height: number;
 }
@@ -575,10 +581,13 @@ interface OutlineRow {
  *  and drawing two is how a page ends up two thirds full. */
 const RULE_TOP_GAP = 6;
 const RULE_TAIL = 12;
+const NOTE_SIZE = 8.4;
+const NOTE_LEAD = 1.25;
 
-function rowHeight(textH: number, lines: number, space: number): number {
-  if (lines === 0) return textH + space + 6;
-  return textH + RULE_TOP_GAP + (lines - 1) * RULED + RULE_TAIL;
+function rowHeight(textH: number, noteH: number, lines: number, space: number): number {
+  const head = textH + noteH;
+  if (lines === 0) return head + space + 6;
+  return head + RULE_TOP_GAP + (lines - 1) * RULED + RULE_TAIL;
 }
 
 function buildRows(
@@ -606,6 +615,12 @@ function buildRows(
       const st = rowStyle(depth);
       const textX = frame.x + (depth - 1) * INDENT + 13;
       const wrapped = pdf.wrap(kid.text || ' ', frame.x + frame.w - textX, st.size, st.bold);
+      // Reference text, not writing room: it is set narrower than the label
+      // so it reads as a remark about the heading rather than another row.
+      const noteLines = kid.note
+        ? pdf.wrap(kid.note, frame.x + frame.w - textX - 8, NOTE_SIZE)
+        : [];
+      const noteH = noteLines.length ? 4 + noteLines.length * NOTE_SIZE * NOTE_LEAD : 0;
       // The tag is printed only where it CHANGES. Repeating "Lec 4" down
       // every row of a page that is entirely Lec 4 is noise; printing it
       // once, where the material starts, is the actual information.
@@ -620,8 +635,10 @@ function buildRows(
         lines,
         text: wrapped,
         tag: showTag ? tag! : null,
+        note: noteLines,
+        noteH,
         textH,
-        height: rowHeight(textH, lines, st.space),
+        height: rowHeight(textH, noteH, lines, st.space),
       });
       walk(kid.id, depth + 1);
     }
@@ -715,11 +732,21 @@ function unitOutlinePages(
       });
     }
 
+    if (row.note.length > 0) {
+      const ny = y + row.textH + 4;
+      row.note.forEach((ln, i) => {
+        pdf.text(ln, textX + 8, ny + NOTE_SIZE * 0.85 + i * NOTE_SIZE * NOTE_LEAD, {
+          size: NOTE_SIZE,
+          color: MUTED,
+        });
+      });
+    }
+
     if (row.lines > 0) {
       // drawGuides puts its first rule one gap below the band's top, so the
       // band starts a gap high and is a hair taller than the last rule — the
       // count then matches what rowHeight reserved.
-      const top = y + row.textH + RULE_TOP_GAP;
+      const top = y + row.textH + row.noteH + RULE_TOP_GAP;
       drawGuides(
         pdf,
         { x: textX, y: top - RULED, w: frame.x + frame.w - textX, h: row.lines * RULED + 4 },
@@ -728,10 +755,8 @@ function unitOutlinePages(
     } else if (row.depth <= 2) {
       // A hairline under a heading, so a page of nested headings still has
       // visible structure.
-      pdf.line(textX, y + row.textH + 4, frame.x + frame.w, y + row.textH + 4, {
-        color: FAINT,
-        width: 0.6,
-      });
+      const hairY = y + row.textH + row.noteH + 4;
+      pdf.line(textX, hairY, frame.x + frame.w, hairY, { color: FAINT, width: 0.6 });
     }
 
     y += row.height;
