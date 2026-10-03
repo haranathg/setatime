@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { MindMap, MindMapNode, DropPosition } from '../types';
+import type { MindMap, MindMapNode, DropPosition, MapColorMode } from '../types';
 import { subtreeIds, depthsOf } from '../utils/mindMapLayout';
 import { snapshotMap, forgetSnapshots } from '../utils/mapSnapshots';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
@@ -423,6 +423,13 @@ export function useMindMaps() {
     [pushHistory]
   );
 
+  /** How this map keys colour. Not undoable: it is a way of looking at the
+   *  tree rather than a change to it, and folding it into undo would mean a
+   *  Cmd+Z aimed at a typo silently flipped the view instead. */
+  const setColorBy = useCallback((mapId: string, mode: MapColorMode) => {
+    setMaps((prev) => prev.map((m) => (m.id === mapId ? touch({ ...m, colorBy: mode }) : m)));
+  }, []);
+
   const setWorkingLabel = useCallback(
     (mapId: string, label?: string, lectureId?: string) => {
       setMaps((prev) =>
@@ -603,6 +610,7 @@ export function useMindMaps() {
     moveNodeTo,
     tagSubtree,
     setWorkingLabel,
+    setColorBy,
     collapseToDepth,
     insertTemplate,
     ensureLectureBranch,

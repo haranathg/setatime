@@ -33,11 +33,12 @@ import {
   sectionLabelOf,
   subtreeIds,
   tagOf,
+  labelSlotsOf,
 } from './mindMapLayout';
 import type { MapLayout, SplitMode } from './mindMapLayout';
 import { PdfBuilder } from './pdf';
 import type { RGB } from './pdf';
-import type { MindMap, MindMapNode } from '../types';
+import type { MindMap, MindMapNode, MapColorMode } from '../types';
 
 export type PdfLayoutKind = 'overview' | 'roomy' | 'worksheet';
 export type PdfGuides = 'ruled' | 'dots' | 'blank';
@@ -265,6 +266,10 @@ function drawTree(
      *  a branch printed on its own should be the colour it is on screen. */
     colorRoot: string;
     colorNodes?: MindMapNode[];
+    colorMode?: MapColorMode;
+    /** Resolved against the WHOLE map, never the slice on the page, so a
+     *  label keeps its colour in a focused export. */
+    colorLabels?: Map<string, number | null>;
     /** The node drawn as the anchor box, if any. */
     anchorId: string | null;
     frame: Frame;
@@ -276,6 +281,8 @@ function drawTree(
 ): void {
   const { colorRoot, anchorId, frame, scale, originX, originY, visible } = opts;
   const palette = opts.colorNodes ?? nodes;
+  const cmode = opts.colorMode ?? 'branch';
+  const clabels = opts.colorLabels;
   const px = (x: number) => frame.x + (x - originX) * scale;
   const py = (y: number) => frame.y + (y - originY) * scale;
 
@@ -286,13 +293,13 @@ function drawTree(
     const x2 = px(to.x);
     const y2 = py(to.y + to.h / 2);
     const mid = (x1 + x2) / 2;
-    const color = hexToRgb(branchColorOf(to.node.id, palette, colorRoot) ?? '#94a3b8');
+    const color = hexToRgb(branchColorOf(to.node.id, palette, colorRoot, cmode, clabels) ?? '#94a3b8');
     pdf.curve(x1, y1, mid, y1, mid, y2, x2, y2, { color: tint(color, 0.45), width: 1.1 });
   }
 
   for (const l of layout.nodes) {
     if (!visible.has(l.node.id)) continue;
-    const hex = branchColorOf(l.node.id, palette, colorRoot);
+    const hex = branchColorOf(l.node.id, palette, colorRoot, cmode, clabels);
     const color = hex ? hexToRgb(hex) : INK;
     const x = px(l.x);
     const y = py(l.y);
@@ -360,7 +367,7 @@ function overviewPage(
   rootId: string,
   frame: Frame,
   headline: string | null,
-  palette: { nodes: MindMapNode[]; root: string },
+  palette: ColorPalette,
   layoutOpts?: { rowH?: number; colW?: number; maxBoxW?: number }
 ): void {
   const layout = layoutMap(nodes, { ...layoutOpts, heightOf: pdfHeightOf(pdf) });
@@ -383,6 +390,8 @@ function overviewPage(
   drawTree(pdf, layout, nodes, {
     colorRoot: palette.root,
     colorNodes: palette.nodes,
+    colorMode: palette.mode,
+    colorLabels: palette.labelSlots,
     anchorId: rootId,
     frame: drawn,
     scale,
@@ -412,11 +421,11 @@ function branchPages(
   pageH: number,
   startNewPage: () => void,
   stamp: string,
-  palette: { nodes: MindMapNode[]; root: string },
+  palette: ColorPalette,
   fallbackTrail: string | null,
   onFirstPage?: (page: number) => void
 ): void {
-  const hex = branchColorOf(branch.id, palette.nodes, palette.root);
+  const hex = branchColorOf(branch.id, palette.nodes, palette.root, palette.mode, palette.labelSlots);
   const color = hexToRgb(hex ?? BRANCH_COLORS[0]);
   // A unit's page stops at the next section inside it, which gets its own —
   // otherwise a nested section is drawn on both pages.
@@ -531,6 +540,8 @@ function branchPages(
     drawTree(pdf, layout, nodes, {
       colorRoot: palette.root,
       colorNodes: palette.nodes,
+      colorMode: palette.mode,
+      colorLabels: palette.labelSlots,
       anchorId: hasKids ? null : branch.id,
       frame: { x: frame.x, y: bodyTop, w: treeW * scale, h: bodyH },
       scale,
@@ -611,7 +622,7 @@ function buildRows(
   nodes: MindMapNode[],
   unitId: string,
   stopAt: Set<string>,
-  palette: { nodes: MindMapNode[]; root: string },
+  palette: ColorPalette,
   frame: Frame
 ): OutlineRow[] {
   const childrenOf = new Map<string, MindMapNode[]>();
@@ -624,7 +635,7 @@ function buildRows(
   const rows: OutlineRow[] = [];
   const walk = (id: string, depth: number) => {
     for (const kid of childrenOf.get(id) ?? []) {
-      const hex = branchColorOf(kid.id, palette.nodes, palette.root);
+      const hex = branchColorOf(kid.id, palette.nodes, palette.root, palette.mode, palette.labelSlots);
       const kids = stopAt.has(kid.id) || kid.collapsed ? [] : (childrenOf.get(kid.id) ?? []);
       const isLeaf = kids.length === 0;
       const lines = isLeaf ? (kid.star ? STAR_LINES : LEAF_LINES) : 0;
@@ -674,13 +685,13 @@ function unitOutlinePages(
   pageH: number,
   startNewPage: () => void,
   stamp: string,
-  palette: { nodes: MindMapNode[]; root: string },
+  palette: ColorPalette,
   fallbackTrail: string | null,
   onFirstPage?: (page: number) => void
 ): void {
   const stopAt = nestedSections(nodes, unit.id);
   const rows = buildRows(pdf, nodes, unit.id, stopAt, palette, frame);
-  const unitColor = hexToRgb(branchColorOf(unit.id, palette.nodes, palette.root) ?? BRANCH_COLORS[0]);
+  const unitColor = hexToRgb(branchColorOf(unit.id, palette.nodes, palette.root, palette.mode, palette.labelSlots) ?? BRANCH_COLORS[0]);
 
   const trail =
     pathToRoot(nodes, unit.id)
@@ -804,6 +815,8 @@ function worksheetPages(
   startNewPage: () => void,
   stamp: string
 ): void {
+  const cmode: MapColorMode = map.colorBy ?? 'section';
+  const clabels = labelSlotsOf(map.nodes);
   const childrenOf = new Map<string, MindMapNode[]>();
   for (const n of nodes) {
     if (n.parentId === null) continue;
@@ -821,7 +834,7 @@ function worksheetPages(
   const rows: Row[] = [];
   const walk = (id: string, depth: number) => {
     for (const kid of childrenOf.get(id) ?? []) {
-      const hex = branchColorOf(kid.id, nodes, rootId);
+      const hex = branchColorOf(kid.id, nodes, rootId, cmode, clabels);
       const kids = childrenOf.get(kid.id) ?? [];
       // A heading with children is a signpost; a leaf is where the content
       // goes, so that is where the room goes too.
@@ -900,6 +913,7 @@ function contentsPages(
   units: MindMapNode[],
   nodes: MindMapNode[],
   rootId: string,
+  colorKey: { mode: MapColorMode; labelSlots: Map<string, number | null> },
   pageOf: Map<string, number>,
   offset: number,
   frame: Frame,
@@ -928,7 +942,7 @@ function contentsPages(
       first = false;
     }
     const indent = Math.min(depthOf(unit.id), 3) * 16;
-    const hex = branchColorOf(unit.id, nodes, rootId);
+    const hex = branchColorOf(unit.id, nodes, rootId, colorKey.mode, colorKey.labelSlots);
     const color = hex ? hexToRgb(hex) : INK;
     const x = frame.x + indent;
     pdf.dot(x + 3, y + 4, 2.4, color);
@@ -952,6 +966,15 @@ export interface MindMapPdfResult {
    *  fit-to-map sheet turned out before you commit to it. */
   pageW: number;
   pageH: number;
+}
+
+/** Everything the colour rules need, carried together so a branch printed on
+ *  page 9 is the colour it is on screen and on page 1. */
+interface ColorPalette {
+  nodes: MindMapNode[];
+  root: string;
+  mode: MapColorMode;
+  labelSlots: Map<string, number | null>;
 }
 
 export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapPdfResult {
@@ -1018,9 +1041,14 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
     }
     const startNewPage = () => pdf.addPage();
     const pageOf = new Map<string, number>();
-    const palette = {
+    const palette: ColorPalette = {
+      // Always the whole map and its real root, never the slice on the page:
+      // a branch printed on its own should be the colour it is on screen, and
+      // a label should mean the same colour in every export.
       nodes: map.nodes,
       root: map.nodes.find((n) => n.parentId === null)?.id ?? root.id,
+      mode: map.colorBy ?? 'section',
+      labelSlots: labelSlotsOf(map.nodes),
     };
 
     if (fit) {
@@ -1055,7 +1083,7 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
 
     if (withContents && units.length >= 2) {
       startNewPage();
-      contentsPages(pdf, units, nodes, root.id, withContents, contentsOffset, frame, pageH, startNewPage, stamp);
+      contentsPages(pdf, units, nodes, root.id, palette, withContents, contentsOffset, frame, pageH, startNewPage, stamp);
     }
 
     for (const unit of units) {
