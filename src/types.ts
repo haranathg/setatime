@@ -612,6 +612,11 @@ export interface StateLogState {
  *  'child' reparents; 'before' and 'after' reorder among siblings. */
 export type DropPosition = 'child' | 'before' | 'after';
 
+/** Mirrors the union in utils/mindMapLayout, which owns the colour rules.
+ *  Declared here rather than imported because that module already imports
+ *  this one. */
+export type MapColorMode = 'branch' | 'section' | 'label';
+
 export interface MindMapNode {
   id: string;
   text: string;
@@ -629,6 +634,14 @@ export interface MindMapNode {
    *  write — the only per-node priority worth maintaining while a lecture is
    *  actually happening. */
   star?: boolean;
+  /** An explicit palette slot, inherited by everything beneath it until a
+   *  deeper node sets its own. Meant for sections — colouring a lecture's
+   *  section paints that lecture's whole territory — but allowed anywhere,
+   *  because refusing it on an unmarked node is a rule you would have to
+   *  discover by being told no. A slot rather than a free hex: the palette is
+   *  chosen so its members can be told apart, and a colour picker is how that
+   *  guarantee gets thrown away. */
+  colorSlot?: number;
   /** A short free-text tag: "Lec 4", "Week 2", "Exam 1". Replaces choosing a
    *  lecture from a list, which was more bookkeeping than it was worth. New
    *  nodes inherit the map's working label, so you set it once and type.
@@ -656,6 +669,11 @@ export interface MindMap {
    *  course". */
   lectureId?: string;
   course?: string;
+  /** What colour is keyed to on this map — branch, section or label. Stored
+   *  per map because it is a way of reading this particular tree, not a
+   *  global preference: a single-lecture map has nothing to gain from label
+   *  colouring, and a course map rarely wants anything else. */
+  colorBy?: MapColorMode;
   /** The label new nodes inherit while you are working. Stored rather than
    *  held in component state because coming back to a map the next day and
    *  silently tagging everything with the wrong label is a mistake you would

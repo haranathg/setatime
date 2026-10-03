@@ -238,6 +238,7 @@ function AppMain({
     moveNodeTo: moveMapNodeTo,
     tagSubtree: tagMapSubtree,
     setWorkingLabel: setMapWorkingLabel,
+    setColorBy: setMapColorBy,
     collapseToDepth: collapseMapToDepth,
     insertTemplate: insertMapTemplate,
     ensureLectureBranch,
@@ -843,6 +844,7 @@ function AppMain({
           onMoveNodeTo={moveMapNodeTo}
           onTagSubtree={tagMapSubtree}
           onSetWorkingLabel={setMapWorkingLabel}
+          onSetColorBy={setMapColorBy}
           onCollapseToDepth={collapseMapToDepth}
           onInsertTemplate={insertMapTemplate}
           onGraftMap={graftMap}
