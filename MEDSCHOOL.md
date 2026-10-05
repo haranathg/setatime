@@ -309,6 +309,25 @@ material answers while you are still in the room. Turning a heading into a
 question is the cheapest thing that improves a first pass, because it makes
 the next pass retrieval instead of re-reading.
 
+### The whole map on page 1, then the writing pages
+
+Tick **Whole map on page 1, full size** in the export sheet (on Roomy map
+or Worksheet) and the PDF leads with the entire tree at full size —
+nothing scaled, so nothing can be cut off — with the writing pages after
+it at whatever paper you picked.
+
+That is a single PDF with two page sizes, which is allowed and which
+GoodNotes and Notability handle fine. The sheet tells you how big page 1
+will be before you commit; collapse a level or two first if it is larger
+than you want to scroll.
+
+It is the one to use for a lecture: page 1 is the map you keep pinching
+around to see where you are, and everything after it is where you write.
+
+A printer would have to tile page 1, so leave the box unticked if the
+plan is paper. Unticked, the first page is the map scaled onto a sheet as
+before.
+
 ### Printing just one branch
 
 Focus on a node, then **Export**: it offers that branch by default, printed
