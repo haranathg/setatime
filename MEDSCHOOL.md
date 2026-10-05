@@ -116,6 +116,55 @@ Maps you made before this existed aren't stranded: **Move into another map**
 on the list folds one into another. Its nodes move across and become a
 section, nothing is copied, and the old map goes away.
 
+### Colouring lectures so you can see them overlap
+
+The row of pills next to the depth buttons — **Branch / Section / Label** —
+decides what colour means on this map. It is stored per map, so a
+single-lecture map and the course tree can answer differently.
+
+**Branch** is how it always worked: colour comes from which top-level
+branch a node sits under.
+
+**Section** is the default. Select a section, tap **Colour**, pick one, and
+that section plus everything beneath it takes it. A colour set further
+down overrides the one above, so a sub-topic can have its own without
+leaving its section. **Clear** goes back to inheriting. With no colours
+set anywhere it falls through to the branch rule, so an untouched map
+looks exactly as it did.
+
+This shows **territory** — where each lecture's material lives in the
+tree.
+
+**Label** colours each node by its own label instead, wherever it sits. If
+you are in Lecture 7 and add detail into a branch you built during
+Lecture 3, Section mode paints it Lecture 3's colour because that is
+whose section it is in; Label mode paints it Lecture 7's. So Label is the
+one that shows **reinforcement** — the places two lectures have both
+touched the same part of the tree. Flipping between the two is worth
+doing before an exam: Section tells you what a lecture covered, Label
+tells you what keeps coming back.
+
+Whatever is on screen is what prints. A label keeps the same colour in a
+focused or spliced export as in the whole map, so "Lec 4 is the cyan one"
+stays true across every PDF.
+
+#### Six colours, and why not more
+
+The palette has six, chosen by measuring: they were picked to maximise how
+far apart the closest pair is, then checked against both the white canvas
+and the dark one. The six that shipped before were much worse than they
+looked — indigo and violet were, measurably, the same colour.
+
+Past six labels, the rest stay grey rather than starting the palette
+again, because two lectures sharing a colour is worse than one having
+none. If you have more lectures than that, use Section colours to pin the
+handful you actually want to compare.
+
+Colour is never the only signal. No six hues survive red-green colour
+blindness — that is a limit of the eye, not of the palette — so the strip
+above the canvas names every colour, and each node still carries its own
+text.
+
 ### Finding your way around a big tree
 
 Four controls, all in the strip under the title or the bar at the bottom:

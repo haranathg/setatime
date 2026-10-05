@@ -1,8 +1,11 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import type { MindMap, MindMapNode, DropPosition } from '../types';
+import type { MindMap, MindMapNode, DropPosition, MapColorMode } from '../types';
 import {
   layoutMap,
-  branchColorOf,
+  colorSlotOf,
+  labelSlotsOf,
+  COLOR_MODE_LABELS,
+  MAP_COLORS,
   toOutline,
   pathToRoot,
   depthsOf,
@@ -57,6 +60,7 @@ export default function MindMapsView({
   onMoveNodeTo,
   onTagSubtree,
   onSetWorkingLabel,
+  onSetColorBy,
   onCollapseToDepth,
   onInsertTemplate,
   onGraftMap,
@@ -82,6 +86,7 @@ export default function MindMapsView({
   onMoveNodeTo: (mapId: string, nodeId: string, targetId: string, position: DropPosition) => void;
   onTagSubtree: (mapId: string, nodeId: string, label?: string) => void;
   onSetWorkingLabel: (mapId: string, label?: string, lectureId?: string) => void;
+  onSetColorBy: (mapId: string, mode: MapColorMode) => void;
   onCollapseToDepth: (mapId: string, depth: number) => void;
   onInsertTemplate: (mapId: string, parentId: string, labels: string[]) => void;
   onGraftMap: (sourceId: string, targetId: string, parentId: string) => void;
@@ -134,6 +139,7 @@ export default function MindMapsView({
         onMoveNodeTo={onMoveNodeTo}
         onTagSubtree={onTagSubtree}
         onSetWorkingLabel={onSetWorkingLabel}
+        onSetColorBy={onSetColorBy}
         onCollapseToDepth={onCollapseToDepth}
         onInsertTemplate={onInsertTemplate}
         onUndo={onUndo}
@@ -280,6 +286,7 @@ function MapEditor({
   onMoveNodeTo,
   onTagSubtree,
   onSetWorkingLabel,
+  onSetColorBy,
   onCollapseToDepth,
   onInsertTemplate,
   onUndo,
@@ -301,6 +308,7 @@ function MapEditor({
   onMoveNodeTo: (mapId: string, nodeId: string, targetId: string, position: DropPosition) => void;
   onTagSubtree: (mapId: string, nodeId: string, label?: string) => void;
   onSetWorkingLabel: (mapId: string, label?: string, lectureId?: string) => void;
+  onSetColorBy: (mapId: string, mode: MapColorMode) => void;
   onCollapseToDepth: (mapId: string, depth: number) => void;
   onInsertTemplate: (mapId: string, parentId: string, labels: string[]) => void;
   onUndo: (mapId: string) => void;
@@ -312,6 +320,38 @@ function MapEditor({
   initialFocusId?: string | null;
 }) {
   const rootId = map.nodes.find((n) => n.parentId === null)?.id ?? '';
+  // Section is the default: with no colour set anywhere it falls through to
+  // the branch rule, so an untouched map looks exactly as it always has, and
+  // the first colour you set simply works without finding a switch first.
+  const colorBy: MapColorMode = map.colorBy ?? 'section';
+  const labelSlots = useMemo(() => labelSlotsOf(map.nodes), [map.nodes]);
+
+  /** What the legend says. In label mode that is every distinct label; in
+   *  section mode it is the nodes carrying an explicit colour, named by their
+   *  tag or their own text. Branch mode gets none — "the third branch is the
+   *  rose one" is not a fact worth a strip of chrome. */
+  const { legend, uncoloured } = useMemo(() => {
+    if (colorBy === 'label') {
+      const out: { key: string; name: string; slot: number }[] = [];
+      let grey = 0;
+      for (const [name, slot] of labelSlots) {
+        if (slot === null) grey += 1;
+        else out.push({ key: name, name, slot });
+      }
+      return { legend: out, uncoloured: grey };
+    }
+    if (colorBy === 'section') {
+      const out = map.nodes
+        .filter((n) => n.colorSlot !== undefined)
+        .map((n) => ({
+          key: n.id,
+          name: (tagOf(n) && tagOf(n) !== n.text ? tagOf(n) : n.text) || 'Untitled',
+          slot: n.colorSlot as number,
+        }));
+      return { legend: out, uncoloured: 0 };
+    }
+    return { legend: [] as { key: string; name: string; slot: number }[], uncoloured: 0 };
+  }, [colorBy, labelSlots, map.nodes]);
   const [selectedRaw, setSelected] = useState<string>(() => initialFocusId ?? rootId);
   const [editing, setEditing] = useState<string | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -322,7 +362,7 @@ function MapEditor({
   const [focusRaw, setFocus] = useState<string | null>(() => initialFocusId ?? null);
   const [query, setQuery] = useState('');
   const [lectureFilter, setLectureFilter] = useState<string | null>(null);
-  const [menu, setMenu] = useState<null | 'label' | 'template' | 'note'>(null);
+  const [menu, setMenu] = useState<null | 'label' | 'template' | 'note' | 'color'>(null);
   const [labelDraft, setLabelDraft] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -666,7 +706,54 @@ function MapEditor({
             ∞
           </button>
         </span>
+        <span className="flex items-center gap-0.5 shrink-0" title="What colour is keyed to">
+          {(['branch', 'section', 'label'] as MapColorMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => onSetColorBy(map.id, m)}
+              title={COLOR_MODE_HINT[m]}
+              className={`px-1.5 h-6 text-[10px] font-bold uppercase tracking-wider rounded border transition-colors ${
+                colorBy === m
+                  ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40'
+                  : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-indigo-400'
+              }`}
+            >
+              {COLOR_MODE_LABELS[m]}
+            </button>
+          ))}
+        </span>
       </div>
+
+      {/* The legend. Colour cannot carry identity on its own — no set of six
+          hues survives red-green colour blindness, and past six labels there
+          are no hues left to give — so what each colour stands for is written
+          down. It doubles as the answer to "which lecture was teal again?". */}
+      {legend.length > 0 && (
+        <div className="flex-shrink-0 px-3 py-1.5 border-b border-gray-100 dark:border-gray-800 flex items-center gap-2.5 overflow-x-auto">
+          <span className="text-[9px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 shrink-0">
+            {colorBy === 'label' ? 'Labels' : 'Sections'}
+          </span>
+          {legend.map((e) => (
+            <span key={e.key} className="flex items-center gap-1 shrink-0">
+              <span
+                className="w-2.5 h-2.5 rounded-sm"
+                style={{ background: cssColor(e.slot) }}
+              />
+              <span className="text-[10px] text-gray-600 dark:text-gray-300 truncate max-w-[10rem]">
+                {e.name}
+              </span>
+            </span>
+          ))}
+          {uncoloured > 0 && (
+            <span
+              className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0"
+              title="The palette has six colours that can be reliably told apart; the rest stay grey"
+            >
+              +{uncoloured} grey
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Focus breadcrumb. Only present while focused, because the way out
           has to be as obvious as the way in. */}
@@ -759,7 +846,7 @@ function MapEditor({
               const x2 = to.x;
               const y2 = to.y + to.h / 2;
               const mid = x1 + (x2 - x1) / 2;
-              const color = branchColorOf(to.node.id, map.nodes, rootId) ?? '#9ca3af';
+              const color = cssColor(colorSlotOf(to.node.id, map.nodes, rootId, colorBy, labelSlots));
               return (
                 <path
                   key={`${from.node.id}-${to.node.id}`}
@@ -778,7 +865,8 @@ function MapEditor({
             style={{ transform: `scale(${zoom})`, transformOrigin: '0 0' }}
           >
             {layout.nodes.map((l) => {
-              const color = branchColorOf(l.node.id, map.nodes, rootId);
+              const slot = colorSlotOf(l.node.id, map.nodes, rootId, colorBy, labelSlots);
+              const color = slot === null ? null : cssColor(slot);
               const isRoot = l.depth === 0;
               const isSel = l.node.id === selected;
               const isSection = !!l.node.section && !isRoot;
@@ -1072,6 +1160,44 @@ function MapEditor({
           </div>
         )}
 
+        {menu === 'color' && (
+          <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-2 space-y-2">
+            <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
+              Colour “{selectedNode?.text || 'untitled'}” and everything under it
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {MAP_COLORS.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => selected && onUpdateNode(map.id, selected, { colorSlot: i })}
+                  aria-label={`Colour ${i + 1}`}
+                  title={`Colour ${i + 1}`}
+                  className={`w-7 h-7 rounded-lg border-2 transition-transform ${
+                    selectedNode?.colorSlot === i
+                      ? 'border-gray-900 dark:border-gray-100 scale-110'
+                      : 'border-transparent hover:scale-105'
+                  }`}
+                  style={{ background: cssColor(i) }}
+                />
+              ))}
+              <button
+                onClick={() => selected && onUpdateNode(map.id, selected, { colorSlot: undefined })}
+                disabled={selectedNode?.colorSlot === undefined}
+                className="px-2 py-1 text-[10px] uppercase tracking-wider font-bold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400 disabled:opacity-30 transition-colors"
+                title="Go back to inheriting from above"
+              >
+                Clear
+              </button>
+            </div>
+            {colorBy !== 'section' && (
+              <p className="text-[10px] text-amber-600 dark:text-amber-400 leading-snug">
+                Colour is keyed to {COLOR_MODE_LABELS[colorBy].toLowerCase()} right now, so this
+                won't show until you switch to Section.
+              </p>
+            )}
+          </div>
+        )}
+
         {menu === 'template' && (
           <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-2 space-y-1">
             <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
@@ -1135,6 +1261,14 @@ function MapEditor({
           >
             {selectedNode?.note ? '≡ Note' : 'Note'}
           </Act>
+          <Act
+            onClick={() => setMenu(menu === 'color' ? null : 'color')}
+            active={menu === 'color' || selectedNode?.colorSlot !== undefined}
+            disabled={!selected}
+            title="Colour this node and everything under it"
+          >
+            {selectedNode?.colorSlot !== undefined ? '◆ Colour' : 'Colour'}
+          </Act>
           <Act onClick={() => setMenu(menu === 'template' ? null : 'template')} active={menu === 'template'}>
             Scaffold
           </Act>
@@ -1178,6 +1312,19 @@ function MapEditor({
       </footer>
     </div>
   );
+}
+
+/** A palette slot as a CSS custom property, so the canvas restyles itself
+ *  when the system theme flips. An inline style cannot answer a media query,
+ *  which is why these are not the hexes. */
+const COLOR_MODE_HINT: Record<MapColorMode, string> = {
+  branch: 'Colour by which top-level branch a node sits under',
+  section: 'Colour a section and its whole subtree takes it — where each lecture\'s territory is',
+  label: 'Colour by each node\'s own label — where two lectures have both touched the same place',
+};
+
+function cssColor(slot: number | null): string {
+  return slot === null ? 'var(--map-cx)' : `var(--map-c${slot})`;
 }
 
 function Act({

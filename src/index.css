@@ -35,6 +35,32 @@ body {
   }
 }
 
+/* Mind map branch colours.
+   Custom properties rather than literals because the canvas sets these
+   inline, and an inline style cannot answer a media query. The dark steps are
+   the same hues restepped for the dark surface — indigo and rose fall below
+   3:1 against gray-900 at their light values. The PDF does not read these; it
+   uses the light hexes directly, because paper is white whatever the screen
+   is doing. Kept in sync with MAP_COLORS / MAP_COLORS_DARK in
+   utils/mindMapLayout.ts. */
+:root {
+  --map-c0: #4f46e5;
+  --map-c1: #0891b2;
+  --map-c2: #65a30d;
+  --map-c3: #be123c;
+  --map-c4: #c026d3;
+  --map-c5: #d97706;
+  --map-cx: #9ca3af;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --map-c0: #6366f1;
+    --map-c3: #e11d48;
+    --map-cx: #6b7280;
+  }
+}
+
 #root {
   /* dvh tracks the *visible* viewport on iOS as the URL bar collapses,
      so the app fits without overflow under the home indicator. */
