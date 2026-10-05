@@ -187,6 +187,24 @@ stops a map getting made.
 
 Sibling order is yours: **↑ / ↓** in the bar, or **Alt+↑ / Alt+↓**.
 
+#### Seeing and adding one
+
+A node carrying a note shows an amber **≡** at its top-right corner. **Hover
+it and the whole note appears** in a card below the node — no clicking, no
+selecting, no reading the footer.
+
+Three ways in, so there is always a short one:
+
+- **Click the ≡** on a node that has a note — opens it for editing.
+- **Hover any node without one** and a faint **+≡** appears. Click it to
+  start a note there.
+- **Press N** with a node selected. (It does nothing while you are
+  renaming, so it still types an `n` there.)
+
+On a touchscreen there is no hover, so the **≡** is a real button: tap it to
+read and edit. The **+≡** shows on whichever node is selected, which is the
+touch way in.
+
 ### Where a general note goes
 
 A remark that's true of *all* the types of something is **not** a sibling of
@@ -197,10 +215,9 @@ lane exactly like a type does.
 The test: **"is this a kind of the thing above it?"** Allergic asthma is a
 kind of asthma. "All types involve reversible airflow obstruction" is not.
 
-So select the heading and tap **Note**. It prints under that heading and
-*above* its children, in grey, with no writing lane of its own — it reads as
-a remark about the heading rather than as another branch. Nodes carrying one
-show a small **≡** on the canvas.
+So put it on the heading (see above for the three ways in). It prints under
+that heading and *above* its children, in grey, with no writing lane of its
+own — it reads as a remark about the heading rather than as another branch.
 
 Three shapes worth telling apart, because only the first is a note:
 
