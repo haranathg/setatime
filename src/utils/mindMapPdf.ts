@@ -66,6 +66,17 @@ export interface MindMapPdfOptions {
    *  matches how a course tree is actually organised; branches is what maps
    *  did before sections existed; lectures gives a page per session. */
   splitBy?: SplitMode;
+  /** Make page one the whole map at full size — as large as the map needs,
+   *  so nothing is scaled and nothing can be cut off — and leave the writing
+   *  pages at the chosen paper size.
+   *
+   *  Fitting a course tree onto a sheet means scaling down, and scaling down
+   *  against the 6pt font floor is exactly where labels stop fitting their
+   *  boxes. Sizing the page to the map instead makes truncation impossible by
+   *  construction, and PDF has always allowed one document to mix page sizes.
+   *
+   *  Only meaningful for the layouts that have pages after the map. */
+  fullMapPage?: boolean;
   /** Print one branch rather than the whole tree — the node you are focused
    *  on, re-rooted so it prints as a document in its own right. */
   rootId?: string;
@@ -901,6 +912,11 @@ export interface MindMapPdfResult {
    *  fit-to-map sheet turned out before you commit to it. */
   pageW: number;
   pageH: number;
+  /** The full-size map page's own size, when there is one. The writing pages
+   *  keep `pageW`/`pageH`, so the two differ in exactly the document this
+   *  option produces. */
+  mapW?: number;
+  mapH?: number;
 }
 
 /** The contents page. Worth its own page once a tree holds a course: twenty
@@ -959,14 +975,6 @@ function contentsPages(
   drawFooter(pdf, stamp, `Page ${pdf.pageCount}`, frame, pageH);
 }
 
-export interface MindMapPdfResult {
-  blob: Blob;
-  pages: number;
-  /** The page size in points, so the export sheet can say how big a
-   *  fit-to-map sheet turned out before you commit to it. */
-  pageW: number;
-  pageH: number;
-}
 
 /** Everything the colour rules need, carried together so a branch printed on
  *  page 9 is the colour it is on screen and on page 1. */
@@ -1000,10 +1008,14 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
   const root = nodes.find((n) => n.parentId === null);
 
   const fit = opts.paper === 'fit';
+  // A full-size map page only earns its place when something follows it;
+  // on its own it is just 'Fit to map' with extra steps.
+  const bigMap = !!opts.fullMapPage && !fit
+    && (opts.layout === 'roomy' || opts.layout === 'worksheet');
   // The map's own size decides the page. Measuring needs a builder only for
   // its font metrics, which do not depend on the page, so a throwaway one
   // breaks what would otherwise be a circular dependency.
-  const fitLayout = fit
+  const fitLayout = fit || bigMap
     ? layoutMap(nodes, {
         rowH: FIT_ROW_H,
         colW: FIT_COL_W,
@@ -1013,14 +1025,30 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
     : null;
 
   const margin = fit ? FIT_MARGIN : MARGIN;
+
+  // The map page's own size, used only when it is a page of its own ahead of
+  // the writing pages.
+  let mapW = 0;
+  let mapH = 0;
+  if (fitLayout) {
+    mapW = Math.min(PDF_MAX, Math.max(360, fitLayout.width + FIT_MARGIN * 2));
+    mapH = Math.min(
+      PDF_MAX,
+      Math.max(360, fitLayout.height + FIT_MARGIN * 2 + HEADER_H + FOOTER_H)
+    );
+  }
+  const mapFrame: Frame = {
+    x: FIT_MARGIN,
+    y: FIT_MARGIN,
+    w: mapW - FIT_MARGIN * 2,
+    h: mapH - FIT_MARGIN * 2,
+  };
+
   let pageW: number;
   let pageH: number;
-  if (fitLayout) {
-    pageW = Math.min(PDF_MAX, Math.max(360, fitLayout.width + margin * 2));
-    pageH = Math.min(
-      PDF_MAX,
-      Math.max(360, fitLayout.height + margin * 2 + HEADER_H + FOOTER_H)
-    );
+  if (fitLayout && fit) {
+    pageW = mapW;
+    pageH = mapH;
   } else {
     const [pw, ph] = PAPER[opts.paper];
     pageW = opts.landscape ? ph : pw;
@@ -1033,8 +1061,22 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
     h: pageH - margin * 2,
   };
 
+  // A focused export names where the branch came from rather than repeating
+  // the branch's own name back at it. Hoisted because the map page needs it
+  // too, and the map page now precedes the worksheet layout as well.
+  const headline = focusName
+    ? pathToRoot(map.nodes, opts.rootId!)
+        .slice(0, -1)
+        .map((n) => n.text)
+        .join('  ›  ') || map.title
+    : opts.lectureId
+      ? (opts.lectureId ?? map.course ?? null)
+      : (map.course ?? null);
+
   const render = (withContents: Map<string, number> | null, contentsOffset: number) => {
-    const pdf = new PdfBuilder(pageW, pageH);
+    // Page one is the map at its own size when asked for; everything after it
+    // goes back to the chosen paper.
+    const pdf = new PdfBuilder(bigMap ? mapW : pageW, bigMap ? mapH : pageH);
     if (!root) {
       drawHeader(pdf, doc.title, 'Empty map', frame);
       return { pdf, pageOf: new Map<string, number>(), units: [] as MindMapNode[] };
@@ -1061,33 +1103,41 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
       return { pdf, pageOf, units: [] as MindMapNode[] };
     }
 
+    if (bigMap) {
+      overviewPage(pdf, doc, nodes, root.id, mapFrame, headline, palette, {
+        rowH: FIT_ROW_H,
+        colW: FIT_COL_W,
+        maxBoxW: FIT_BOX_W,
+      });
+      drawFooter(pdf, stamp, 'Whole map', mapFrame, mapH);
+      pdf.addPage(pageW, pageH);
+    }
+
     if (opts.layout === 'worksheet') {
       worksheetPages(pdf, doc, nodes, root.id, opts, frame, pageH, startNewPage, stamp);
       return { pdf, pageOf, units: [] as MindMapNode[] };
     }
 
     const units = opts.layout === 'roomy' ? pageUnits(nodes, opts.splitBy ?? 'section') : [];
-    // A focused export names where the branch came from rather than
-    // repeating the branch's own name back at it.
-    const headline = focusName
-      ? pathToRoot(map.nodes, opts.rootId!)
-          .slice(0, -1)
-          .map((n) => n.text)
-          .join('  ›  ') || map.title
-      : opts.lectureId
-        ? (opts.lectureId ?? map.course ?? null)
-        : (map.course ?? null);
 
-    overviewPage(pdf, doc, nodes, root.id, frame, headline, palette);
-    drawFooter(pdf, stamp, units.length ? 'Overview' : 'Page 1', frame, pageH);
+    // The scaled overview is what the full-size map page replaces, so only
+    // one of the two is ever drawn.
+    if (!bigMap) {
+      overviewPage(pdf, doc, nodes, root.id, frame, headline, palette);
+      drawFooter(pdf, stamp, units.length ? 'Overview' : 'Page 1', frame, pageH);
+    }
 
     if (withContents && units.length >= 2) {
-      startNewPage();
+      if (!bigMap) startNewPage();
       contentsPages(pdf, units, nodes, root.id, palette, withContents, contentsOffset, frame, pageH, startNewPage, stamp);
     }
 
+    let firstUnit = bigMap && !(withContents && units.length >= 2);
     for (const unit of units) {
-      startNewPage();
+      // The map page already turned the page; turning it again would leave a
+      // blank sheet between the map and the first unit.
+      if (firstUnit) firstUnit = false;
+      else startNewPage();
       const render = (opts.nodeStyle ?? 'outline') === 'map' ? branchPages : unitOutlinePages;
       render(
         pdf, doc, nodes, unit, opts, frame, pageH, startNewPage, stamp,
@@ -1102,12 +1152,14 @@ export function buildMindMapPdf(map: MindMap, opts: MindMapPdfOptions): MindMapP
   // the contents itself takes.
   const first = render(null, 0);
   if (opts.layout !== 'roomy' || first.units.length < 2) {
-    return { blob: first.pdf.blob(), pages: first.pdf.pageCount, pageW, pageH };
+    return { blob: first.pdf.blob(), pages: first.pdf.pageCount, pageW, pageH,
+      mapW: bigMap ? mapW : undefined, mapH: bigMap ? mapH : undefined };
   }
   const contentsRows = Math.floor((frame.h - HEADER_H - FOOTER_H - 18) / 22);
   const contentsCount = Math.max(1, Math.ceil(first.units.length / Math.max(contentsRows, 1)));
   const second = render(first.pageOf, contentsCount);
-  return { blob: second.pdf.blob(), pages: second.pdf.pageCount, pageW, pageH };
+  return { blob: second.pdf.blob(), pages: second.pdf.pageCount, pageW, pageH,
+    mapW: bigMap ? mapW : undefined, mapH: bigMap ? mapH : undefined };
 }
 
 /** A filename that sorts and reads well in Files and GoodNotes. A sliced

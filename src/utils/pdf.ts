@@ -102,25 +102,50 @@ export interface StrokeOptions {
   dash?: [number, number];
 }
 
+interface Page {
+  w: number;
+  h: number;
+  body: string;
+}
+
 export class PdfBuilder {
-  readonly pageW: number;
-  readonly pageH: number;
-  private pages: string[] = [];
+  /** Pages carry their own size. A document whose first page is a whole
+   *  mind map at full size and whose rest are letter-sized writing pages is
+   *  one file with two MediaBoxes, which PDF has always allowed and every
+   *  reader handles — it is what a scanned document with one foldout looks
+   *  like. */
+  private finished: Page[] = [];
   private cur: string[] = [];
+  private curW: number;
+  private curH: number;
 
   constructor(pageW: number, pageH: number) {
-    this.pageW = pageW;
-    this.pageH = pageH;
+    this.curW = pageW;
+    this.curH = pageH;
   }
 
-  /** Finish the current page and begin a new one. */
-  addPage(): void {
-    this.pages.push(this.cur.join('\n'));
+  /** The page being drawn right now. Everything that flips a coordinate
+   *  reads this, so it has to follow the current page rather than the
+   *  document. */
+  get pageW(): number {
+    return this.curW;
+  }
+
+  get pageH(): number {
+    return this.curH;
+  }
+
+  /** Finish the current page and begin a new one, optionally at a different
+   *  size. Omitting the size keeps the one in force. */
+  addPage(w?: number, h?: number): void {
+    this.finished.push({ w: this.curW, h: this.curH, body: this.cur.join('\n') });
     this.cur = [];
+    if (w !== undefined) this.curW = w;
+    if (h !== undefined) this.curH = h;
   }
 
   get pageCount(): number {
-    return this.pages.length + 1;
+    return this.finished.length + 1;
   }
 
   /** Advance width of `s` at `size`, in points. */
@@ -331,7 +356,10 @@ export class PdfBuilder {
   /** Serialise the whole document. Object offsets are counted in BYTES, not
    *  characters, which is why the body is assembled as Latin-1 bytes first. */
   private bytes(): Uint8Array {
-    const pages = [...this.pages, this.cur.join('\n')];
+    const pages: Page[] = [
+      ...this.finished,
+      { w: this.curW, h: this.curH, body: this.cur.join('\n') },
+    ];
     const n = pages.length;
 
     // 1 catalog, 2 pages tree, 3..3+n-1 page objects, then n content streams,
@@ -351,12 +379,13 @@ export class PdfBuilder {
     );
     for (let i = 0; i < n; i++) {
       objs.push(
-        `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${num(this.pageW)} ${num(this.pageH)}] ` +
+        `<< /Type /Page /Parent 2 0 R ` +
+          `/MediaBox [0 0 ${num(pages[i].w)} ${num(pages[i].h)}] ` +
           `/Resources << /Font << /F1 ${fontRegular} 0 R /F2 ${fontBold} 0 R >> >> ` +
           `/Contents ${firstContent + i} 0 R >>`
       );
     }
-    for (const body of pages) {
+    for (const { body } of pages) {
       objs.push(`<< /Length ${latin1Length(body)} >>\nstream\n${body}\nendstream`);
     }
     objs.push(`<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>`);

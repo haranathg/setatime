@@ -1663,6 +1663,35 @@ function ExportSheet({
           </p>
         )}
 
+        {/* The map at full size on page one, writing pages after it. Only
+            offered for the layouts that have pages after the map — on its own
+            it would just be 'Fit to map' with extra steps. */}
+        {opts.paper !== 'fit' && (opts.layout === 'roomy' || opts.layout === 'worksheet') && (
+          <label className="mt-3 flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!!opts.fullMapPage}
+              onChange={(e) => set({ fullMapPage: e.target.checked })}
+              className="mt-0.5 accent-indigo-600"
+            />
+            <span className="text-[11px] text-gray-600 dark:text-gray-300 leading-relaxed">
+              <span className="font-semibold">Whole map on page 1, full size</span>
+              {built.mapW && built.mapH ? (
+                <span className="text-gray-500 dark:text-gray-400">
+                  {' '}— {(built.mapW / 72).toFixed(0)} × {(built.mapH / 72).toFixed(0)} in,
+                  nothing scaled or cut off. The writing pages stay{' '}
+                  {PAPER_LABELS[opts.paper]}.
+                </span>
+              ) : (
+                <span className="text-gray-500 dark:text-gray-400">
+                  {' '}— as large as the map needs, so nothing is cut off. The writing pages stay{' '}
+                  {PAPER_LABELS[opts.paper]}.
+                </span>
+              )}
+            </span>
+          </label>
+        )}
+
         {labelsInMap.length > 0 && (
           <>
             <div className="text-[11px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-semibold mt-4 mb-1.5">
