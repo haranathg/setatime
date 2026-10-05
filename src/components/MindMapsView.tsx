@@ -364,6 +364,9 @@ function MapEditor({
   const [lectureFilter, setLectureFilter] = useState<string | null>(null);
   const [menu, setMenu] = useState<null | 'label' | 'template' | 'note' | 'color'>(null);
   const [labelDraft, setLabelDraft] = useState('');
+  /** Which node's note is being peeked at. Hover only — a touchscreen has no
+   *  hover, which is why the marker is a button rather than just a sign. */
+  const [peekNote, setPeekNote] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -530,6 +533,12 @@ function MapEditor({
       e.preventDefault();
       if (e.shiftKey) onRedo(map.id);
       else onUndo(map.id);
+      return;
+    }
+    // After the isEditing guard, so it cannot fire mid-rename.
+    if (e.key.toLowerCase() === 'n' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault();
+      setMenu('note');
       return;
     }
     if (e.key === '[') { e.preventDefault(); outdent(selected); return; }
@@ -878,6 +887,7 @@ function MapEditor({
                 (matches !== null && matches.size > 0 && !matches.has(l.node.id));
               const isMatch = matches !== null && matches.has(l.node.id);
               const isDragging = dragId === l.node.id;
+              const peeking = peekNote === l.node.id && !!l.node.note && !isDragging;
               const hint = drop && drop.id === l.node.id && dragId
                 ? (canDrop(dragId, l.node.id, drop.position) ? drop.position : null)
                 : null;
@@ -885,8 +895,18 @@ function MapEditor({
                 <div
                   key={l.node.id}
                   data-node-id={l.node.id}
-                  style={{ left: l.x + 12, top: l.y + 20, width: l.w, minHeight: l.h }}
-                  className={`absolute transition-opacity ${dimmed ? 'opacity-25' : ''} ${
+                  style={{
+                    left: l.x + 12,
+                    top: l.y + 20,
+                    width: l.w,
+                    minHeight: l.h,
+                    // The peek card overlaps whatever is below it, so the node
+                    // showing one has to come forward or it reads underneath.
+                    zIndex: peeking ? 30 : undefined,
+                  }}
+                  onMouseEnter={() => l.node.note && setPeekNote(l.node.id)}
+                  onMouseLeave={() => setPeekNote((h) => (h === l.node.id ? null : h))}
+                  className={`group absolute transition-opacity ${dimmed ? 'opacity-25' : ''} ${
                     isDragging ? 'opacity-40' : ''
                   }`}
                 >
@@ -983,14 +1003,6 @@ function MapEditor({
                             : 'Section'}
                         </span>
                       )}
-                      {l.node.note && (
-                        <span
-                          className="float-right ml-1 text-[10px] leading-none text-gray-400 dark:text-gray-500"
-                          title={l.node.note}
-                        >
-                          ≡
-                        </span>
-                      )}
                       {l.node.star && (
                         <span
                           className="float-right ml-1 text-[11px] leading-none"
@@ -1010,6 +1022,52 @@ function MapEditor({
                         {l.node.text || 'untitled'}
                       </span>
                     </button>
+                  )}
+
+                  {/* The note control. A sibling of the node button rather
+                      than a child of it, because a button inside a button is
+                      invalid and the browser stops dispatching the inner one.
+                      Carrying a note it is always visible; empty it appears on
+                      hover, or whenever the node is selected so a touchscreen
+                      — which has no hover — still has a way in. */}
+                  {(l.node.note || isSel || !isRoot) && (
+                    <button
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelected(l.node.id);
+                        setEditing(null);
+                        setMenu('note');
+                      }}
+                      title={l.node.note ? l.node.note : 'Add a note (N)'}
+                      aria-label={
+                        l.node.note
+                          ? `Note on ${l.node.text || 'untitled'}`
+                          : `Add a note to ${l.node.text || 'untitled'}`
+                      }
+                      className={`absolute -top-2 right-1 z-10 px-1 h-4 flex items-center rounded text-[10px] leading-none border transition-opacity ${
+                        l.node.note
+                          ? 'bg-amber-100 dark:bg-amber-900/60 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 opacity-100'
+                          : `bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 ${
+                              isSel ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                            }`
+                      }`}
+                    >
+                      {l.node.note ? '≡' : '+≡'}
+                    </button>
+                  )}
+
+                  {/* The peek. Read-only and click-through: a card that ate
+                      the pointer would flicker as it appeared under it. */}
+                  {peeking && (
+                    <div className="absolute left-0 top-full mt-1.5 w-56 max-w-[14rem] p-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 shadow-lg pointer-events-none">
+                      <div className="text-[9px] uppercase tracking-wider font-bold text-amber-700 dark:text-amber-400 mb-0.5">
+                        Note
+                      </div>
+                      <p className="text-[11px] leading-snug text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words">
+                        {l.node.note}
+                      </p>
+                    </div>
                   )}
 
                   {l.hiddenChildren > 0 && (
@@ -1257,7 +1315,7 @@ function MapEditor({
           <Act
             onClick={() => setMenu(menu === 'note' ? null : 'note')}
             active={menu === 'note' || !!selectedNode?.note}
-            title="A remark about this heading as a whole"
+            title="A remark about this heading as a whole (N)"
           >
             {selectedNode?.note ? '≡ Note' : 'Note'}
           </Act>
@@ -1304,7 +1362,7 @@ function MapEditor({
           </span>
         </div>
         <p className="text-[10px] text-gray-400 dark:text-gray-500">
-          Tab = branch · Enter = sibling · [ / ] = out / in · Alt+↑ / Alt+↓ = reorder ·
+          Tab = branch · Enter = sibling · N = note · [ / ] = out / in · Alt+↑ / Alt+↓ = reorder ·
           Cmd/Ctrl+Z = undo · Delete removes the node and everything under it.
           Drag a node onto another to re-file it — hold first on a touchscreen; drop on the
           middle to make it a child, or near the top or bottom edge to place it above or below.
