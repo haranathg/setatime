@@ -5,6 +5,9 @@ import {
   colorSlotOf,
   labelSlotsOf,
   COLOR_MODE_LABELS,
+  DENSITY,
+  DENSITY_LABELS,
+  type MapDensity,
   MAP_COLORS,
   toOutline,
   pathToRoot,
@@ -367,6 +370,48 @@ function MapEditor({
   /** Which node's note is being peeked at. Hover only — a touchscreen has no
    *  hover, which is why the marker is a button rather than just a sign. */
   const [peekNote, setPeekNote] = useState<string | null>(null);
+  /** Per device rather than per map: how tightly a tree should pack depends
+   *  on the screen in front of you, not on the tree. The same course map
+   *  wants Tight on a laptop and Roomy on a monitor, and storing it with the
+   *  map would mean one of those two is always wrong. */
+  const [density, setDensityRaw] = useState<MapDensity>(loadDensity);
+  const setDensity = useCallback((d: MapDensity) => {
+    setDensityRaw(d);
+    try {
+      localStorage.setItem(DENSITY_KEY, d);
+    } catch {
+      // A density that does not survive a reload still beats a thrown error.
+    }
+  }, []);
+  /** Full screen. The editor covers the app rather than the app hiding its
+   *  own chrome, which keeps every bit of this in one component. */
+  const [immersive, setImmersive] = useState(false);
+  const shellRef = useRef<HTMLDivElement>(null);
+
+  const exitImmersive = useCallback(() => {
+    setImmersive(false);
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+  }, []);
+
+  const enterImmersive = useCallback(() => {
+    setImmersive(true);
+    // Native full screen takes the browser's own chrome too, which is most of
+    // what is left. iOS Safari does not implement it for arbitrary elements,
+    // so it is a bonus rather than the mechanism — the overlay is what makes
+    // this work everywhere.
+    const el = shellRef.current;
+    if (el?.requestFullscreen) void el.requestFullscreen().catch(() => {});
+  }, []);
+
+  // Leaving full screen by the browser's own route — Escape, the system
+  // gesture, a window change — must not leave the overlay behind.
+  useEffect(() => {
+    const sync = () => {
+      if (!document.fullscreenElement) setImmersive(false);
+    };
+    document.addEventListener('fullscreenchange', sync);
+    return () => document.removeEventListener('fullscreenchange', sync);
+  }, []);
   const [showHistory, setShowHistory] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -399,8 +444,13 @@ function MapEditor({
   }, [query, map.nodes, parentOf]);
 
   const layout = useMemo(
-    () => layoutMap(map.nodes, { rootId: viewRootId, forceExpanded: openForSearch }),
-    [map.nodes, viewRootId, openForSearch]
+    () =>
+      layoutMap(map.nodes, {
+        rootId: viewRootId,
+        forceExpanded: openForSearch,
+        ...DENSITY[density],
+      }),
+    [map.nodes, viewRootId, openForSearch, density]
   );
 
   // Derive rather than correct-after-the-fact: deleting a node, or focusing
@@ -524,6 +574,13 @@ function MapEditor({
       return;
     }
     if (isEditing) return;
+    // Only once the rename is dealt with — and it matters on iOS, where
+    // there is no native full screen to press Escape out of.
+    if (e.key === 'Escape' && immersive) {
+      e.preventDefault();
+      exitImmersive();
+      return;
+    }
     if (e.key === 'Delete' || e.key === 'Backspace') {
       e.preventDefault();
       deleteSelected();
@@ -624,7 +681,24 @@ function MapEditor({
   const hasKids = (selectedLaid?.childIds.length ?? 0) > 0;
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-50 dark:bg-gray-950 min-h-0">
+    <div
+      ref={shellRef}
+      className={
+        immersive
+          ? 'fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-gray-950'
+          : 'flex-1 flex flex-col bg-gray-50 dark:bg-gray-950 min-h-0'
+      }
+      style={
+        immersive
+          ? {
+              // The overlay covers the app's own safe-area padding, so it has
+              // to re-apply it or the toolbar sits under the notch.
+              paddingTop: 'env(safe-area-inset-top, 0px)',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            }
+          : undefined
+      }
+    >
       <header className="flex-shrink-0 px-4 py-2.5 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 flex items-center gap-3">
         <button
           onClick={onBack}
@@ -635,6 +709,17 @@ function MapEditor({
         <span className="flex-1 min-w-0 truncate text-sm font-semibold text-gray-900 dark:text-gray-100">
           {map.title}
         </span>
+        <button
+          onClick={() => (immersive ? exitImmersive() : enterImmersive())}
+          className={`text-[11px] uppercase tracking-wider font-bold shrink-0 ${
+            immersive
+              ? 'text-indigo-600 dark:text-indigo-400'
+              : 'text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400'
+          }`}
+          title={immersive ? 'Leave full screen (Esc)' : 'Full screen — hide everything but the map'}
+        >
+          {immersive ? '⤡ Exit' : '⤢ Full'}
+        </button>
         <button
           onClick={() => setShowHistory(true)}
           className="text-[11px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 shrink-0"
@@ -714,6 +799,22 @@ function MapEditor({
           >
             ∞
           </button>
+        </span>
+        <span className="flex items-center gap-0.5 shrink-0" title="How tightly the tree is packed">
+          {(['comfortable', 'compact', 'tight'] as MapDensity[]).map((d) => (
+            <button
+              key={d}
+              onClick={() => setDensity(d)}
+              title={DENSITY_HINT[d]}
+              className={`px-1.5 h-6 text-[10px] font-bold uppercase tracking-wider rounded border transition-colors ${
+                density === d
+                  ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40'
+                  : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-indigo-400'
+              }`}
+            >
+              {DENSITY_LABELS[d]}
+            </button>
+          ))}
         </span>
         <span className="flex items-center gap-0.5 shrink-0" title="What colour is keyed to">
           {(['branch', 'section', 'label'] as MapColorMode[]).map((m) => (
@@ -1380,6 +1481,24 @@ const COLOR_MODE_HINT: Record<MapColorMode, string> = {
   section: 'Colour a section and its whole subtree takes it — where each lecture\'s territory is',
   label: 'Colour by each node\'s own label — where two lectures have both touched the same place',
 };
+
+const DENSITY_HINT: Record<MapDensity, string> = {
+  comfortable: 'Full spacing',
+  compact: 'Less space between nodes — text stays the same size',
+  tight: 'As close as the labels allow, without shrinking them',
+};
+
+const DENSITY_KEY = 'setatime_map_density';
+
+function loadDensity(): MapDensity {
+  try {
+    const v = localStorage.getItem(DENSITY_KEY);
+    if (v === 'comfortable' || v === 'compact' || v === 'tight') return v;
+  } catch {
+    // fall through
+  }
+  return 'comfortable';
+}
 
 function cssColor(slot: number | null): string {
   return slot === null ? 'var(--map-cx)' : `var(--map-c${slot})`;

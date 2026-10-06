@@ -116,6 +116,31 @@ Maps you made before this existed aren't stranded: **Move into another map**
 on the list folds one into another. Its nodes move across and become a
 section, nothing is copied, and the old map goes away.
 
+### Fitting a big tree on screen
+
+Two controls, and they do different things.
+
+**Roomy / Compact / Tight**, next to the depth buttons, changes how
+tightly the tree packs. It takes out blank space only — **the text stays
+exactly the same size**. Columns also pull in to fit what is actually in
+them rather than reserving room for the longest label you could have
+typed. On a course-sized tree Tight is around 20% shorter and 15%
+narrower than Roomy with nothing shrunk.
+
+That is the difference from **zoom**, at the bottom right: zoom scales
+everything, so a big tree gets small and stops being readable. Reach for
+density first, and zoom only once density has run out.
+
+Density is stored per device, not per map, because the right answer
+depends on the screen in front of you — the same course map wants Tight
+on a laptop and Roomy on a monitor. It does not change the PDF, which has
+its own spacing tuned for paper.
+
+**⤢ Full** in the map's header hides everything else — the hub tabs, the
+bar at the bottom, and on a desktop browser its own chrome too. **Esc**
+or **⤡ Exit** comes back. On an iPad the browser will not give up its own
+chrome, so you get the app's space back but not Safari's.
+
 ### Colouring lectures so you can see them overlap
 
 The row of pills next to the depth buttons — **Branch / Section / Label** —
