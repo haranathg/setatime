@@ -30,6 +30,29 @@ export interface MapLayout {
   height: number;
 }
 
+/** How tightly the canvas packs the tree.
+ *
+ *  Distinct from zoom, and the distinction is the point: zoom scales the text
+ *  down with everything else, so a big tree becomes small and unreadable.
+ *  Density only takes out blank space — the text stays exactly the size it
+ *  was. Columns also shrink to fit their contents rather than reserving room
+ *  for the longest label anyone could type, which costs no legibility at all
+ *  since no box gets narrower. */
+export type MapDensity = 'comfortable' | 'compact' | 'tight';
+
+export const DENSITY_LABELS: Record<MapDensity, string> = {
+  comfortable: 'Roomy',
+  compact: 'Compact',
+  tight: 'Tight',
+};
+
+export const DENSITY: Record<MapDensity, Pick<LayoutOptions, 'rowH' | 'gap' | 'compactColumns'>> = {
+  // Exactly the shipped numbers, so nothing moves until you ask it to.
+  comfortable: {},
+  compact: { rowH: 30, gap: 6, compactColumns: true },
+  tight: { rowH: 23, gap: 3, compactColumns: true },
+};
+
 export const ROW_H = 38;          // vertical pitch between leaves
 export const COL_W = 210;         // horizontal pitch between depths
 const PAD = 24;
@@ -41,6 +64,20 @@ const PAD = 24;
 export interface LayoutOptions {
   rowH?: number;
   colW?: number;
+  /** Blank space kept below a node whose own box is taller than the pitch.
+   *  Separate from rowH because the pitch only governs short rows — a
+   *  wrapped label sets its own height, and this is the only lever on how
+   *  far apart those end up. */
+  gap?: number;
+  /** Size each depth's column to the widest box actually in it, instead of
+   *  giving every column room for the widest box that could exist.
+   *
+   *  Most labels are far shorter than the maximum, so a fixed pitch leaves a
+   *  gutter the width of the words nobody typed. This only ever narrows the
+   *  map — a column cannot exceed what a fixed pitch already reserved — so
+   *  nothing overlaps that did not before. Off by default, which keeps every
+   *  existing caller, the PDF included, laid out exactly as it was. */
+  compactColumns?: boolean;
   /** Lay out the subtree under this node instead of the whole map, used to
    *  give each top-level branch its own printed page, and to let the canvas
    *  focus on one node as a temporary root. */
@@ -69,7 +106,11 @@ export interface LayoutOptions {
  *  node should not be allowed to push a whole branch down the page. */
 export const MAX_NODE_LINES = 3;
 const LINE_H = 16.5;
-const BOX_PAD_Y = 12;
+// Vertical padding (6 top + 6 bottom) plus the 2px border on each side. The
+// border was missing for a long time and did not show, because the pitch had
+// 10px of slack to hide it in; at Tight there is no slack and a box three
+// pixels taller than its reservation sits on its neighbour.
+const BOX_PAD_Y = 16;
 const SECTION_LABEL_H = 12;
 
 /** Lines a label needs, estimated from character count. Deliberately rough:
@@ -100,7 +141,11 @@ export function sectionLabelOf(node: MindMapNode, depth: number): string | null 
 
 export function defaultHeightOf(node: MindMapNode, depth: number, w: number): number {
   const lines = estimateLines(node.text, w);
-  const label = sectionLabelOf(node, depth) ? SECTION_LABEL_H : 0;
+  // Every section below the root draws a line above its text — the tag when
+  // it has one, the word "Section" when it does not. Asking sectionLabelOf
+  // here reserved the space only in the first case, so an untagged section
+  // was a whole line taller than the layout thought.
+  const label = node.section && depth > 0 ? SECTION_LABEL_H : 0;
   return Math.round(BOX_PAD_Y + lines * LINE_H + label);
 }
 
@@ -114,6 +159,7 @@ function boxWidth(text: string, depth: number, maxW = 190): number {
 export function layoutMap(nodes: MindMapNode[], opts: LayoutOptions = {}): MapLayout {
   const rowH = opts.rowH ?? ROW_H;
   const colW = opts.colW ?? COL_W;
+  const gap = opts.gap ?? 10;
   const measure = opts.heightOf ?? defaultHeightOf;
   const root = opts.rootId
     ? nodes.find((n) => n.id === opts.rootId)
@@ -153,7 +199,7 @@ export function layoutMap(nodes: MindMapNode[], opts: LayoutOptions = {}): MapLa
       y = cursorY;
       // Whichever is larger: the pitch, or what this node's own box needs.
       // A wrapped three-line label used to be drawn over its neighbour.
-      cursorY += Math.max(rowH, h + 10);
+      cursorY += Math.max(rowH, h + gap);
     } else {
       const placed = visibleKids.map((k) => place(k, depth + 1));
       y = (placed[0].y + placed[placed.length - 1].y) / 2;
@@ -175,6 +221,22 @@ export function layoutMap(nodes: MindMapNode[], opts: LayoutOptions = {}): MapLa
   };
 
   place(root, 0);
+
+  if (opts.compactColumns) {
+    // Re-column before the edges are built, so they read the final positions.
+    // Mutating in place rather than rebuilding because byId holds the same
+    // objects and a second set would have to be kept in step with it.
+    const gutter = Math.max(12, colW - (opts.maxBoxW ?? 190));
+    const widest = new Map<number, number>();
+    for (const n of out) widest.set(n.depth, Math.max(widest.get(n.depth) ?? 0, n.w));
+    const xOf = new Map<number, number>();
+    let x = 0;
+    for (const d of [...widest.keys()].sort((a, b) => a - b)) {
+      xOf.set(d, x);
+      x += (widest.get(d) ?? 0) + gutter;
+    }
+    for (const n of out) n.x = xOf.get(n.depth) ?? n.x;
+  }
 
   const edges: MapLayout['edges'] = [];
   for (const laid of out) {
