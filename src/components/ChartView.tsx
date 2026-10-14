@@ -353,7 +353,7 @@ function SoapSection({
         <div className="w-10 flex-shrink-0 bg-indigo-500 text-white flex items-center justify-center text-lg font-bold font-mono">
           {letter}
         </div>
-        <div className="flex-1 px-3 py-2 bg-gray-50/60">
+        <div className="flex-1 px-3 py-2 bg-gray-50/60 dark:bg-gray-800/40">
           <div className="text-[12px] font-bold uppercase tracking-wider text-gray-800 dark:text-gray-200">{label}</div>
           <div className="text-[10px] text-gray-500 dark:text-gray-400 leading-tight mt-0.5">{hint}</div>
         </div>
@@ -383,7 +383,7 @@ function SoapSection({
         onChange={(e) => onChange(e.target.value)}
         rows={rows}
         placeholder={`Enter ${label.toLowerCase()}… (tip: type +water, +coffee, etc. to log activities)`}
-        className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 dark:text-gray-100 resize-y focus:outline-none focus:bg-indigo-50/30 placeholder:text-gray-300 dark:text-gray-600"
+        className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 dark:text-gray-100 resize-y focus:outline-none focus:bg-indigo-50/30 dark:focus:bg-indigo-950/40 placeholder:text-gray-300 dark:placeholder:text-gray-600"
       />
     </section>
   );
@@ -548,7 +548,7 @@ function ProblemsList({
                   value={p.detail || ''}
                   onChange={(e) => updateProblem(p.id, { detail: e.target.value })}
                   placeholder="Optional detail or context…"
-                  className="mt-1 w-full px-2 py-1 text-[11px] text-gray-600 dark:text-gray-400 border border-transparent rounded-md focus:outline-none focus:border-gray-200 dark:border-gray-800 focus:bg-gray-50 dark:bg-gray-950"
+                  className="mt-1 w-full px-2 py-1 text-[11px] text-gray-600 dark:text-gray-400 border border-transparent rounded-md focus:outline-none focus:border-gray-200 dark:focus:border-gray-700 focus:bg-gray-50 dark:focus:bg-gray-800"
                 />
               </div>
               <button
@@ -762,7 +762,7 @@ function PlanNarrativeTextarea({ value, onChange }: { value: string; onChange: (
         onChange={(e) => onChange(e.target.value)}
         rows={5}
         placeholder="Enter plan narrative… (tip: type +water, +coffee, etc. to log activities)"
-        className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 dark:text-gray-100 resize-y focus:outline-none focus:bg-indigo-50/30 placeholder:text-gray-300 dark:text-gray-600"
+        className="w-full px-3 py-2 text-[13px] font-mono leading-relaxed text-gray-900 dark:text-gray-100 resize-y focus:outline-none focus:bg-indigo-50/30 dark:focus:bg-indigo-950/40 placeholder:text-gray-300 dark:placeholder:text-gray-600"
       />
     </>
   );
