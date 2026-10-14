@@ -301,7 +301,7 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
               className={`relative flex-1 whitespace-nowrap px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                 active
                   ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 shadow-sm'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 dark:text-gray-300'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
               title={title}
             >
@@ -434,7 +434,7 @@ function SubPillRow({
     `flex-shrink-0 whitespace-nowrap px-2.5 py-1 text-[12px] font-medium rounded-full transition-colors ${
       active
         ? 'bg-indigo-600 text-white'
-        : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 border border-gray-200 dark:border-gray-800'
+        : 'bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-800'
     }`;
 
   return (
@@ -453,7 +453,7 @@ function SubPillRow({
         {secondary.length > 0 && (
           <button
             onClick={() => setOpen((v) => !v)}
-            className={`flex-shrink-0 whitespace-nowrap px-2.5 py-1 text-[12px] font-medium rounded-full transition-colors bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 border border-gray-200 dark:border-gray-800 ${
+            className={`flex-shrink-0 whitespace-nowrap px-2.5 py-1 text-[12px] font-medium rounded-full transition-colors bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-800 ${
               open ? 'ring-2 ring-indigo-300' : ''
             }`}
             title="More surfaces"

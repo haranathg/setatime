@@ -2699,8 +2699,8 @@ function PlanRow({
           onClick={() => setExpanded((v) => !v)}
           className={`text-[10px] font-semibold transition-opacity ${
             expanded || hasHelp || hasRes
-              ? 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200'
-              : 'text-gray-400 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 dark:text-gray-200 opacity-0 group-hover:opacity-100'
+              ? 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200'
+              : 'text-gray-400 dark:text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 opacity-0 group-hover:opacity-100'
           }`}
           title="Details: help-by + resources"
           aria-expanded={expanded}

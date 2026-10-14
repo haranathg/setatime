@@ -792,7 +792,7 @@ function TargetRow({
           <button
             onClick={() => setEditingDate(true)}
             className={`text-[10px] uppercase tracking-wider font-semibold flex-shrink-0 ${
-              target.targetDate ? c.text : 'text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:text-gray-400'
+              target.targetDate ? c.text : 'text-gray-300 dark:text-gray-600 hover:text-gray-500 dark:hover:text-gray-400'
             }`}
             title={target.targetDate ? 'Change target date' : 'Add a target date'}
           >

@@ -81,7 +81,7 @@ export default function QuickCaptureBar({
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && doLog()}
             placeholder="Cast a thought · Enter to log · ↗ schedule · 📝 note"
-            className="flex-1 min-w-0 bg-transparent text-sm focus:outline-none placeholder:text-gray-400 dark:text-gray-500"
+            className="flex-1 min-w-0 bg-transparent text-sm text-gray-900 dark:text-gray-100 focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500"
           />
           {flash === 'log' ? (
             <span className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 dark:text-emerald-300">
