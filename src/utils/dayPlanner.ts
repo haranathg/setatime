@@ -23,6 +23,15 @@ export interface Span {
 }
 
 export interface PlannerOptions {
+  /** Real watch speed, so a first pass is estimated in minutes of your life
+   *  rather than minutes of media. */
+  playRate?: number;
+  /** Exam dates per lecture id. A lecture on Thursday's paper outranks one
+   *  that is merely older, which is the better reason to do it first. */
+  examDateOf?: Map<string, string>;
+  /** Weekly commitments used to top the day up once the queue runs out —
+   *  Qbanks, Anki, anything with no due date of its own. */
+  sources?: { id: string; name: string; remaining: number; sessionMinutes?: number }[];
   /** Minutes from midnight. An end before the start means the window runs
    *  past midnight, which is normal for an evening of work. */
   windowStart: number;
@@ -41,6 +50,8 @@ export interface PlannerOptions {
 }
 
 export interface PlannedItem {
+  /** Qbanks and the like have no lecture behind them. */
+  sourceId?: string;
   lectureId: string;
   title: string;
   course?: string;
@@ -113,9 +124,12 @@ export function nextPassOf(item: LectureItem): 1 | 2 | 3 | null {
  *  remainingHours covers every pass still owed; a single sitting is only the
  *  next one. Splitting it here is what stops a 2-hour lecture claiming six
  *  hours of a day because it has three passes left. */
-export function sittingMinutes(item: LectureItem): number {
+export function sittingMinutes(item: LectureItem, playRate = 1): number {
   const base = item.durationHours ?? 0;
   if (!base) return 0;
+  // Only the first pass is watching; a later pass is review and is not made
+  // faster by the playback speed.
+  const rate = playRate > 0.25 && playRate <= 4 ? playRate : 1;
   if (kindOf(item) === 'guided') return isGuidedDone(item) ? 0 : Math.round(base * 60);
   // Derived from nextPassOf rather than counted again here: two functions
   // that each decide whether anything is left will eventually disagree, and
@@ -123,7 +137,7 @@ export function sittingMinutes(item: LectureItem): number {
   const pass = nextPassOf(item);
   if (pass === null) return 0;
   // The first sitting is the full lecture; later passes are review.
-  return Math.round((pass === 1 ? base : base / 3) * 60);
+  return pass === 1 ? Math.round((base * 60) / rate) : Math.round((base / 3) * 60);
 }
 
 /**
@@ -155,10 +169,39 @@ export function planDay(queue: LectureItem[], opts: PlannerOptions, now = Date.n
     if (budget <= 0) break;
   }
 
-  // 2. Fill them from the queue, in the queue's own order.
-  const work = queue
-    .map((item) => ({ item, left: sittingMinutes(item) }))
-    .filter((w) => w.left > 0);
+  // 2. Fill them, queue first.
+  //
+  // Order: an exam you sit sooner wins, then how overdue it is. The queue
+  // arrives sorted by overdue-ness already; this only re-sorts when exam
+  // dates are known, because "on Thursday's paper" beats "older" and nothing
+  // else the queue knows says that.
+  const examOf = opts.examDateOf;
+  const ordered = examOf
+    ? [...queue].sort((a, b) => {
+        const ea = examOf.get(a.id);
+        const eb = examOf.get(b.id);
+        if (ea !== eb) {
+          // A lecture with no exam attached sorts after one that has a date,
+          // rather than jumping the queue on an empty string.
+          if (!ea) return 1;
+          if (!eb) return -1;
+          return ea < eb ? -1 : 1;
+        }
+        return 0;
+      })
+    : queue;
+
+  const rate = opts.playRate ?? 1;
+  const work: { kind: 'lecture'; item: LectureItem; left: number }[] = ordered
+    .map((item) => ({ kind: 'lecture' as const, item, left: sittingMinutes(item, rate) }))
+    .filter((x) => x.left > 0);
+
+  // Then the standing commitments, which have no due date and so can only
+  // ever be a top-up. Largest remaining first, so a source that is furthest
+  // behind gets the leftover time.
+  const topUps = (opts.sources ?? [])
+    .filter((s) => s.remaining > 0)
+    .sort((a, b) => b.remaining - a.remaining);
   let w = 0;
 
   const sessions: PlannedSession[] = slots.map((slot) => {
@@ -183,11 +226,32 @@ export function planDay(queue: LectureItem[], opts: PlannerOptions, now = Date.n
       work[w].left -= take;
       if (work[w].left <= 0) w += 1;
     }
+    // Whatever the queue could not fill goes to the standing sources, so an
+    // empty backlog becomes Qbank time instead of an empty afternoon.
+    while (at < slot.end && topUps.length > 0) {
+      const room = slot.end - at;
+      if (room < 15) break;
+      const src = topUps[0];
+      const take = Math.min(room, src.remaining, src.sessionMinutes ?? room);
+      if (take < 15) { topUps.shift(); continue; }
+      items.push({
+        sourceId: src.id,
+        lectureId: '',
+        title: src.name,
+        pass: null,
+        minutes: take,
+        overdueDays: 0,
+      });
+      at += take;
+      src.remaining -= take;
+      if (src.remaining <= 0) topUps.shift();
+      else topUps.sort((a, b) => b.remaining - a.remaining);
+    }
     return { start: slot.start, end: slot.end, items };
   }).filter((s) => s.items.length > 0);
 
   const placedMinutes = sessions.reduce((m, s) => m + s.items.reduce((n, i) => n + i.minutes, 0), 0);
-  const queueTotal = work.reduce((m, x) => m + sittingMinutes(x.item), 0);
+  const queueTotal = work.reduce((m, x) => m + sittingMinutes(x.item, rate), 0);
 
   return {
     sessions,

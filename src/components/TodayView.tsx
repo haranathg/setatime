@@ -105,6 +105,9 @@ interface TodayViewProps {
   onGoMaps: () => void;          // → Maps
   /** How many lectures are due — the card hides itself when nothing is. */
   dueLectureCount: number;
+  /** Weekly study still owed. The card is worth showing for this alone — a
+   *  day with no lectures due is exactly when Qbank time should be planned. */
+  weeklyStudyMinutes: number;
   onPlanDay: () => void;
   onGoSort: () => void;          // → Compass
   onGoBreathe: () => void;       // → Grounding
@@ -224,6 +227,7 @@ export default function TodayView({
   onGoReflect,
   onGoMaps,
   dueLectureCount,
+  weeklyStudyMinutes,
   onPlanDay,
   onGoSort,
   onGoBreathe,
@@ -380,13 +384,17 @@ export default function TodayView({
               />
       </>
     ),
-    planDay: dueLectureCount > 0 ? (
+    planDay: dueLectureCount > 0 || weeklyStudyMinutes > 0 ? (
       <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3 flex items-center gap-3">
         <div className="flex-1 min-w-0">
           <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">Plan the day</h3>
           <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-snug mt-0.5">
-            {dueLectureCount} lecture{dueLectureCount === 1 ? '' : 's'} due. Lay them into
-            the day as blocks that name what to do.
+            {dueLectureCount > 0
+              ? `${dueLectureCount} lecture${dueLectureCount === 1 ? '' : 's'} due`
+              : 'Nothing due'}
+            {weeklyStudyMinutes > 0 &&
+              `, ${Math.round(weeklyStudyMinutes / 60)}h of weekly study left`}
+            . Lay it into the day as blocks that name what to do.
           </p>
         </div>
         <button

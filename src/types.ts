@@ -481,15 +481,60 @@ export interface LectureItem {
   pass1At?: string;    // ISO when each pass was ticked
   pass2At?: string;
   pass3At?: string;
+  /** The duration is the scheduled class length rather than the media's own,
+   *  so it is a stand-in and may be well out. Surfaced because a plan built
+   *  on it deserves to say so. */
+  durationRough?: boolean;
   // Not study content (an exam, a break, an admin block). Kept rather
   // than deleted so a re-import doesn't resurrect it.
   hidden?: boolean;
   importedAt: string;  // ISO, first time this row appeared
 }
 
+/** An exam, and the lectures it covers.
+ *
+ *  Imported from Echo Lecture Finder, which groups lectures by the exam they
+ *  are for. SetATime had no equivalent: it could say a lecture was nine days
+ *  overdue but not that it is on Thursday's paper, which is the better reason
+ *  to do it first. */
+export interface ExamList {
+  id: string;
+  name: string;
+  /** "YYYY-MM-DD", or absent for a list with no date set. */
+  examDate?: string;
+  lectureIds: string[];
+}
+
 export interface LecturesState {
   items: LectureItem[];
   lastImportedAt?: string;
+  exams?: ExamList[];
+  /** The speed lectures are actually watched at, so a first pass is estimated
+   *  in real minutes rather than media minutes. */
+  playRate?: number;
+}
+
+/** Study that is not a lecture — Qbanks, Anki, a textbook.
+ *
+ *  These have no due date and never finish, so they cannot sit in the review
+ *  queue. They are a weekly commitment instead: the planner fills a day from
+ *  the queue first and tops it up from here. */
+export interface StudySource {
+  id: string;
+  name: string;
+  /** Target for a whole week. Weekly rather than daily so one bad day is
+   *  absorbed by the rest instead of reading as a failure. */
+  minutesPerWeek: number;
+  /** How long one sitting of this should be when the planner places it. */
+  sessionMinutes?: number;
+  active: boolean;
+}
+
+export interface StudySourcesState {
+  sources: StudySource[];
+  /** Minutes done per source per ISO week, written when a planned block is
+   *  ticked off, so the planner can see what is left this week. */
+  done?: Record<string, Record<string, number>>;
 }
 
 export interface AppState {
@@ -510,6 +555,7 @@ export interface AppState {
   todayLayout?: TodayLayoutState;
   activateLayout?: ActivateLayoutState;
   mindMaps?: MindMapsState;
+  studySources?: StudySourcesState;
   horizon?: HorizonState;
   underway?: UnderwayState;
   compass?: CompassState;

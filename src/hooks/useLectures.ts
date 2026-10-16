@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import type { LectureItem, LectureKind } from '../types';
+import type { LectureItem, LectureKind, ExamList } from '../types';
+import { importEcho, type EchoPayload } from '../utils/echoImport';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
 import { parseICS } from '../utils/icalImport';
@@ -117,6 +118,10 @@ export interface WeekBucket {
 
 export function useLectures() {
   const [items, setItems] = useState<LectureItem[]>([]);
+  // Both come from Echo Lecture Finder and have no other source, so they are
+  // simply carried rather than merged.
+  const [exams, setExams] = useState<ExamList[]>([]);
+  const [playRate, setPlayRate] = useState<number | undefined>(undefined);
   // One clock for the whole feature. Every bucket, heatmap cell and row
   // badge reads this same instant, so a row can never claim it is waiting
   // while the queue that placed it says it is due. It ticks a minute at a
@@ -135,6 +140,8 @@ export function useLectures() {
     const init = async () => {
       const local = loadState();
       setItems(local.lectures?.items || []);
+      setExams(local.lectures?.exams || []);
+      setPlayRate(local.lectures?.playRate);
       setLastImportedAt(local.lectures?.lastImportedAt);
       setLoaded(true);
 
@@ -177,7 +184,7 @@ export function useLectures() {
   useEffect(() => {
     if (!loaded) return;
     const state = loadState();
-    const updated = { ...state, lectures: { items, lastImportedAt } };
+    const updated = { ...state, lectures: { items, lastImportedAt, exams, playRate } };
     saveState(updated);
 
     const key = getSecretKey();
@@ -191,7 +198,7 @@ export function useLectures() {
         }
       }, 1500);
     }
-  }, [items, lastImportedAt, loaded]);
+  }, [items, lastImportedAt, exams, playRate, loaded]);
 
   /**
    * Merge an .ics file into the list.
@@ -265,6 +272,28 @@ export function useLectures() {
    * you have hidden are yours and survive a re-import. Rows that vanish from
    * a later export are kept rather than deleted.
    */
+  /** Pull from Echo Lecture Finder. Unlike the other two importers this also
+   *  brings exam lists and the playback rate, which have no other source. */
+  const importFromEcho = useCallback((payload: EchoPayload): ImportSummary & { withoutDuration: number } => {
+    const stamp = new Date().toISOString();
+    let summary: ImportSummary & { withoutDuration: number } = {
+      added: 0, updated: 0, unchanged: 0, skipped: 0, recurring: 0, total: 0, withoutDuration: 0,
+    };
+    setItems((prev) => {
+      const r = importEcho(payload, { items: prev });
+      summary = {
+        added: r.added, updated: r.updated, unchanged: r.unchanged,
+        skipped: 0, recurring: 0, total: r.added + r.updated + r.unchanged,
+        withoutDuration: r.withoutDuration,
+      };
+      setExams(r.exams);
+      if (r.playRate !== undefined) setPlayRate(r.playRate);
+      return r.items;
+    });
+    setLastImportedAt(stamp);
+    return summary;
+  }, []);
+
   const importSchedule = useCallback((activities: ParsedActivity[]): ImportSummary => {
     let added = 0;
     let updated = 0;
@@ -496,8 +525,11 @@ export function useLectures() {
     assessments,
     nextAssessment,
     courses,
+    exams,
+    playRate,
     importICS,
     importSchedule,
+    importFromEcho,
     toggleDone,
     togglePass,
     setHidden,

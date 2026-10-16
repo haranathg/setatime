@@ -13,6 +13,7 @@ import GroundingView from './components/GroundingView';
 import RegulateView from './components/RegulateView';
 import TodayLayoutEditor from './components/TodayLayoutEditor';
 import DayPlannerSheet from './components/DayPlannerSheet';
+import StudySourcesSheet from './components/StudySourcesSheet';
 import ActivateLayoutEditor from './components/ActivateLayoutEditor';
 import MindMapsView from './components/MindMapsView';
 import UnderwayView from './components/UnderwayView';
@@ -53,6 +54,8 @@ import { useNotes } from './hooks/useNotes';
 import { usePrinciples } from './hooks/usePrinciples';
 import { useProjects, isStalled } from './hooks/useProjects';
 import { useLectures } from './hooks/useLectures';
+import { useStudySources } from './hooks/useStudySources';
+import { useEchoBridge } from './hooks/useEchoBridge';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -228,6 +231,17 @@ function AppMain({
   } = useActivateLayout();
   const [customisingActivate, setCustomisingActivate] = useState(false);
   const [planningDay, setPlanningDay] = useState(false);
+  const [editingSources, setEditingSources] = useState(false);
+
+  const {
+    sources: studySources,
+    addSource, updateSource, removeSource, seedDefaults,
+    remainingThisWeek,
+  } = useStudySources();
+
+  // Echo Lecture Finder pushes its data in through its own content script.
+  const echo = useEchoBridge();
+
 
   const {
     maps: mindMaps,
@@ -357,6 +371,9 @@ function AppMain({
     visible: lectureVisible,
     hiddenItems: lectureHidden,
     buckets: lectureBuckets,
+    exams: lectureExams,
+    playRate: lecturePlayRate,
+    importFromEcho,
     weeks: lectureWeeks,
     now: lectureNow,
     stats: lectureStats,
@@ -370,6 +387,25 @@ function AppMain({
     setHidden: setLectureHidden,
     removeAll: removeAllLectures,
   } = useLectures();
+  /** Which exam each lecture is on, for the planner's ordering. */
+  const examDateOf = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const ex of lectureExams) {
+      if (!ex.examDate) continue;
+      for (const id of ex.lectureIds) {
+        const cur = m.get(id);
+        if (!cur || ex.examDate < cur) m.set(id, ex.examDate);
+      }
+    }
+    return m;
+  }, [lectureExams]);
+
+  const plannerSources = useMemo(
+    () => remainingThisWeek().map(({ source, remaining }) => ({
+      id: source.id, name: source.name, remaining, sessionMinutes: source.sessionMinutes,
+    })),
+    [remainingThisWeek]
+  );
 
   // The slice Maps needs to offer a working-lecture picker. Hidden rows are
   // included deliberately: a non-curricular session you hid from the study
@@ -567,9 +603,59 @@ function AppMain({
           blocks={blocks}
           dateKey={formatDateKey(new Date())}
           dateLabel="today"
+          playRate={lecturePlayRate}
+          examDateOf={examDateOf}
+          sources={plannerSources}
           onAdd={(made) => made.forEach(addBlock)}
+          onManageSources={() => { setPlanningDay(false); setEditingSources(true); }}
           onClose={() => setPlanningDay(false)}
         />
+      )}
+
+      {editingSources && (
+        <StudySourcesSheet
+          sources={studySources}
+          remaining={remainingThisWeek()}
+          onAdd={addSource}
+          onUpdate={updateSource}
+          onRemove={removeSource}
+          onSeed={seedDefaults}
+          onClose={() => setEditingSources(false)}
+        />
+      )}
+
+      {echo.payload && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 w-[min(92vw,30rem)] rounded-2xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-gray-900 shadow-xl px-4 py-3 flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="text-[13px] font-semibold text-gray-900 dark:text-gray-100">
+              Echo Lecture Finder
+            </div>
+            <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
+              {echo.count} lecture{echo.count === 1 ? '' : 's'}
+              {echo.exams > 0 && `, ${echo.exams} exam list${echo.exams === 1 ? '' : 's'}`}
+              {' '}ready. Your pass ticks are kept.
+            </p>
+          </div>
+          <button
+            onClick={echo.dismiss}
+            className="text-[11px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 hover:text-gray-600 shrink-0"
+          >
+            Not now
+          </button>
+          <button
+            onClick={() => {
+              const r = importFromEcho(echo.payload!);
+              echo.dismiss();
+              alert(
+                `Imported ${r.added} new, updated ${r.updated}, unchanged ${r.unchanged}.` +
+                (r.withoutDuration ? `\n\n${r.withoutDuration} have no duration, so the planner will skip them.` : '')
+              );
+            }}
+            className="px-3 py-1.5 text-[12px] font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 shrink-0"
+          >
+            Import
+          </button>
+        </div>
       )}
 
       {customisingActivate && (
@@ -766,6 +852,7 @@ function AppMain({
           onGoReflect={() => setActiveView('chart')}
           onGoMaps={() => setActiveView('maps')}
           dueLectureCount={lectureBuckets.dueNow.length}
+          weeklyStudyMinutes={plannerSources.reduce((m, x) => m + x.remaining, 0)}
           onPlanDay={() => setPlanningDay(true)}
           onGoSort={() => setActiveView('compass')}
           onGoBreathe={() => setActiveView('grounding')}
