@@ -6,6 +6,7 @@ import LayoutEditor, { type LayoutItemMeta } from './LayoutEditor';
 
 const SECTION_META: Record<TodaySectionKey, LayoutItemMeta> = {
   activate:    { label: 'Activate now',   hint: 'The strategy menu and your reminder line' },
+  planDay:     { label: 'Plan the day',   hint: "Turn what's due into blocks on the calendar" },
   projectsDue: { label: 'Coming due',     hint: 'Projects due within a week, or stalled' },
   block:       { label: "Now / next block", hint: 'All-day banner and the block you are in' },
   plan:        { label: "Today's 1/3/5",  hint: 'The day plan and your handwritten photo' },

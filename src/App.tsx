@@ -12,6 +12,7 @@ import BooksView from './components/BooksView';
 import GroundingView from './components/GroundingView';
 import RegulateView from './components/RegulateView';
 import TodayLayoutEditor from './components/TodayLayoutEditor';
+import DayPlannerSheet from './components/DayPlannerSheet';
 import ActivateLayoutEditor from './components/ActivateLayoutEditor';
 import MindMapsView from './components/MindMapsView';
 import UnderwayView from './components/UnderwayView';
@@ -55,6 +56,7 @@ import { useLectures } from './hooks/useLectures';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
+import { formatDateKey } from './utils/dateHelpers';
 
 function LoginGate({ onUnlock }: { onUnlock: () => void }) {
   const [key, setKey] = useState('');
@@ -225,6 +227,7 @@ function AppMain({
     resetLayout: resetActivateLayout,
   } = useActivateLayout();
   const [customisingActivate, setCustomisingActivate] = useState(false);
+  const [planningDay, setPlanningDay] = useState(false);
 
   const {
     maps: mindMaps,
@@ -558,6 +561,17 @@ function AppMain({
         />
       )}
 
+      {planningDay && (
+        <DayPlannerSheet
+          queue={lectureBuckets.dueNow}
+          blocks={blocks}
+          dateKey={formatDateKey(new Date())}
+          dateLabel="today"
+          onAdd={(made) => made.forEach(addBlock)}
+          onClose={() => setPlanningDay(false)}
+        />
+      )}
+
       {customisingActivate && (
         <ActivateLayoutEditor
           order={activateOrder}
@@ -751,6 +765,8 @@ function AppMain({
           onGoPredict={() => setActiveView('predictions')}
           onGoReflect={() => setActiveView('chart')}
           onGoMaps={() => setActiveView('maps')}
+          dueLectureCount={lectureBuckets.dueNow.length}
+          onPlanDay={() => setPlanningDay(true)}
           onGoSort={() => setActiveView('compass')}
           onGoBreathe={() => setActiveView('grounding')}
           activateOrder={activateOrder}

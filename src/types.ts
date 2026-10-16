@@ -701,6 +701,7 @@ export interface MindMapsState {
 
 export type TodaySectionKey =
   | 'activate'      // Activate now — the strategy menu
+  | 'planDay'       // Turn the review queue into today's blocks
   | 'projectsDue'   // Coming due / stalled projects
   | 'block'         // All-day banner + the current or next calendar block
   | 'plan'          // Today's 1/3/5
@@ -715,7 +716,7 @@ export type TodaySectionKey =
 
 /** Render order out of the box — the layout as it shipped. */
 export const DEFAULT_TODAY_ORDER: TodaySectionKey[] = [
-  'activate', 'projectsDue', 'block', 'plan', 'weekBoard',
+  'activate', 'planDay', 'projectsDue', 'block', 'plan', 'weekBoard',
   'northStars', 'stateLog', 'basics', 'predictions', 'agedDump', 'pins',
   'upNext',
 ];
