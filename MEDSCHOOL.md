@@ -399,6 +399,42 @@ depth buttons first; the export prints whatever is expanded.
 Whatever is collapsed on screen stays collapsed in the PDF — what you see
 is what you print.
 
+## Planning a day from the queue
+
+**Plan the day** on Today turns the review queue into real calendar blocks.
+It appears when something is due and hides itself when nothing is.
+
+Tell it a window, how much study, and how long a sitting should be. It
+reads your calendar for that day and works around whatever is already
+there, leaving ten minutes either side. Then it lays the queue in, most
+overdue first.
+
+The point is what the blocks say. Not *"Study session 1 — identify
+high-yield topics"*, which hands the decision straight back to you, but:
+
+> **11:00 AM – 12:30 PM**
+> Ischaemic heart disease · pass 2 · 9d overdue · 30m
+> Renal tubular transport · pass 1 · 9d overdue · 1h
+
+Nothing left to decide at 11:00. You open the thing it names.
+
+Each sitting becomes one block, and each lecture inside it becomes a
+sub-task at the minute it starts — so the block is also a checklist.
+
+**Nothing is written until you press Add.** The preview updates as you
+change the window or the hours, so you can see a day before you commit to
+it. Once added, the blocks are ordinary calendar blocks: drag them, edit
+them, delete them.
+
+### What it does and does not decide
+
+Which lectures, in what order, and how long each needs is **not guessed** —
+it comes from the same spaced-repetition dates the Lectures view uses. A
+first pass is the whole lecture; later passes are review and cost a third
+each. A lecture that has had all three passes is not scheduled again.
+
+What the planner decides is only where the sittings go.
+
 ## Arranging Today
 
 Today has a lot on it, and which parts earn their place is personal. Tap
