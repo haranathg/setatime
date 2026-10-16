@@ -399,6 +399,48 @@ depth buttons first; the export prints whatever is expanded.
 Whatever is collapsed on screen stays collapsed in the PDF — what you see
 is what you print.
 
+## Bringing lectures in from Echo Lecture Finder
+
+The extension's content script already runs on this site, so it can hand its
+data straight to the page. No file, no clipboard, and your secret key is
+never involved.
+
+Install the patch in `docs/echo-extension-patch.md`, reload the extension,
+and open SetATime. A card appears saying what arrived; **nothing is written
+until you press Import**.
+
+What comes across:
+
+- lecture titles, dates and courses
+- **how long each one is**, which is what lets the planner size a block
+- **the speed you watch at** — a 90-minute lecture at 1.5× is planned as 60
+  real minutes, not 90
+- **exam lists**, which SetATime had no way to know
+
+Re-importing is safe and can be done as often as you like. Lectures match on
+their Echo360 id: the feed owns titles, dates and durations, and **your pass
+ticks always win**. A lecture that disappears from the feed is kept, so a
+cancelled row cannot take your progress with it.
+
+Only a brand-new lecture takes its pass count from the extension. Where the
+extension knows when you last opened it, that becomes the pass date; where it
+does not, the lecture is dated so it reads as due now — on the grounds that
+work you can see is a smaller problem than work silently waiting.
+
+## Weekly study — Qbanks, Anki, anything without a due date
+
+These never finish and have no due date, so they cannot sit in the review
+queue. They are a weekly target instead: open **Plan the day** and follow
+"Set up weekly study", or reach it from the empty planner.
+
+Give each one hours per week and how long a sitting should be. The planner
+then fills a day **from what is due first, and tops the rest up from here** —
+so a day with nothing due becomes Qbank time instead of an empty afternoon.
+
+Weekly rather than daily so one bad Tuesday is absorbed by the rest of the
+week instead of reading as a failure. When several are behind, the one
+furthest behind is served first.
+
 ## Planning a day from the queue
 
 **Plan the day** on Today turns the review queue into real calendar blocks.

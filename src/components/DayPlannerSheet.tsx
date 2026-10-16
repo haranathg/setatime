@@ -32,7 +32,11 @@ export default function DayPlannerSheet({
   blocks,
   dateKey,
   dateLabel,
+  playRate,
+  examDateOf,
+  sources,
   onAdd,
+  onManageSources,
   onClose,
 }: {
   /** Already sorted most-overdue-first by the lectures hook. */
@@ -40,7 +44,12 @@ export default function DayPlannerSheet({
   blocks: TaskBlock[];
   dateKey: string;
   dateLabel: string;
+  playRate?: number;
+  examDateOf?: Map<string, string>;
+  /** Weekly commitments with what is left of them this week. */
+  sources?: { id: string; name: string; remaining: number; sessionMinutes?: number }[];
   onAdd: (blocks: TaskBlock[]) => void;
+  onManageSources?: () => void;
   onClose: () => void;
 }) {
   const [from, setFrom] = useState('11:00');
@@ -52,8 +61,12 @@ export default function DayPlannerSheet({
   const busy = useMemo(() => busyFromBlocks(blocks, dateKey), [blocks, dateKey]);
 
   const queueMinutes = useMemo(
-    () => queue.reduce((m, i) => m + sittingMinutes(i), 0),
-    [queue]
+    () => queue.reduce((m, i) => m + sittingMinutes(i, playRate ?? 1), 0),
+    [queue, playRate]
+  );
+  const sourceMinutes = useMemo(
+    () => (sources ?? []).reduce((m, s2) => m + s2.remaining, 0),
+    [sources]
   );
 
   const plan = useMemo(
@@ -65,8 +78,13 @@ export default function DayPlannerSheet({
         sessionMinutes: session,
         breakMinutes: DEFAULTS.breakMinutes,
         busy,
+        playRate,
+        examDateOf,
+        // Copied, because the planner spends `remaining` as it fills the day
+        // and must not spend the caller's numbers.
+        sources: (sources ?? []).map((x) => ({ ...x })),
       }),
-    [queue, from, to, studyHours, session, busy]
+    [queue, from, to, studyHours, session, busy, playRate, examDateOf, sources]
   );
 
   const commit = () => {
@@ -102,12 +120,21 @@ export default function DayPlannerSheet({
         </header>
 
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-          {queue.length === 0 ? (
+          {queue.length === 0 && sourceMinutes === 0 ? (
+            <>
             <p className="text-[13px] text-gray-500 dark:text-gray-400 leading-relaxed">
-              Nothing is due. The planner builds a day out of the review queue, so
-              there is nothing for it to place — import a schedule, or come back
-              when a lecture comes up for its next pass.
+              Nothing is due and no weekly study is set up, so there is nothing to
+              place. Import a schedule, or add something like a Qbank below.
             </p>
+            {onManageSources && (
+              <button
+                onClick={onManageSources}
+                className="mt-2 px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-400"
+              >
+                Set up weekly study
+              </button>
+            )}
+            </>
           ) : (
             <>
               <div className="grid grid-cols-2 gap-3">
