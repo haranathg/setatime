@@ -42,31 +42,58 @@ that takes real work, and you only do it once per term.
 ## Getting your calendars in
 
 Everything you don't control — VITALS, work, personal — is already
-aggregated in Calendar on your Mac. SetATime reads that rather than trying
-to talk to each system itself.
+aggregated in Calendar on your Mac. SetATime reads the same feeds, rather
+than trying to talk to each system itself.
 
-In Calendar: select a calendar in the sidebar, then **File → Export →
-Export**. Repeat for each one you want. You get a `.ics` per calendar, and
-the file name becomes the calendar name in SetATime.
+### Subscribe by link — do this one
 
-Then in SetATime: open the sync panel in the header, **Import calendars**,
-and pick all the files at once. Choose how far ahead to expand — *Rest of
-term* is the usual answer in week one, *4 weeks* when you are topping up.
-You get a count per calendar before anything is written.
+A subscription keeps itself current. Change something in VITALS and it
+reaches SetATime the same way it reaches your Mac, with nothing to
+remember.
 
-Each calendar gets its own colour and stays that colour, so a glance at
-the week tells you which commitments are school and which are not.
+In Calendar: right-click a subscribed calendar in the sidebar → **Get
+Info** → copy the URL. Then in SetATime: sync panel in the header →
+**Import calendars** → paste it under *Subscribe by link* → **Add**.
 
-What it does with repeats: a weekly lecture is expanded into the actual
-sessions, a week your school cancelled is left out, and a session that
-moved shows at its new time only. Free or tentative holds are skipped —
-they are not commitments and should not block planning.
+Subscribed calendars refresh when you open the app, at most twice an
+hour, and there is a **Refresh now** button when you want it immediately.
+You are as current as Calendar is — the school's feed updates on its own
+schedule, so neither of you gets changes the moment they are made.
 
-**Re-importing is the same action.** It updates what moved, removes what
-was cancelled, and leaves alone anything you put on the grid yourself,
-any other calendar, and anything outside the window you imported. Doing it
-twice changes nothing, so when the schedule shifts, just export and import
-again.
+**A calendar link is a password.** It usually needs no login, so anyone
+holding it can read that calendar. Don't paste one into a shared
+document, and if one leaks, regenerate it at the source.
+
+Your own iCloud calendar has no link until you publish it: right-click →
+Share Calendar → Public Calendar. Subscribed calendars like VITALS can't
+be republished from iCloud, which is exactly why you point SetATime at the
+original feed instead of trying to mirror what iCal shows.
+
+### Or import a file
+
+For a calendar with no link — or when you just want a snapshot — select it
+in Calendar, **File → Export → Export**, and pick the file (or several at
+once) in the same sheet. The file name becomes the calendar name.
+
+A file import is a snapshot and will not update itself. The sheet marks
+each calendar *subscribed* or *from a file* so you can tell which is
+which.
+
+### What it does with repeats
+
+A weekly lecture is expanded into the actual sessions, a week your school
+cancelled is left out, and a session that moved shows at its new time
+only. Free or tentative holds are skipped — they are not commitments and
+should not block planning.
+
+Each calendar gets its own colour and keeps it, so a glance at the week
+tells you which commitments are school and which are not.
+
+**Refreshing and re-importing are the same operation.** Either one updates
+what moved, removes what was cancelled, and leaves alone anything you put
+on the grid yourself, any other calendar, and anything outside the window.
+Doing it twice changes nothing. A feed that fails leaves your existing
+sessions exactly where they were and says what went wrong.
 
 The point of all this is the next section: once your real week is on the
 grid, *Plan the day* fills the gaps around it instead of pretending you

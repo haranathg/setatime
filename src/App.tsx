@@ -57,6 +57,8 @@ import { useProjects, isStalled } from './hooks/useProjects';
 import { useLectures } from './hooks/useLectures';
 import { useStudySources } from './hooks/useStudySources';
 import { useCalendarSources } from './hooks/useCalendarSources';
+import { useCalendarFeeds } from './hooks/useCalendarFeeds';
+import { fetchCalendarFeeds } from './services/syncService';
 import { useEchoBridge } from './hooks/useEchoBridge';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
@@ -251,9 +253,27 @@ function AppMain({
 
     remove: removeCalendarSource,
 
+    patchById: patchCalendarSource,
+
   } = useCalendarSources();
 
   const [importingCalendars, setImportingCalendars] = useState(false);
+  const { refresh: refreshCalendars } = useCalendarFeeds({
+    sources: calendarSources,
+    onImport: importCalendarBlocks,
+    onSourceResult: patchCalendarSource,
+  });
+
+  // Catch up subscribed calendars when the app is opened. Throttled inside
+  // the hook, and a no-op when nothing is subscribed, so this costs nothing
+  // for someone who only ever imported files.
+  const triedInitialRefresh = useRef(false);
+  useEffect(() => {
+    if (triedInitialRefresh.current) return;
+    if (calendarSources.length === 0) return;
+    triedInitialRefresh.current = true;
+    void refreshCalendars();
+  }, [calendarSources, refreshCalendars]);
 
   // Echo Lecture Finder pushes its data in through its own content script.
   const echo = useEchoBridge();
@@ -636,6 +656,8 @@ function AppMain({
           onImport={importCalendarBlocks}
           onUpsertSource={upsertCalendarSource}
           onRemoveSource={(id) => { removeCalendarBlocks(id); removeCalendarSource(id); }}
+          onFetchFeeds={(urls) => fetchCalendarFeeds(getSecretKey(), urls)}
+          onRefreshAll={() => refreshCalendars({ force: true })}
           onClose={() => setImportingCalendars(false)}
         />
       )}
