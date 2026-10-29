@@ -15,6 +15,7 @@ import TodayLayoutEditor from './components/TodayLayoutEditor';
 import DayPlannerSheet from './components/DayPlannerSheet';
 import StudySourcesSheet from './components/StudySourcesSheet';
 import CalendarImportSheet from './components/CalendarImportSheet';
+import CommitSheet from './components/CommitSheet';
 import ActivateLayoutEditor from './components/ActivateLayoutEditor';
 import MindMapsView from './components/MindMapsView';
 import UnderwayView from './components/UnderwayView';
@@ -58,12 +59,14 @@ import { useLectures } from './hooks/useLectures';
 import { useStudySources } from './hooks/useStudySources';
 import { useCalendarSources } from './hooks/useCalendarSources';
 import { useCalendarFeeds } from './hooks/useCalendarFeeds';
+import { pendingReview, lockCandidates, followThrough, trustReading, isLocked, shiftKey, shouldPromptLocks } from './utils/commitment';
 import { fetchCalendarFeeds } from './services/syncService';
 import { useEchoBridge } from './hooks/useEchoBridge';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
 import { formatDateKey } from './utils/dateHelpers';
+import type { TaskBlock } from './types';
 
 function LoginGate({ onUnlock }: { onUnlock: () => void }) {
   const [key, setKey] = useState('');
@@ -258,11 +261,31 @@ function AppMain({
   } = useCalendarSources();
 
   const [importingCalendars, setImportingCalendars] = useState(false);
+  const [committingBlock, setCommittingBlock] = useState<TaskBlock | null>(null);
   const { refresh: refreshCalendars } = useCalendarFeeds({
     sources: calendarSources,
     onImport: importCalendarBlocks,
     onSourceResult: patchCalendarSource,
   });
+
+  const todayKeyForCommit = formatDateKey(new Date());
+  const tomorrowKeyForCommit = shiftKey(todayKeyForCommit, 1);
+  const reviewQueue = useMemo(
+    () => pendingReview(blocks, todayKeyForCommit),
+    [blocks, todayKeyForCommit]
+  );
+  const lockableTomorrow = useMemo(
+    () =>
+      shouldPromptLocks(blocks, tomorrowKeyForCommit)
+        ? lockCandidates(blocks, tomorrowKeyForCommit)
+        : [],
+    [blocks, tomorrowKeyForCommit]
+  );
+  const lockedTomorrowCount = useMemo(
+    () => blocks.filter((b) => b.date === tomorrowKeyForCommit && isLocked(b)).length,
+    [blocks, tomorrowKeyForCommit]
+  );
+  const trustLine = useMemo(() => trustReading(followThrough(blocks)), [blocks]);
 
   // Catch up subscribed calendars when the app is opened. Throttled inside
   // the hook, and a no-op when nothing is subscribed, so this costs nothing
@@ -650,6 +673,28 @@ function AppMain({
         />
       )}
 
+      {committingBlock && (
+        <CommitSheet
+          block={committingBlock}
+          onSave={(commitment) => {
+            updateBlock({ ...committingBlock, commitment });
+            setCommittingBlock(null);
+          }}
+          onUnlock={() => {
+            // Only the decision is withdrawn. What was written stays, so
+            // unlocking and locking again does not mean retyping it.
+            updateBlock({
+              ...committingBlock,
+              commitment: committingBlock.commitment
+                ? { ...committingBlock.commitment, locked: false }
+                : undefined,
+            });
+            setCommittingBlock(null);
+          }}
+          onClose={() => setCommittingBlock(null)}
+        />
+      )}
+
       {importingCalendars && (
         <CalendarImportSheet
           sources={calendarSources}
@@ -907,6 +952,19 @@ function AppMain({
           onGoSort={() => setActiveView('compass')}
           onGoBreathe={() => setActiveView('grounding')}
           activateOrder={activateOrder}
+          reviewQueue={reviewQueue}
+          lockableTomorrow={lockableTomorrow}
+          lockedTomorrowCount={lockedTomorrowCount}
+          trustLine={trustLine}
+          onReviewBlock={(id, outcome) => {
+            const target = blocks.find((b) => b.id === id);
+            if (!target) return;
+            updateBlock({
+              ...target,
+              commitment: { ...(target.commitment ?? { locked: false }), outcome, reviewedAt: new Date().toISOString() },
+            });
+          }}
+          onLockBlock={(b) => setCommittingBlock(b)}
           isActivateTucked={isActivateTucked}
           onArrangeActivate={() => setCustomisingActivate(true)}
           activeDumpCount={activeDumpTasks.length}

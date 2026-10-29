@@ -29,7 +29,9 @@ export default function TaskBlockCard({ rendered, colorIndex, onToggleSubTask, o
 
   return (
     <div
-      className={`absolute rounded-md border-l-3 ${colors.bg} ${colors.border} px-2 py-1 cursor-pointer hover:shadow-md transition-shadow overflow-hidden ${isCrossDay ? 'opacity-80 border-dashed' : ''}`}
+      className={`absolute rounded-md border-l-3 ${colors.bg} ${colors.border} px-2 py-1 cursor-pointer hover:shadow-md transition-shadow overflow-hidden ${isCrossDay ? 'opacity-80 border-dashed' : ''} ${
+        block.commitment?.locked ? 'ring-2 ring-indigo-500/60 dark:ring-indigo-400/60' : ''
+      }`}
       style={{
         top: `${topPx}px`,
         height: `${heightPx}px`,
@@ -78,6 +80,10 @@ export default function TaskBlockCard({ rendered, colorIndex, onToggleSubTask, o
           is a span you are sitting inside, and labelling a 1–4pm lab "4:00
           PM" reads as the wrong start time. Those get the range instead. */}
       <div className={`font-semibold text-xs ${colors.text} mt-0.5 leading-tight`}>
+        {/* A locked block is a decision, not a hope. Marked rather than
+            having everything else dimmed, so an unlocked week does not
+            suddenly read as provisional. */}
+        {block.commitment?.locked && <span title="Locked in">● </span>}
         {block.calendar && block.durationMinutes && !block.isAllDay
           ? `${formatTime24to12(startTimeOf(block.mainTime, block.durationMinutes))}–${formatTime24to12(block.mainTime)}`
           : formatTime24to12(block.mainTime)}{' '}

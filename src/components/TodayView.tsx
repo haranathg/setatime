@@ -113,6 +113,13 @@ interface TodayViewProps {
   onGoBreathe: () => void;       // → Grounding
   // The Activate now menu's stored shape, and the way into editing it.
   activateOrder: ActivateKey[];
+  /** Yesterday's blocks still to be answered for, and tomorrow's to decide on. */
+  reviewQueue?: TaskBlock[];
+  lockableTomorrow?: TaskBlock[];
+  lockedTomorrowCount?: number;
+  trustLine?: string | null;
+  onReviewBlock?: (blockId: string, outcome: 'kept' | 'partly' | 'missed') => void;
+  onLockBlock?: (block: TaskBlock) => void;
   isActivateTucked: (key: ActivateKey) => boolean;
   onArrangeActivate: () => void;
   // Count of active (non-someday) dump tasks — surfaced as a badge on
@@ -231,6 +238,12 @@ export default function TodayView({
   onPlanDay,
   onGoSort,
   onGoBreathe,
+  reviewQueue = [],
+  lockableTomorrow = [],
+  lockedTomorrowCount = 0,
+  trustLine = null,
+  onReviewBlock,
+  onLockBlock,
   activateOrder,
   isActivateTucked,
   onArrangeActivate,
@@ -405,6 +418,78 @@ export default function TodayView({
         </button>
       </section>
     ) : null,
+    commit:
+      reviewQueue.length > 0 || lockableTomorrow.length > 0 ? (
+        <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3">
+          <h3 className="text-[13px] font-semibold text-gray-800 dark:text-gray-200">
+            {reviewQueue.length > 0 ? 'Answer for yesterday' : 'Decide on tomorrow'}
+          </h3>
+
+          {/* The review half. Asked about locked and unlocked blocks alike,
+              because a kept-rate for decisions means nothing without the
+              rate for the things that were only ever hopes. */}
+          {reviewQueue.length > 0 && onReviewBlock && (
+            <ul className="mt-2 space-y-1.5">
+              {reviewQueue.slice(0, 6).map((b) => (
+                <li key={b.id} className="flex items-center gap-2">
+                  <span className="flex-1 min-w-0 text-[12px] text-gray-700 dark:text-gray-200 truncate">
+                    {b.commitment?.locked && (
+                      <span className="text-indigo-600 dark:text-indigo-400 font-bold">● </span>
+                    )}
+                    {b.mainTask}
+                  </span>
+                  <div className="flex gap-1 shrink-0">
+                    {(['kept', 'partly', 'missed'] as const).map((o) => (
+                      <button
+                        key={o}
+                        onClick={() => onReviewBlock(b.id, o)}
+                        className="px-1.5 py-0.5 text-[11px] font-semibold rounded-md border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                        title={o === 'kept' ? 'Did it' : o === 'partly' ? 'Partly' : 'Did not'}
+                      >
+                        {o === 'kept' ? '✓' : o === 'partly' ? '~' : '✕'}
+                      </button>
+                    ))}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {/* The deciding half. */}
+          {lockableTomorrow.length > 0 && onLockBlock && (
+            <div className={reviewQueue.length > 0 ? 'mt-3 pt-3 border-t border-gray-100 dark:border-gray-800' : 'mt-2'}>
+              <p className="text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
+                {lockedTomorrowCount > 0
+                  ? `${lockedTomorrowCount} locked for tomorrow.`
+                  : 'Nothing locked for tomorrow yet.'}{' '}
+                Lock one to three — locking everything makes it mean nothing.
+              </p>
+              <ul className="mt-1.5 space-y-1">
+                {lockableTomorrow.slice(0, 5).map((b) => (
+                  <li key={b.id} className="flex items-center gap-2">
+                    <span className="flex-1 min-w-0 text-[12px] text-gray-700 dark:text-gray-200 truncate">
+                      {b.mainTask}
+                    </span>
+                    <button
+                      onClick={() => onLockBlock(b)}
+                      className="shrink-0 px-2 py-0.5 text-[11px] font-semibold rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400"
+                    >
+                      Lock
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Only shown once it is built on enough answers to mean something. */}
+          {trustLine && (
+            <p className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-800 text-[11px] text-gray-500 dark:text-gray-400 leading-snug">
+              {trustLine}
+            </p>
+          )}
+        </section>
+      ) : null,
     projectsDue: (
       <>
       <ProjectsDueStrip projects={projects} onOpenProjects={onOpenProjects} />
