@@ -39,6 +39,39 @@ Then put every date you don't control into **Milestones**: exam dates,
 module deadlines, IRB submission, abstract cutoffs. This is the only part
 that takes real work, and you only do it once per term.
 
+## Getting your calendars in
+
+Everything you don't control — VITALS, work, personal — is already
+aggregated in Calendar on your Mac. SetATime reads that rather than trying
+to talk to each system itself.
+
+In Calendar: select a calendar in the sidebar, then **File → Export →
+Export**. Repeat for each one you want. You get a `.ics` per calendar, and
+the file name becomes the calendar name in SetATime.
+
+Then in SetATime: open the sync panel in the header, **Import calendars**,
+and pick all the files at once. Choose how far ahead to expand — *Rest of
+term* is the usual answer in week one, *4 weeks* when you are topping up.
+You get a count per calendar before anything is written.
+
+Each calendar gets its own colour and stays that colour, so a glance at
+the week tells you which commitments are school and which are not.
+
+What it does with repeats: a weekly lecture is expanded into the actual
+sessions, a week your school cancelled is left out, and a session that
+moved shows at its new time only. Free or tentative holds are skipped —
+they are not commitments and should not block planning.
+
+**Re-importing is the same action.** It updates what moved, removes what
+was cancelled, and leaves alone anything you put on the grid yourself,
+any other calendar, and anything outside the window you imported. Doing it
+twice changes nothing, so when the schedule shifts, just export and import
+again.
+
+The point of all this is the next section: once your real week is on the
+grid, *Plan the day* fills the gaps around it instead of pretending you
+have a free afternoon.
+
 ## The rhythm
 
 **Sunday, ~10 minutes.** Open the Projects tab and walk it top to bottom.

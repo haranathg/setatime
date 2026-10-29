@@ -33,6 +33,31 @@ export interface TaskBlock {
   virtualSpiral?: { spiralId: string; dateKey: string };
   durationMinutes?: number; // optional; used by virtual spirals + future block editing
   projectId?: string; // optional Project this block belongs to
+  // Set when this block came from a subscribed calendar rather than from
+  // you. `key` identifies the individual session, so a re-import updates a
+  // moved lecture in place instead of leaving the old time behind.
+  // Its presence also marks the block as a fixed commitment: the day
+  // planner treats it as a wall rather than something it may move.
+  calendar?: { sourceId: string; uid: string; key: string };
+}
+
+/** One calendar you imported — a file dragged in from Calendar.app,
+ *  typically one per subscription (school, work, personal). Kept so a
+ *  re-import can tell its own blocks apart from everything else, and so a
+ *  calendar can be removed again in one go. */
+export interface CalendarSource {
+  id: string;
+  name: string;
+  color: string;
+  lastImportedAt?: string;
+  /** The window the last import covered, as date keys. */
+  fromKey?: string;
+  toKey?: string;
+  eventCount?: number;
+}
+
+export interface CalendarSourcesState {
+  sources: CalendarSource[];
 }
 
 export type EisenhowerPriority = 'do-first' | 'schedule' | 'delegate' | 'drop';
@@ -556,6 +581,7 @@ export interface AppState {
   activateLayout?: ActivateLayoutState;
   mindMaps?: MindMapsState;
   studySources?: StudySourcesState;
+  calendarSources?: CalendarSourcesState;
   horizon?: HorizonState;
   underway?: UnderwayState;
   compass?: CompassState;

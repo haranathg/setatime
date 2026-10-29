@@ -1,6 +1,14 @@
 import type { RenderedBlock } from '../types';
-import { BLOCK_COLORS } from '../constants';
+import { BLOCK_COLORS, BLOCK_COLORS_RAW } from '../constants';
 import { formatTime24to12 } from '../utils/dateHelpers';
+
+/** The clock time `durationMinutes` before `end`, as "HH:MM". */
+function startTimeOf(end: string, durationMinutes: number): string {
+  const [h, m] = end.split(':').map(Number);
+  const mins = Math.max(0, (h || 0) * 60 + (m || 0) - durationMinutes);
+  return `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
+}
+
 
 interface TaskBlockCardProps {
   rendered: RenderedBlock;
@@ -11,7 +19,13 @@ interface TaskBlockCardProps {
 
 export default function TaskBlockCard({ rendered, colorIndex, onToggleSubTask, onClick }: TaskBlockCardProps) {
   const { block, topPx, heightPx, left, width, isCrossDay } = rendered;
-  const colors = BLOCK_COLORS[colorIndex % BLOCK_COLORS.length];
+  // Colour normally follows a block's position in the day, which is fine for
+  // blocks you made but wrong for imported ones: the same lecture would be
+  // indigo on a day it happens to be first and green on a day it is second,
+  // so a calendar could never be recognised at a glance. A block carrying a
+  // colour from the palette uses it; everything else is unchanged.
+  const ownIndex = BLOCK_COLORS_RAW.indexOf(block.color);
+  const colors = BLOCK_COLORS[(ownIndex >= 0 ? ownIndex : colorIndex) % BLOCK_COLORS.length];
 
   return (
     <div
@@ -58,9 +72,16 @@ export default function TaskBlockCard({ rendered, colorIndex, onToggleSubTask, o
         </div>
       )}
 
-      {/* Main task */}
+      {/* Main task.
+          A block's `mainTime` is its anchor, which for anything you created
+          is the time that matters. An imported commitment is different: it
+          is a span you are sitting inside, and labelling a 1–4pm lab "4:00
+          PM" reads as the wrong start time. Those get the range instead. */}
       <div className={`font-semibold text-xs ${colors.text} mt-0.5 leading-tight`}>
-        {formatTime24to12(block.mainTime)} {block.mainTask}
+        {block.calendar && block.durationMinutes && !block.isAllDay
+          ? `${formatTime24to12(startTimeOf(block.mainTime, block.durationMinutes))}–${formatTime24to12(block.mainTime)}`
+          : formatTime24to12(block.mainTime)}{' '}
+        {block.mainTask}
       </div>
     </div>
   );
