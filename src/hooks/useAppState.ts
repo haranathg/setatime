@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { TaskBlock, AppState } from '../types';
+import { mergeCalendarBlocks } from '../utils/calendarImport';
+import type { MergeResult } from '../utils/calendarImport';
 import { loadState, saveState } from '../utils/storage';
 import { getWeekStart, formatDateKey } from '../utils/dateHelpers';
 import { getSecretKey, syncLoad, syncSave } from '../services/syncService';
@@ -143,6 +145,59 @@ export function useAppState() {
     setBlocks((prev) => [...prev, block]);
   }, []);
 
+  /**
+   * Fold a calendar import into the grid in a single write.
+   *
+   * Takes every calendar at once, deliberately. Each source needs its own
+   * merge — removals are scoped to one source so a cancelled class
+   * disappears without touching the others — but calling a per-source
+   * merge in a loop does not work: each call would read the same `blocks`
+   * from this closure, so every source would overwrite the previous one
+   * and only the last would survive. Folding them here keeps one read of
+   * state, and one write of it.
+   */
+  const importCalendarBlocks = useCallback(
+    (
+      batches: {
+        sourceId: string;
+        blocks: TaskBlock[];
+        window: { fromKey: string; toKey: string };
+      }[]
+    ): MergeResult => {
+      let acc = blocks;
+      let added = 0;
+      let updated = 0;
+      let removed = 0;
+      let unchanged = 0;
+      for (const batch of batches) {
+        const r = mergeCalendarBlocks(acc, batch.blocks, batch.sourceId, batch.window);
+        acc = r.blocks;
+        added += r.added;
+        updated += r.updated;
+        removed += r.removed;
+        unchanged += r.unchanged;
+      }
+      setBlocks(acc);
+      return { blocks: acc, added, updated, removed, unchanged };
+    },
+    [blocks]
+  );
+
+  /** Drop a calendar and every session it put on the grid. */
+  const removeCalendarBlocks = useCallback((sourceId: string): number => {
+    let gone = 0;
+    setBlocks((prev) =>
+      prev.filter((b) => {
+        if (b.calendar?.sourceId === sourceId) {
+          gone++;
+          return false;
+        }
+        return true;
+      })
+    );
+    return gone;
+  }, []);
+
   const updateBlock = useCallback((updated: TaskBlock) => {
     setBlocks((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
   }, []);
@@ -227,6 +282,8 @@ export function useAppState() {
     blocks,
     currentWeekStart,
     addBlock,
+    importCalendarBlocks,
+    removeCalendarBlocks,
     updateBlock,
     deleteBlock,
     toggleSubTask,

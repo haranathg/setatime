@@ -11,7 +11,25 @@ export interface ParsedEvent {
   end?: string;         // ISO timestamp
   location?: string;
   allDay: boolean;
-  recurring: boolean;   // had an RRULE — see caveat below
+  recurring: boolean;   // had an RRULE
+  /** Raw RRULE value, e.g. "FREQ=WEEKLY;BYDAY=MO,WE;UNTIL=20261218T050000Z".
+   *  Expanding it into occurrences is the caller's job — see
+   *  `calendarImport.expandOccurrences`. */
+  rrule?: string;
+  /** Every EXDATE value, flattened. A recurring event lists the dates its
+   *  rule should skip (a cancelled week); dropping them silently puts a
+   *  class on the calendar that is not happening. */
+  exDates?: string[];
+  /** Set when this VEVENT overrides one occurrence of a recurring series
+   *  (RFC 5545 §3.8.4.4) — a single moved or renamed session. Carries the
+   *  original start of the instance being replaced. */
+  recurrenceId?: string;
+  /** Length in minutes, from DTEND or DURATION. Undefined when the event
+   *  gave neither. */
+  durationMinutes?: number;
+  /** Outlook/Google write SUMMARY as the only title, but a busy/free
+   *  marker matters for planning: a "free" event is not a commitment. */
+  transparent?: boolean;
 }
 
 export interface ParseResult {
@@ -99,6 +117,41 @@ function toISO(value: string, params: Record<string, string>): { iso: string; al
   return { iso: d.toISOString(), allDay: false };
 }
 
+/** RFC 5545 §3.3.6 duration, e.g. "PT1H30M", "P1D", "-PT15M". Only the
+ *  positive day/hour/minute shapes an event length ever uses. */
+export function parseIcalDuration(raw: string | undefined): number | undefined {
+  if (!raw) return undefined;
+  const m = /^([+-])?P(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(
+    raw.trim().toUpperCase()
+  );
+  if (!m) return undefined;
+  const [, sign, w, d, h, mi, sec] = m;
+  const total =
+    (w ? +w * 7 * 24 * 60 : 0) +
+    (d ? +d * 24 * 60 : 0) +
+    (h ? +h * 60 : 0) +
+    (mi ? +mi : 0) +
+    (sec ? Math.round(+sec / 60) : 0);
+  if (total === 0) return undefined;
+  return sign === '-' ? -total : total;
+}
+
+/** Event length, preferring an explicit DTEND and falling back to DURATION. */
+function minutesBetween(
+  start: { iso: string; allDay: boolean },
+  end: { iso: string; allDay: boolean } | null,
+  duration?: string
+): number | undefined {
+  if (end) {
+    const mins = Math.round(
+      (new Date(end.iso).getTime() - new Date(start.iso).getTime()) / 60000
+    );
+    return mins > 0 ? mins : undefined;
+  }
+  const d = parseIcalDuration(duration);
+  return d && d > 0 ? d : undefined;
+}
+
 export function parseICS(text: string): ParseResult {
   const lines = unfold(text);
   const events: ParsedEvent[] = [];
@@ -110,6 +163,10 @@ export function parseICS(text: string): ParseResult {
   // if they were lectures.
   const stack: string[] = [];
   let current: Record<string, { value: string; params: Record<string, string> }> | null = null;
+  // EXDATE legally appears many times in one VEVENT, and each occurrence may
+  // itself be a comma-separated list. The single-value property map above
+  // would keep only the last one, so these are collected on the side.
+  let currentEx: { value: string; params: Record<string, string> }[] = [];
 
   for (const line of lines) {
     const parsed = parseLine(line);
@@ -118,14 +175,19 @@ export function parseICS(text: string): ParseResult {
 
     if (name === 'BEGIN') {
       stack.push(value.toUpperCase());
-      if (value.toUpperCase() === 'VEVENT' && stack.length === 2) current = {};
+      if (value.toUpperCase() === 'VEVENT' && stack.length === 2) {
+        current = {};
+        currentEx = [];
+      }
       continue;
     }
     if (name === 'END') {
       const closing = value.toUpperCase();
       if (closing === 'VEVENT' && current) {
         const ev = current;
+        const exList = currentEx;
         current = null;
+        currentEx = [];
         stack.pop();
 
         const summary = ev.SUMMARY ? unescapeText(ev.SUMMARY.value).trim() : '';
@@ -140,6 +202,14 @@ export function parseICS(text: string): ParseResult {
         }
         const end = ev.DTEND ? toISO(ev.DTEND.value, ev.DTEND.params) : null;
 
+        const exDates: string[] = [];
+        for (const ex of exList) {
+          for (const piece of ex.value.split(',')) {
+            const iso = toISO(piece, ex.params);
+            if (iso) exDates.push(iso.iso);
+          }
+        }
+
         events.push({
           // A missing UID is legal-ish in the wild. Fall back to something
           // deterministic so re-importing the same file matches existing
@@ -151,6 +221,15 @@ export function parseICS(text: string): ParseResult {
           location: ev.LOCATION ? unescapeText(ev.LOCATION.value).trim() || undefined : undefined,
           allDay: start.allDay,
           recurring: !!ev.RRULE,
+          rrule: ev.RRULE ? ev.RRULE.value.trim() : undefined,
+          exDates: exDates.length ? exDates : undefined,
+          recurrenceId: ev['RECURRENCE-ID']
+            ? toISO(ev['RECURRENCE-ID'].value, ev['RECURRENCE-ID'].params)?.iso
+            : undefined,
+          durationMinutes: minutesBetween(start, end, ev.DURATION?.value),
+          transparent: ev.TRANSP
+            ? ev.TRANSP.value.trim().toUpperCase() === 'TRANSPARENT'
+            : undefined,
         });
         continue;
       }
@@ -160,15 +239,16 @@ export function parseICS(text: string): ParseResult {
 
     // Only collect properties directly inside a top-level VEVENT.
     if (current && stack.length === 2 && stack[1] === 'VEVENT') {
-      current[name] = { value, params };
+      if (name === 'EXDATE') currentEx.push({ value, params });
+      else current[name] = { value, params };
     }
   }
 
   return { events, skipped };
 }
 
-// Recurrence caveat: an event carrying an RRULE is imported once, at its
-// first occurrence, and flagged `recurring`. Expanding rules properly
-// (COUNT/UNTIL/BYDAY/EXDATE) is a real implementation, and school exports
-// typically enumerate each session as its own VEVENT anyway. The flag lets
-// the UI say so rather than quietly showing one row where twelve belong.
+// Recurrence: a VEVENT carrying an RRULE is returned once, at its first
+// occurrence, with the rule and its EXDATEs attached. Turning that into the
+// individual sessions is `calendarImport.expandOccurrences` — kept separate
+// because expansion needs a window to expand into, which is a decision
+// belonging to the caller, not to the parser.

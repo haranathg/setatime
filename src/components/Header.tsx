@@ -64,6 +64,9 @@ interface HeaderProps {
   syncError?: string | null;
   onRefreshFromCloud?: () => void;
   onExportICal?: () => void;
+  onImportCalendars?: () => void;
+  /** How many calendars have been imported, for the button's subtitle. */
+  calendarCount?: number;
   unscheduledCount?: number;
   inboxTriageCount?: number;
   blockCount?: number;
@@ -72,7 +75,7 @@ interface HeaderProps {
   stalledProjectCount?: number;
 }
 
-export default function Header({ activeView, onViewChange, syncing, syncError, onRefreshFromCloud, onExportICal, inboxTriageCount = 0, blockCount = 0, stalledProjectCount = 0 }: HeaderProps) {
+export default function Header({ activeView, onViewChange, syncing, syncError, onRefreshFromCloud, onExportICal, onImportCalendars, calendarCount = 0, inboxTriageCount = 0, blockCount = 0, stalledProjectCount = 0 }: HeaderProps) {
   const [showSync, setShowSync] = useState(false);
   const [key, setKey] = useState(getSecretKey());
   const [saved, setSaved] = useState(false);
@@ -251,6 +254,31 @@ export default function Header({ activeView, onViewChange, syncing, syncError, o
                 <p className="text-xs text-green-600 dark:text-green-400 mt-2">
                   {gate.deferred ? 'Sending up your latest edit…' : 'Syncing automatically'}
                 </p>
+              )}
+
+              {/* Calendar import — deliberately not gated on having blocks
+                  already, since an empty week is when this matters most. */}
+              {onImportCalendars && (
+                <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+                  <button
+                    onClick={() => { onImportCalendars(); setShowSync(false); }}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/60 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="18" height="18" x="3" y="4" rx="2" ry="2" />
+                      <line x1="16" x2="16" y1="2" y2="6" />
+                      <line x1="8" x2="8" y1="2" y2="6" />
+                      <line x1="3" x2="21" y1="10" y2="10" />
+                      <path d="M12 18v-6" />
+                      <path d="m9 15 3 3 3-3" />
+                    </svg>
+                    Import calendars
+                    {calendarCount > 0 && ` (${calendarCount})`}
+                  </button>
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 text-center">
+                    Bring in your school, work and personal calendars from .ics files.
+                  </p>
+                </div>
               )}
 
               {/* iCal export */}

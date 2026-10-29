@@ -14,6 +14,7 @@ import RegulateView from './components/RegulateView';
 import TodayLayoutEditor from './components/TodayLayoutEditor';
 import DayPlannerSheet from './components/DayPlannerSheet';
 import StudySourcesSheet from './components/StudySourcesSheet';
+import CalendarImportSheet from './components/CalendarImportSheet';
 import ActivateLayoutEditor from './components/ActivateLayoutEditor';
 import MindMapsView from './components/MindMapsView';
 import UnderwayView from './components/UnderwayView';
@@ -55,6 +56,7 @@ import { usePrinciples } from './hooks/usePrinciples';
 import { useProjects, isStalled } from './hooks/useProjects';
 import { useLectures } from './hooks/useLectures';
 import { useStudySources } from './hooks/useStudySources';
+import { useCalendarSources } from './hooks/useCalendarSources';
 import { useEchoBridge } from './hooks/useEchoBridge';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
@@ -136,6 +138,8 @@ function AppMain({
     blocks,
     currentWeekStart,
     addBlock,
+    importCalendarBlocks,
+    removeCalendarBlocks,
     updateBlock,
     deleteBlock,
     toggleSubTask,
@@ -238,6 +242,18 @@ function AppMain({
     addSource, updateSource, removeSource, seedDefaults,
     remainingThisWeek,
   } = useStudySources();
+
+  const {
+
+    sources: calendarSources,
+
+    upsert: upsertCalendarSource,
+
+    remove: removeCalendarSource,
+
+  } = useCalendarSources();
+
+  const [importingCalendars, setImportingCalendars] = useState(false);
 
   // Echo Lecture Finder pushes its data in through its own content script.
   const echo = useEchoBridge();
@@ -577,6 +593,8 @@ function AppMain({
         syncError={syncError}
         onRefreshFromCloud={refreshFromCloud}
         onExportICal={() => downloadICS(blocks)}
+        onImportCalendars={() => setImportingCalendars(true)}
+        calendarCount={calendarSources.length}
         unscheduledCount={unscheduledTasks.length}
         inboxTriageCount={inboxTriageCount}
         blockCount={blocks.length}
@@ -609,6 +627,16 @@ function AppMain({
           onAdd={(made) => made.forEach(addBlock)}
           onManageSources={() => { setPlanningDay(false); setEditingSources(true); }}
           onClose={() => setPlanningDay(false)}
+        />
+      )}
+
+      {importingCalendars && (
+        <CalendarImportSheet
+          sources={calendarSources}
+          onImport={importCalendarBlocks}
+          onUpsertSource={upsertCalendarSource}
+          onRemoveSource={(id) => { removeCalendarBlocks(id); removeCalendarSource(id); }}
+          onClose={() => setImportingCalendars(false)}
         />
       )}
 

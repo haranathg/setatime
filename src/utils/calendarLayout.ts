@@ -51,6 +51,15 @@ export function computeRenderedBlocks(blocks: TaskBlock[], dateKey?: string): Re
       const mainMinute = timeToMinutes(block.mainTime);
       let startMinute = mainMinute;
 
+      // A block with a duration and no sub-tasks — an imported commitment —
+      // starts that many minutes before its end. Without this it would
+      // collapse to the 30-minute minimum, so a three-hour lab would look
+      // like a half-hour errand and the planner would offer the rest of it
+      // as free time.
+      if (block.durationMinutes && block.durationMinutes > 0) {
+        startMinute = Math.max(0, mainMinute - block.durationMinutes);
+      }
+
       for (const sub of sameDaySubs) {
         const subMinute = timeToMinutes(sub.time);
         if (subMinute < startMinute) startMinute = subMinute;
