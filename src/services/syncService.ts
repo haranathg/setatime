@@ -287,3 +287,43 @@ export async function forcePushLocal(secretKey: string): Promise<void> {
 export async function retryCloudLoad(secretKey: string): Promise<AppState> {
   return syncLoad(secretKey, { force: true });
 }
+
+export interface FeedFetchResult {
+  ok: boolean;
+  ics?: string;
+  error?: string;
+}
+
+/**
+ * Fetch calendar feeds through the sync Lambda.
+ *
+ * The browser cannot do this itself: school and Outlook feeds send no CORS
+ * headers, so a direct fetch never leaves the page. The Lambda validates
+ * each URL, refuses anything that resolves to a private address, and never
+ * logs the URL — a feed URL is an unauthenticated credential.
+ *
+ * Results come back one per URL, in order, each either text or a reason, so
+ * one stale feed does not take the others down with it.
+ */
+export async function fetchCalendarFeeds(
+  secretKey: string,
+  urls: string[]
+): Promise<FeedFetchResult[]> {
+  const response = await fetch(SYNC_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'fetchCalendars', secretKey, urls }),
+  });
+  if (!response.ok) {
+    let message = `Calendar refresh failed (${response.status})`;
+    try {
+      const body = await response.json();
+      if (body?.error) message = body.error;
+    } catch {
+      // keep the status-code message
+    }
+    throw new Error(message);
+  }
+  const body = await response.json();
+  return Array.isArray(body?.results) ? body.results : [];
+}

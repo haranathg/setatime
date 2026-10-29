@@ -38,6 +38,9 @@ interface Staged {
   notes: string[];
   color: string;
   existing?: CalendarSource;
+  /** Present when this calendar was added by URL, so it can keep itself
+   *  current instead of needing another export. */
+  feedUrl?: string;
 }
 
 /** "Calendar Export/VITALS Schedule.ics" → "VITALS Schedule" */
@@ -52,6 +55,8 @@ export default function CalendarImportSheet({
   onImport,
   onUpsertSource,
   onRemoveSource,
+  onFetchFeeds,
+  onRefreshAll,
   onClose,
 }: {
   sources: CalendarSource[];
@@ -64,6 +69,9 @@ export default function CalendarImportSheet({
   ) => MergeResult;
   onUpsertSource: (name: string, patch: Partial<CalendarSource>) => CalendarSource;
   onRemoveSource: (id: string) => void;
+  /** Fetch feeds through the sync Lambda — the browser cannot reach them. */
+  onFetchFeeds: (urls: string[]) => Promise<{ ok: boolean; ics?: string; error?: string }[]>;
+  onRefreshAll: () => Promise<{ added: number; updated: number; removed: number; failures: { name: string; error: string }[] }>;
   onClose: () => void;
 }) {
   const [windowKey, setWindowKey] = useState<WindowKey>('12w');
@@ -71,6 +79,10 @@ export default function CalendarImportSheet({
   const [reading, setReading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ added: number; updated: number; removed: number } | null>(null);
+  const [feedName, setFeedName] = useState('');
+  const [feedUrl, setFeedUrl] = useState('');
+  const [busyFeed, setBusyFeed] = useState(false);
+  const [refreshNote, setRefreshNote] = useState<string | null>(null);
 
   const win = WINDOWS.find((w) => w.key === windowKey) ?? WINDOWS[1];
 
@@ -131,6 +143,74 @@ export default function CalendarImportSheet({
     [range, sources]
   );
 
+  const addByUrl = useCallback(async () => {
+    const url = feedUrl.trim();
+    if (!url) return;
+    setBusyFeed(true);
+    setError(null);
+    setDone(null);
+    try {
+      const [result] = await onFetchFeeds([url]);
+      if (!result || !result.ok || !result.ics) {
+        setError(result?.error || 'Could not fetch that calendar.');
+        return;
+      }
+      const parsed = parseICS(result.ics);
+      const { occurrences, notes } = expandOccurrences(parsed.events, {
+        from: range.from,
+        to: range.to,
+      });
+      // A feed usually names itself; fall back to the host, then to anything.
+      const named =
+        feedName.trim() ||
+        /X-WR-CALNAME:(.+)/i.exec(result.ics)?.[1]?.trim() ||
+        (() => {
+          try {
+            return new URL(url.replace(/^webcal:\/\//i, 'https://')).hostname;
+          } catch {
+            return 'Calendar';
+          }
+        })();
+      const existing = sources.find((x) => x.name.toLowerCase() === named.toLowerCase());
+      const color =
+        existing?.color ?? SOURCE_COLORS[(sources.length + staged.length) % SOURCE_COLORS.length];
+      setStaged((prev) => [
+        ...prev.filter((x) => x.name.toLowerCase() !== named.toLowerCase()),
+        {
+          name: named,
+          occurrences,
+          blocks: toBlocks(occurrences, { id: existing?.id ?? named, name: named, color }),
+          skipped: parsed.skipped.length,
+          notes,
+          color,
+          existing,
+          feedUrl: url,
+        },
+      ]);
+      setFeedUrl('');
+      setFeedName('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not fetch that calendar.');
+    } finally {
+      setBusyFeed(false);
+    }
+  }, [feedUrl, feedName, onFetchFeeds, range, sources, staged.length]);
+
+  const refreshNow = useCallback(async () => {
+    setBusyFeed(true);
+    setRefreshNote(null);
+    try {
+      const r = await onRefreshAll();
+      setRefreshNote(
+        r.failures.length > 0
+          ? `${r.failures.map((f) => `${f.name}: ${f.error}`).join(' · ')}`
+          : `Up to date — ${r.updated} changed, ${r.added} new${r.removed > 0 ? `, ${r.removed} cancelled` : ''}.`
+      );
+    } finally {
+      setBusyFeed(false);
+    }
+  }, [onRefreshAll]);
+
   const total = staged.reduce((n, s) => n + s.occurrences.length, 0);
 
   const commit = () => {
@@ -145,6 +225,11 @@ export default function CalendarImportSheet({
         fromKey: range.fromKey,
         toKey: range.toKey,
         eventCount: s.occurrences.length,
+        // Only set when this one came from a URL; importing a file must not
+        // wipe a subscription that is already working.
+        ...(s.feedUrl ? { feedUrl: s.feedUrl } : {}),
+        backDays: win.back,
+        forwardDays: win.forward,
       });
       // Re-key onto the real source id, since a first import had only the name.
       batches.push({
@@ -222,9 +307,48 @@ export default function CalendarImportSheet({
             </p>
           </div>
 
+          <div>
+            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
+              Subscribe by link
+            </span>
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">
+              A subscription keeps itself current — change something in the
+              school system and it appears here on its own. In Calendar on your
+              Mac: right-click a subscribed calendar, Get Info, and copy the URL.
+            </p>
+            <div className="flex gap-1.5 mt-1.5">
+              <input
+                type="text"
+                value={feedName}
+                onChange={(e) => setFeedName(e.target.value)}
+                placeholder="Name (optional)"
+                className="w-28 shrink-0 px-2 py-1.5 text-[12px] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <input
+                type="url"
+                value={feedUrl}
+                onChange={(e) => setFeedUrl(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') addByUrl(); }}
+                placeholder="webcal:// or https://…"
+                className="flex-1 min-w-0 px-2 py-1.5 text-[12px] rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+              <button
+                onClick={addByUrl}
+                disabled={!feedUrl.trim() || busyFeed}
+                className="px-2.5 py-1 text-[11px] font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-indigo-400 disabled:opacity-40 shrink-0"
+              >
+                {busyFeed ? '…' : 'Add'}
+              </button>
+            </div>
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1 leading-snug">
+              Treat a calendar link like a password — it usually needs no login,
+              so anyone holding it can read that calendar.
+            </p>
+          </div>
+
           <label className="block">
             <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
-              Calendar files
+              Or import files
             </span>
             <input
               type="file"
@@ -325,9 +449,25 @@ export default function CalendarImportSheet({
 
           {sources.length > 0 && (
             <div className="border-t border-gray-100 dark:border-gray-800 pt-3">
-              <div className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500 mb-1.5">
-                Imported calendars
+              <div className="flex items-baseline justify-between gap-2 mb-1.5">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-gray-400 dark:text-gray-500">
+                  Your calendars
+                </span>
+                {sources.some((s) => s.feedUrl) && (
+                  <button
+                    onClick={refreshNow}
+                    disabled={busyFeed}
+                    className="text-[10px] uppercase tracking-wider font-bold text-indigo-600 dark:text-indigo-400 disabled:opacity-40"
+                  >
+                    {busyFeed ? 'Refreshing…' : 'Refresh now'}
+                  </button>
+                )}
               </div>
+              {refreshNote && (
+                <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-1.5 leading-snug">
+                  {refreshNote}
+                </p>
+              )}
               <ul className="space-y-1">
                 {sources.map((s) => (
                   <li key={s.id} className="flex items-center gap-2">
@@ -340,6 +480,16 @@ export default function CalendarImportSheet({
                       {s.eventCount != null && (
                         <span className="text-gray-400 dark:text-gray-500">
                           {' '}· {s.eventCount}
+                        </span>
+                      )}
+                      {s.feedUrl ? (
+                        <span className="text-emerald-600 dark:text-emerald-400"> · subscribed</span>
+                      ) : (
+                        <span className="text-gray-400 dark:text-gray-500"> · from a file</span>
+                      )}
+                      {s.lastRefreshError && (
+                        <span className="block text-[10px] text-rose-600 dark:text-rose-400 leading-snug">
+                          {s.lastRefreshError}
                         </span>
                       )}
                     </span>

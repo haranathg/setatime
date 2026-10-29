@@ -152,6 +152,28 @@ Swap the log group name for `/aws/lambda/setatime-sync` as needed.
 | Frontend URL | https://d1bycim0bytkm9.cloudfront.net |
 | S3 frontend bucket | `setatime-frontend-us-west-2` |
 | S3 userdata bucket | `setatime-userdata-us-west-2` |
+
+### Calendar feed fetching (`setatime-sync`)
+
+The sync Lambda also serves `action: 'fetchCalendars'`, which fetches
+subscribed `.ics` feeds on the frontend's behalf — browsers can't, because
+school and Outlook feeds send no CORS headers.
+
+It is deliberately narrow: https only, every resolved address checked
+against private and link-local ranges (the metadata service above all),
+redirects re-validated rather than followed, 8s timeout, 5MB cap, and at
+most 10 URLs per call.
+
+**Feed URLs are never logged.** A calendar feed URL is an unauthenticated
+credential, and CloudWatch keeps whatever is printed. Fetch errors are
+caught and replaced with a fixed message rather than surfaced, because the
+underlying error embeds the URL.
+
+Access is gated on `ALLOWED_KEY_HASHES` (comma-separated sha256 hashes of
+permitted secret keys) **when that variable is set on this Lambda**. It is
+not set there today, so the fallback applies: the key must already own a
+data object in the bucket. Setting `ALLOWED_KEY_HASHES` on
+`setatime-sync` is the way to tighten this to an explicit allowlist.
 | CloudFront distribution | `E26AJUHQAV6UYQ` |
 | API Gateway ID | `p7r6m54moa` |
 | AI API URL | `https://p7r6m54moa.execute-api.us-west-2.amazonaws.com/ai-breakdown` |

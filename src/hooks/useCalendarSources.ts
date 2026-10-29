@@ -93,5 +93,11 @@ export function useCalendarSources() {
     setSources((prev) => prev.map((s) => (s.id === id ? { ...s, color } : s)));
   }, []);
 
-  return { sources, loaded, findByName, upsert, remove, setColor };
+  /** Functional, so a refresh touching several calendars at once does not
+   *  have each update overwrite the last. */
+  const patchById = useCallback((id: string, patch: Partial<CalendarSource>) => {
+    setSources((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }, []);
+
+  return { sources, loaded, findByName, upsert, remove, setColor, patchById };
 }

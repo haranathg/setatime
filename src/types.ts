@@ -54,6 +54,17 @@ export interface CalendarSource {
   fromKey?: string;
   toKey?: string;
   eventCount?: number;
+  /** A subscription URL for this calendar. When present the calendar
+   *  refreshes itself and no file needs exporting again.
+   *
+   *  Treat it as a credential: a feed URL usually carries its own token and
+   *  needs no login, so anyone holding it can read the calendar. */
+  feedUrl?: string;
+  /** How far either side of today to expand on refresh, so the window rolls
+   *  forward instead of staying frozen at the date of the first import. */
+  backDays?: number;
+  forwardDays?: number;
+  lastRefreshError?: string;
 }
 
 export interface CalendarSourcesState {
