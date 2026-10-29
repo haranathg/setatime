@@ -4,6 +4,7 @@ import type { TaskBlock, SubTask, SubStep, BlockTemplate } from '../types';
 import { BLOCK_COLORS_RAW } from '../constants';
 import { formatFullDate, formatTime24to12 } from '../utils/dateHelpers';
 import { parseTaskInput, parseDurationInput, timeToMinutes, minutesToTime } from '../utils/timeParser';
+import { blockStartTime } from '../utils/calendarLayout';
 import { suggestTimes, buildDayOptions, type TimeSuggestion } from '../utils/timeSuggestions';
 import SubTaskRow from './SubTaskRow';
 import AiBreakdownButton from './AiBreakdownButton';
@@ -49,6 +50,12 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
   const [mainInput, setMainInput] = useState('');
   const [mainTask, setMainTask] = useState('');
   const [mainTime, setMainTime] = useState('');
+  // Where preparation counts back from. Same as mainTime for a block you
+  // made; for an imported commitment, the moment the event begins.
+  const anchorStart =
+    editingBlock?.calendar && editingBlock.durationMinutes && !editingBlock.isAllDay && mainTime
+      ? blockStartTime({ ...editingBlock, mainTime })
+      : mainTime;
   const [subTasks, setSubTasks] = useState<SubTask[]>([]);
   const [subInput, setSubInput] = useState('');
   const [mainParsed, setMainParsed] = useState(false);
@@ -202,7 +209,10 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
         ]);
       } else {
         // No previous-day subs — subtract from earliest same-day time
-        const sameDayTimes = [mainTime, ...subTasks.filter((s) => !s.date || s.date === blockDateKey).map((s) => s.time)];
+        // Prep stacks backwards from when the thing actually starts. For an
+        // imported commitment that is not mainTime, which is its end — "30
+        // min before" would otherwise land in the middle of the lecture.
+        const sameDayTimes = [anchorStart, ...subTasks.filter((s) => !s.date || s.date === blockDateKey).map((s) => s.time)];
         const earliestMinutes = Math.min(...sameDayTimes.map(timeToMinutes));
         const rawMinutes = earliestMinutes - duration.minutes;
 
@@ -319,7 +329,7 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
   const applyTemplate = (tpl: BlockTemplate) => {
     if (!mainTime) return;
     if (!mainTask) setMainTask(tpl.mainTaskLabel);
-    const mainMinutes = timeToMinutes(mainTime);
+    const mainMinutes = timeToMinutes(anchorStart);
     const prevDate = new Date(activeDate);
     prevDate.setDate(prevDate.getDate() - 1);
     const prevDateKey = `${prevDate.getFullYear()}-${(prevDate.getMonth() + 1).toString().padStart(2, '0')}-${prevDate.getDate().toString().padStart(2, '0')}`;
@@ -472,7 +482,11 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
               {!isAllDay && mainTime && (
                 <div className="mt-1 mb-2 flex items-center gap-2">
                   <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded">
-                    {formatTime24to12(mainTime)}
+                    {/* A commitment is a span you sit inside, so showing only
+                        mainTime would show its end and read as the start. */}
+                    {anchorStart !== mainTime
+                      ? `${formatTime24to12(anchorStart)}–${formatTime24to12(mainTime)}`
+                      : formatTime24to12(mainTime)}
                   </span>
                   <button
                     onClick={() => setMainTime('')}
@@ -594,6 +608,28 @@ export default function TaskModal({ date, editingBlock, prefillTaskName, prefill
                   </button>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* A commitment that came from a subscribed calendar. Worth saying
+              out loud: the feed owns the name and the time, so editing those
+              here is undone by the next refresh, while steps are yours and
+              are kept. */}
+          {editingBlock?.calendar && (
+            <div className="rounded-xl border border-indigo-200 dark:border-indigo-900 bg-indigo-50/60 dark:bg-indigo-950/30 px-3 py-2">
+              <p className="text-[11px] text-indigo-900 dark:text-indigo-200 leading-snug">
+                From your <strong>{editingBlock.calendar.sourceId ? 'subscribed calendar' : 'calendar'}</strong>
+                {!editingBlock.isAllDay && editingBlock.durationMinutes && mainTime ? (
+                  <> · {formatTime24to12(anchorStart)}–{formatTime24to12(mainTime)}</>
+                ) : null}
+              </p>
+              <p className="text-[10px] text-indigo-700/80 dark:text-indigo-300/80 leading-snug mt-0.5">
+                {anchorStart
+                  ? `Steps below count back from ${formatTime24to12(anchorStart)}, when it starts.`
+                  : 'Steps below count back from when it starts.'}{' '}
+                They are kept when the calendar refreshes — the name and time
+                are not, since those come from the feed.
+              </p>
             </div>
           )}
 

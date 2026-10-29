@@ -435,6 +435,8 @@ export function mergeCalendarBlocks(
     const inWindow = b.date >= window.fromKey && b.date <= window.toKey;
     const next = incomingById.get(b.id);
     if (next) {
+      // Only what the feed owns counts as a change — otherwise adding your
+      // own prep would be reported back to you as the school moving a class.
       const changed =
         b.mainTask !== next.mainTask ||
         b.mainTime !== next.mainTime ||
@@ -443,8 +445,18 @@ export function mergeCalendarBlocks(
         !!b.isAllDay !== !!next.isAllDay;
       if (changed) updated++;
       else unchanged++;
-      // Keep the colour the user may have changed on this block.
-      out.push({ ...next, color: b.color });
+      // The feed owns the title, time and date. Everything the user put on
+      // the block is theirs and survives: the colour they may have changed,
+      // any project they filed it under, and above all the sub-tasks —
+      // preparation leading up to a lecture is the whole reason to open an
+      // imported block, and a refresh that silently erased it would make the
+      // feature untrustworthy.
+      out.push({
+        ...next,
+        color: b.color,
+        subTasks: b.subTasks,
+        ...(b.projectId ? { projectId: b.projectId } : {}),
+      });
       incomingById.delete(b.id);
       continue;
     }

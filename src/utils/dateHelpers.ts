@@ -29,7 +29,12 @@ export function isToday(date: Date): boolean {
 }
 
 export function formatTime24to12(time: string): string {
+  // Defensive because this is called during render all over the app, and a
+  // block whose time has not been populated yet used to take the entire page
+  // down: "".split(":") leaves the minutes undefined and .toString() throws.
+  if (!time) return '';
   const [h, m] = time.split(':').map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return '';
   const ampm = h >= 12 ? 'PM' : 'AM';
   const hour12 = h % 12 || 12;
   return `${hour12}:${m.toString().padStart(2, '0')} ${ampm}`;

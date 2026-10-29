@@ -8,6 +8,31 @@ import { timeToMinutes } from './timeParser';
  * Blocks may be direct (block.date === dateKey) or cross-day
  * (block.date !== dateKey, but has sub-tasks with date === dateKey).
  */
+
+/**
+ * The minute of the day a block actually begins.
+ *
+ * `mainTime` means different things depending on where a block came from.
+ * For one you made it is the anchor — the moment to be ready by, with
+ * sub-tasks leading up to it. For an imported commitment it is the END: the
+ * event runs `durationMinutes` before it. Anything that wants to say when
+ * something starts, or to hang preparation off it, has to ask here rather
+ * than read `mainTime` and hope.
+ */
+export function blockStartMinutes(block: TaskBlock): number {
+  const main = timeToMinutes(block.mainTime);
+  if (block.calendar && block.durationMinutes && block.durationMinutes > 0 && !block.isAllDay) {
+    return Math.max(0, main - block.durationMinutes);
+  }
+  return main;
+}
+
+/** The same thing as "HH:MM". */
+export function blockStartTime(block: TaskBlock): string {
+  const m = blockStartMinutes(block);
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
 export function computeRenderedBlocks(blocks: TaskBlock[], dateKey?: string): RenderedBlock[] {
   if (blocks.length === 0) return [];
 

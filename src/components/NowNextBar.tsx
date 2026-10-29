@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { TaskBlock, SubTask } from '../types';
+import { blockStartMinutes, blockStartTime } from '../utils/calendarLayout';
 import { formatTime24to12 } from '../utils/dateHelpers';
 
 interface NowNextBarProps {
@@ -59,8 +60,19 @@ export default function NowNextBar({ blocks, onJumpToToday }: NowNextBarProps) {
         (s) => !s.date || s.date === todayKey || (block.date === todayKey && !s.date)
       );
       const subTimes = subs.map((s) => timeToMinutes(s.time));
-      const startMin = block.date === todayKey ? timeToMinutes(block.mainTime) : Math.min(...subTimes, 24 * 60);
-      const endMin = subTimes.length ? Math.max(...subTimes) + 15 : startMin + 60;
+      // An imported commitment's mainTime is its END. Reading it as the start
+      // put the bar a whole event-length late: a 9:45–10:00 standup announced
+      // itself at 10:00 and was treated as running until 11:00.
+      const ownStart = blockStartMinutes(block);
+      const startMin =
+        block.date === todayKey
+          ? Math.min(ownStart, ...(subTimes.length ? subTimes : [ownStart]))
+          : Math.min(...subTimes, 24 * 60);
+      const endMin = block.calendar && block.durationMinutes
+        ? timeToMinutes(block.mainTime)
+        : subTimes.length
+          ? Math.max(...subTimes) + 15
+          : startMin + 60;
       return { block, startMin, endMin, subs };
     });
     slots.sort((a, b) => a.startMin - b.startMin);
@@ -149,7 +161,7 @@ export default function NowNextBar({ blocks, onJumpToToday }: NowNextBarProps) {
       <span className="flex-1 min-w-0 truncate text-[12px] font-semibold">
         {block.mainTask}
         <span className={`ml-2 text-[10px] font-mono font-normal ${isCurrent ? 'text-white/70' : 'text-amber-700 dark:text-amber-300'}`}>
-          {formatTime24to12(block.mainTime)}
+          {formatTime24to12(blockStartTime(block))}
         </span>
       </span>
       {nextSub && (
