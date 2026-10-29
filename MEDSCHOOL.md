@@ -121,6 +121,56 @@ the board is the plan.
 with a next action already written down is one you can start without
 deciding anything first — that's the entire reason the field exists.
 
+## Deciding, instead of hoping
+
+A block on the grid says when you intend to do something. It says nothing
+about whether you mean it, and a week of hopes looks exactly like a week of
+decisions until the week is over.
+
+**Locking** is the difference. To lock a block you have to name the
+alternative you are declining. That is the whole mechanic: a thing is only
+decided once the other options stop being quietly available, and writing
+one down is what makes that happen. Everything else in the flow — the
+scene, the one word for how it will feel, what done looks like, and what
+stands in the way — helps, and can be skipped.
+
+A locked block is ringed on the calendar. Nothing else is dimmed: an
+undecided week should not read as a failure, it should read as undecided.
+
+### The nightly round
+
+One card on Today, two halves, about a minute:
+
+1. **Answer for yesterday.** Each of yesterday's blocks gets one tap — did
+   it, partly, didn't. Locked *and* unlocked alike, because the point is
+   the comparison.
+2. **Decide on tomorrow.** Lock one to three. Not more. Locking everything
+   makes locking mean nothing, so the prompt stops asking once the day has
+   three.
+
+### What it is for
+
+"Can I trust myself on this?" is an empirical question, and introspection
+answers it badly. After a couple of weeks the card tells you how often
+locked blocks held against how often hoped-for ones did.
+
+If locked runs far ahead, you have learned what your own certainty feels
+like from the inside, and you can tell it apart from wishing. If the two
+run level, locking is not yet doing anything — the answer is to lock
+fewer things and mean them, not to lock more.
+
+The number stays hidden until there are at least three answers on each
+side. A follow-through rate built on two blocks is noise, and noise
+presented as insight is how a tool stops being believed.
+
+### One deliberate departure
+
+Picturing the finished thing in warm detail is a popular instruction and a
+counterproductive one: imagining success tends to deliver part of the
+reward in advance and takes the energy out of starting. So the last step
+asks for what done looks like **and**, immediately, what stands in the
+way. Contrast, not daydream.
+
 ## Mapping a lecture
 
 **Charts → Maps**, or **Map it** on any row of the Lectures page — that

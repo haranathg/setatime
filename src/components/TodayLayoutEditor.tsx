@@ -10,6 +10,7 @@ const SECTION_META: Record<TodaySectionKey, LayoutItemMeta> = {
   projectsDue: { label: 'Coming due',     hint: 'Projects due within a week, or stalled' },
   block:       { label: "Now / next block", hint: 'All-day banner and the block you are in' },
   plan:        { label: "Today's 1/3/5",  hint: 'The day plan and your handwritten photo' },
+  commit:      { label: 'Review & lock',  hint: 'Answer for yesterday, decide on tomorrow' },
   weekBoard:   { label: 'This week',      hint: 'The week board' },
   northStars:  { label: 'North Stars',    hint: 'Your long-term anchors' },
   stateLog:    { label: 'Log a moment',   hint: 'Window of tolerance, and your resets' },

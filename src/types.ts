@@ -39,6 +39,44 @@ export interface TaskBlock {
   // Its presence also marks the block as a fixed commitment: the day
   // planner treats it as a wall rather than something it may move.
   calendar?: { sourceId: string; uid: string; key: string };
+  // What separates a block you have decided on from one you are hoping for.
+  // Absent on most blocks — locking is meant to be scarce, because a week
+  // where everything is locked says exactly as much as one where nothing is.
+  commitment?: BlockCommitment;
+}
+
+export type CommitmentOutcome = 'kept' | 'partly' | 'missed';
+
+/**
+ * A block you have crossed the Rubicon on.
+ *
+ * The fields mirror the Lab's Rubicon mode rather than inventing a second
+ * vocabulary for the same act: `instead` and `shield` are what make a
+ * decision a decision — naming the alternative you are declining, and what
+ * you will do when something pulls at you — and `obstacle` keeps the
+ * picture of being finished honest. Imagining a successful outcome on its
+ * own tends to reduce follow-through; pairing it with the obstacle in the
+ * way is the part that helps.
+ */
+export interface BlockCommitment {
+  locked: boolean;
+  lockedAt?: string;
+  /** Where you are and what is in front of you, at that hour. */
+  scene?: string;
+  /** One word for how doing it will feel in your body. */
+  feel?: string;
+  /** The alternative you are deliberately giving up. */
+  instead?: string;
+  /** What you do when something pulls you away. */
+  shield?: string;
+  /** The moment it is over, concretely. */
+  doneLooksLike?: string;
+  /** What stands between you and that moment. */
+  obstacle?: string;
+  /** Filed afterwards — the half that turns this into evidence. */
+  outcome?: CommitmentOutcome;
+  reviewedAt?: string;
+  note?: string;
 }
 
 /** One calendar you imported — a file dragged in from Calendar.app,
@@ -795,11 +833,12 @@ export type TodaySectionKey =
   | 'predictions'   // Overdue Lab reflections
   | 'agedDump'      // Tasks aging in the Hold
   | 'pins'          // Don't forget
+  | 'commit'        // Review yesterday, lock tomorrow
   | 'upNext';       // Later blocks today
 
 /** Render order out of the box — the layout as it shipped. */
 export const DEFAULT_TODAY_ORDER: TodaySectionKey[] = [
-  'activate', 'planDay', 'projectsDue', 'block', 'plan', 'weekBoard',
+  'activate', 'planDay', 'projectsDue', 'block', 'plan', 'commit', 'weekBoard',
   'northStars', 'stateLog', 'basics', 'predictions', 'agedDump', 'pins',
   'upNext',
 ];
