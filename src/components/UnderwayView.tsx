@@ -1072,7 +1072,7 @@ function QuickstartPhase({
                 <button
                   key={r}
                   onClick={() => setLabel(r)}
-                  className="px-2.5 py-1 text-[12px] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/40 text-gray-700 dark:text-gray-300"
+                  className="px-2.5 py-1 text-[12px] rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/40 text-gray-700 dark:text-gray-300"
                 >
                   {r}
                 </button>
@@ -1302,7 +1302,7 @@ function StuckPhase({
                     href={r.url}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl hover:border-emerald-300 dark:hover:border-emerald-700 dark:border-emerald-700 hover:bg-emerald-50/40 max-w-full"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 text-[12px] font-semibold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl hover:border-emerald-300 dark:hover:border-emerald-700 dark:border-emerald-700 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/40 max-w-full"
                     title={r.url}
                   >
                     <span className="text-sm leading-none">{r.emoji || '🔗'}</span>
@@ -2365,7 +2365,7 @@ function UnderwayPhase({
               <button
                 key={m.emoji}
                 onClick={() => onLogMood(m.emoji, m.label)}
-                className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-full hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700 hover:bg-indigo-50/40"
+                className="inline-flex items-center gap-1 px-2 py-1 text-[11px] font-semibold text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-full hover:border-indigo-300 dark:hover:border-indigo-700 dark:border-indigo-700 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/40"
               >
                 <span className="text-sm leading-none">{m.emoji}</span>
                 <span>{m.label}</span>
