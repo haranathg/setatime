@@ -64,14 +64,20 @@ export default function QuickCaptureBar({
     >
       <div className="max-w-3xl mx-auto">
         <div
+          // Every background here needs a dark counterpart, including the
+          // focus and flash ones. A bare `focus-within:bg-white` outranks
+          // `dark:bg-gray-900` on specificity — a pseudo-class beats a
+          // media query regardless of source order — so focusing the bar in
+          // dark mode painted it white under text that stays near-white,
+          // and what you typed vanished at about 1.1:1.
           className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl backdrop-blur-md ring-1 shadow-lg transition-colors ${
             flash === 'log'
-              ? 'bg-emerald-50/95 ring-emerald-200'
+              ? 'bg-emerald-50/95 ring-emerald-200 dark:bg-emerald-950/95 dark:ring-emerald-800'
               : flash === 'schedule'
-              ? 'bg-sky-50/95 ring-sky-200'
+              ? 'bg-sky-50/95 ring-sky-200 dark:bg-sky-950/95 dark:ring-sky-800'
               : flash === 'note'
-              ? 'bg-amber-50/95 ring-amber-200'
-              : 'bg-white/90 ring-black/5 focus-within:bg-white dark:bg-gray-900 focus-within:ring-indigo-300'
+              ? 'bg-amber-50/95 ring-amber-200 dark:bg-amber-950/95 dark:ring-amber-800'
+              : 'bg-white/90 ring-black/5 focus-within:bg-white focus-within:ring-indigo-300 dark:bg-gray-900 dark:ring-white/10 dark:focus-within:bg-gray-800 dark:focus-within:ring-indigo-600'
           }`}
         >
           <span className="text-gray-400 dark:text-gray-500 text-sm">✎</span>
