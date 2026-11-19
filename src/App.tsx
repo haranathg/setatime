@@ -119,7 +119,9 @@ function LoginGate({ onUnlock }: { onUnlock: () => void }) {
 
 export default function App() {
   const [authed, setAuthed] = useState(() => !!getSecretKey());
-  const [activeView, setActiveView] = useState<ActiveView>('today');
+  // Garden is the landing surface: open the app, log a positive action,
+  // move on. Today sits one tap away in the hub strip.
+  const [activeView, setActiveView] = useState<ActiveView>('garden');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Show login gate if no secret key
@@ -1284,7 +1286,7 @@ function AppMain({
           the flex column so it lands under the thumb on iPhone with
           safe-area padding for the home indicator. */}
       <QuickCaptureBar
-        onLog={(text) => addManualTask(text)}
+        onLog={(text) => { addGardenEntry(text); }}
         onSchedule={(text) => scheduleThis({ taskName: text })}
         onNote={(text) => addNote(text)}
       />

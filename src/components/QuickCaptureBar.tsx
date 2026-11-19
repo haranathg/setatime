@@ -2,17 +2,17 @@ import { useState } from 'react';
 
 // Persistent bottom compose bar. Three actions:
 //
-//   Log (primary, Enter) — casts the thought into the Inbox slice for
-//   later triage. The default, lowest-friction action; the whole point
-//   is a keystroke and the thought is captured.
+//   🌱 Log (primary, Enter) — logs a positive action into Garden and
+//   kicks off AI categorization. The default, lowest-friction action
+//   from any page: dictate with Wispr Flow or type, hit Enter, done.
 //
 //   ↗ Schedule (secondary) — opens the calendar modal with the input
 //   text pre-filled as the task name. Useful when you already know
-//   what you're doing; skips triage.
+//   what you're doing; skips the Garden log entirely.
 //
 //   📝 Note (secondary) — captures as a free-form reflection in the
-//   Notes surface. For thoughts that aren't tasks: observations,
-//   ideas, quotes. Doesn't pollute the task pipeline.
+//   Journal. For thoughts that aren't tasks or wins: observations,
+//   ideas, quotes.
 //
 // Bottom-mounted so it lands under the thumb on iPhone (Fitt's law,
 // one-handed use). safe-area-inset-bottom padding keeps it clear of
@@ -86,7 +86,7 @@ export default function QuickCaptureBar({
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && doLog()}
-            placeholder="Cast a thought · Enter to log · ↗ schedule · 📝 note"
+            placeholder="🌱 Log a positive action · Enter · ↗ schedule · 📝 note"
             className="flex-1 min-w-0 bg-transparent text-sm text-gray-900 dark:text-gray-100 focus:outline-none placeholder:text-gray-400 dark:placeholder:text-gray-500"
           />
           {flash === 'log' ? (
@@ -122,10 +122,10 @@ export default function QuickCaptureBar({
               <button
                 onClick={doLog}
                 disabled={!text.trim()}
-                className="px-3 py-1 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-200 dark:bg-gray-800 disabled:cursor-not-allowed rounded-lg transition-colors"
-                title="Log to Inbox (Enter)"
+                className="px-3 py-1 text-xs font-semibold text-white bg-green-600 hover:bg-green-700 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:cursor-not-allowed rounded-lg transition-colors"
+                title="Log to Garden (Enter)"
               >
-                Log
+                🌱 Log
               </button>
             </>
           )}
