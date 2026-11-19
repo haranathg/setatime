@@ -166,6 +166,82 @@ Rules for microSteps:
       };
     }
 
+    // Garden action categorization mode: take a positive-action log entry
+    // and slot it into a primary category + optional sub-category. Prefers
+    // an existing category if one fits, otherwise proposes a new one.
+    if (body.mode === 'categorize-action') {
+      const { text, existingCategories } = body;
+      if (!text) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'text is required' }) };
+      }
+
+      const catList = Array.isArray(existingCategories) && existingCategories.length > 0
+        ? existingCategories.map((c) => {
+            const subs = Array.isArray(c.subs) && c.subs.length > 0 ? ` (sub: ${c.subs.join(', ')})` : '';
+            return `- ${c.primary}${subs}`;
+          }).join('\n')
+        : '(none yet)';
+
+      const response = await fetch(ANTHROPIC_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 256,
+          messages: [
+            {
+              role: 'user',
+              content: `Categorize this positive action the user took, into a primary category and an optional sub-category.
+
+User's action: "${text}"
+
+Existing categories (prefer these when they fit):
+${catList}
+
+Return ONLY valid JSON in this exact format, no other text:
+{"primary": "...", "sub": "..."}
+
+Rules:
+- "primary" is required: a short noun-phrase category (1-2 words, Title Case). Examples: Health, Gratitude, Career, Connection, Learning, Home, Finance, Creativity, Movement, Mindfulness.
+- "sub" is optional: a more specific sub-category inside the primary (1-3 words, Title Case). Examples: "Dental", "GERD", "Exercise", "Family Call", "Side Project".
+- Strongly prefer an existing category if it fits; propose a new one only if nothing fits well.
+- Don't be overly specific. "Brushed teeth" is Health · Dental, not Health · "Morning Oral Care Routine".
+- If no clear sub-category, omit "sub" (return {"primary": "..."}).`,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        console.error('Anthropic API error:', err);
+        return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI service error' }) };
+      }
+
+      const data = await response.json();
+      const content = data.content[0].text;
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return { statusCode: 502, headers, body: JSON.stringify({ error: 'Could not parse AI response' }) };
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]);
+      const primary = typeof parsed.primary === 'string' ? parsed.primary.trim() : '';
+      const sub = typeof parsed.sub === 'string' ? parsed.sub.trim() : '';
+      if (!primary) {
+        return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI did not return a primary category' }) };
+      }
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ primary, sub: sub || undefined }),
+      };
+    }
+
     // Default mode: task breakdown
     const { mainTask, mainTime } = body;
 

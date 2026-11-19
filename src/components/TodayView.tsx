@@ -21,6 +21,7 @@ import type {
   WeekBoardItem,
   Project,
   PlanPhoto,
+  GardenEntry,
 } from '../types';
 import { effectiveZone, DAILY_PLAN_CAPS } from '../types';
 import { formatTime24to12, formatFullDate } from '../utils/dateHelpers';
@@ -31,6 +32,7 @@ import { IndicatorIcon } from './IndicatorIcons';
 import { ProjectChip, ProjectPicker } from './ProjectChip';
 import { downscaleForStorage } from '../utils/imageDownscale';
 import { formatDaysUntil, isStalled, nextDeadline } from '../hooks/useProjects';
+import GardenStrip from './GardenStrip';
 
 interface TodayViewProps {
   todaysBlocks: TaskBlock[];
@@ -159,6 +161,14 @@ interface TodayViewProps {
   onClearPlanPhotoError: () => void;
   onSetWeekBoardItemProject: (id: string, projectId: string | undefined) => void;
   onOpenProjects: () => void;
+  // Garden — positive-action log. Surfaced right below Activate so the
+  // "log a good thing" habit lives at the top of the primary home surface.
+  gardenTodaysEntries: GardenEntry[];
+  gardenStreak: number;
+  gardenYearTotal: number;
+  gardenTopCategories: { primary: string; total: number }[];
+  onAddGardenEntry: (text: string) => void;
+  onOpenGarden: () => void;
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -274,6 +284,12 @@ export default function TodayView({
   onClearPlanPhotoError,
   onSetWeekBoardItemProject,
   onOpenProjects,
+  gardenTodaysEntries,
+  gardenStreak,
+  gardenYearTotal,
+  gardenTopCategories,
+  onAddGardenEntry,
+  onOpenGarden,
 }: TodayViewProps) {
   // "Show more on today" — collapses the secondary widgets (State log,
   // Basics, Overdue predictions, Aged dump, Pins, North Stars) below a
@@ -396,6 +412,16 @@ export default function TodayView({
                 onArrange={onArrangeActivate}
               />
       </>
+    ),
+    garden: (
+      <GardenStrip
+        todaysEntries={gardenTodaysEntries}
+        streak={gardenStreak}
+        yearTotal={gardenYearTotal}
+        topCategories={gardenTopCategories}
+        onAdd={onAddGardenEntry}
+        onOpenGarden={onOpenGarden}
+      />
     ),
     planDay: dueLectureCount > 0 || weeklyStudyMinutes > 0 ? (
       <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl px-4 py-3 flex items-center gap-3">
