@@ -640,6 +640,7 @@ export interface AppState {
   principles?: PrinciplesState;
   projects?: ProjectsState;
   lectures?: LecturesState;
+  garden?: GardenState;
 }
 
 // ---------- Horizon (life-scale perspective) ----------
@@ -822,6 +823,7 @@ export interface MindMapsState {
 
 export type TodaySectionKey =
   | 'activate'      // Activate now — the strategy menu
+  | 'garden'        // Garden — positive-action log (year-of-health)
   | 'planDay'       // Turn the review queue into today's blocks
   | 'projectsDue'   // Coming due / stalled projects
   | 'block'         // All-day banner + the current or next calendar block
@@ -838,7 +840,7 @@ export type TodaySectionKey =
 
 /** Render order out of the box — the layout as it shipped. */
 export const DEFAULT_TODAY_ORDER: TodaySectionKey[] = [
-  'activate', 'planDay', 'projectsDue', 'block', 'plan', 'commit', 'weekBoard',
+  'activate', 'garden', 'planDay', 'projectsDue', 'block', 'plan', 'commit', 'weekBoard',
   'northStars', 'stateLog', 'basics', 'predictions', 'agedDump', 'pins',
   'upNext',
 ];
@@ -1237,6 +1239,36 @@ export interface PrinciplesState {
 export function effectiveZone(entry: StateLogEntry): RegulationZone {
   if (entry.zone) return entry.zone;
   return effectiveEnergy(entry) <= 2 ? 'hypo' : 'window';
+}
+
+// ---------- Garden (positive-action log) ----------
+//
+// A "turbocharged gratitude journal": you log small positive actions as
+// they happen, AI auto-categorizes each entry, and the growing categories
+// are visualized so every log entry feels like it's building something.
+//
+// Flipping the script from goal-setting: instead of planning what you'll
+// do and measuring against failure, you log what you did and let the
+// accumulated record make the behavior self-reinforcing.
+//
+// Categories emerge organically — nothing is pre-defined. The AI either
+// slots a new entry into an existing category or proposes a new one.
+
+export interface GardenCategory {
+  primary: string;        // short noun-phrase, Title Case (e.g. "Health")
+  sub?: string;           // optional sub-category (e.g. "Dental")
+}
+
+export interface GardenEntry {
+  id: string;
+  text: string;           // what the user did
+  createdAt: string;      // ISO
+  category?: GardenCategory;  // set by AI; undefined = pending
+  categorizationFailed?: boolean; // AI failed; user can retry
+}
+
+export interface GardenState {
+  entries: GardenEntry[];
 }
 
 // Prefer new energy field; map legacy feeling to a coarse point on the scale.

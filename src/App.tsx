@@ -27,6 +27,7 @@ import HorizonView from './components/HorizonView';
 import LogView from './components/LogView';
 import NorthStarsView from './components/NorthStarsView';
 import PredictionLabView from './components/PredictionLabView';
+import GardenView from './components/GardenView';
 import TodayView from './components/TodayView';
 import ProjectsView from './components/ProjectsView';
 import LecturesView from './components/LecturesView';
@@ -62,6 +63,7 @@ import { useCalendarFeeds } from './hooks/useCalendarFeeds';
 import { pendingReview, lockCandidates, followThrough, trustReading, isLocked, shiftKey, shouldPromptLocks } from './utils/commitment';
 import { fetchCalendarFeeds } from './services/syncService';
 import { useEchoBridge } from './hooks/useEchoBridge';
+import { useGarden } from './hooks/useGarden';
 import { useStats } from './hooks/useStats';
 import { getSecretKey, setSecretKey } from './services/syncService';
 import { downloadICS } from './utils/icalExport';
@@ -482,6 +484,26 @@ function AppMain({
   // Stalled = active, no next action, no deadline within reach. Badged on
   // the Projects hub so it's visible without opening the tab.
   const stalledProjectCount = projects.filter((p) => isStalled(p)).length;
+
+  const {
+    entries: gardenEntries,
+    todaysEntries: gardenTodaysEntries,
+    yearCategoryCounts: gardenYearCategoryCounts,
+    yearTotal: gardenYearTotal,
+    yearDayCounts: gardenYearDayCounts,
+    streak: gardenStreak,
+    loaded: gardenLoaded,
+    addEntry: addGardenEntry,
+    retryCategorize: retryGardenCategorize,
+    deleteEntry: deleteGardenEntry,
+  } = useGarden();
+
+  // Top-3 categories (by count) in a flat shape — passed to TodayView's
+  // GardenStrip so the home surface shows the user what's growing.
+  const gardenTopCategories = Array.from(gardenYearCategoryCounts.entries())
+    .map(([primary, b]) => ({ primary, total: b.total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 3);
 
   const {
     state: horizonState,
@@ -982,6 +1004,12 @@ function AppMain({
             setUnderwayInitialSession({ label: task.label, sizeMin: 15, planId: task.id });
             setActiveView('underway');
           }}
+          gardenTodaysEntries={gardenTodaysEntries}
+          gardenStreak={gardenStreak}
+          gardenYearTotal={gardenYearTotal}
+          gardenTopCategories={gardenTopCategories}
+          onAddGardenEntry={(text) => { addGardenEntry(text); }}
+          onOpenGarden={() => setActiveView('garden')}
           weekBoardItems={weekBoardItems}
           weekBoardDropsThisWeek={weekBoardDropsThisWeek}
           onAddWeekBoardItem={addWeekBoardItem}
@@ -1221,6 +1249,19 @@ function AppMain({
           onAdd={addPrinciple}
           onUpdate={updatePrinciple}
           onDelete={deletePrinciple}
+        />
+      ) : activeView === 'garden' ? (
+        <GardenView
+          entries={gardenEntries}
+          todaysEntries={gardenTodaysEntries}
+          yearCategoryCounts={gardenYearCategoryCounts}
+          yearTotal={gardenYearTotal}
+          yearDayCounts={gardenYearDayCounts}
+          streak={gardenStreak}
+          loaded={gardenLoaded}
+          onAdd={addGardenEntry}
+          onRetry={retryGardenCategorize}
+          onDelete={deleteGardenEntry}
         />
       ) : activeView === 'horizon' ? (
         <HorizonView
