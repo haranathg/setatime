@@ -190,8 +190,8 @@ Rules for microSteps:
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 256,
+          model: 'claude-haiku-5-5',
+          max_tokens: 1024,
           messages: [
             {
               role: 'user',
@@ -218,15 +218,33 @@ Rules:
 
       if (!response.ok) {
         const err = await response.text();
-        console.error('Anthropic API error:', err);
-        return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI service error' }) };
+        console.error('Anthropic API error:', response.status, err);
+        return {
+          statusCode: 502,
+          headers,
+          body: JSON.stringify({ error: `AI service error (${response.status}): ${err.slice(0, 500)}` }),
+        };
       }
 
       const data = await response.json();
-      const content = data.content[0].text;
+      // Adaptive thinking (default on current models) may emit a leading
+      // `thinking` content block before the text. Find the text block
+      // rather than assume index 0 — indexing wrongly made the whole
+      // response look like "undefined" and the regex below never matched.
+      const textBlock = Array.isArray(data.content) ? data.content.find((b) => b.type === 'text') : null;
+      const content = textBlock && typeof textBlock.text === 'string' ? textBlock.text : '';
+      if (!content) {
+        console.error('AI response had no text block:', JSON.stringify(data).slice(0, 1000));
+        return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI response had no text block' }) };
+      }
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
-        return { statusCode: 502, headers, body: JSON.stringify({ error: 'Could not parse AI response' }) };
+        console.error('Could not parse JSON from AI response:', content.slice(0, 500));
+        return {
+          statusCode: 502,
+          headers,
+          body: JSON.stringify({ error: `Could not parse AI response: ${content.slice(0, 200)}` }),
+        };
       }
 
       const parsed = JSON.parse(jsonMatch[0]);

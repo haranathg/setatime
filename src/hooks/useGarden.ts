@@ -80,7 +80,8 @@ export function useGarden() {
   }, [entries, loaded]);
 
   // Kick off AI categorization for an entry. On success, set the category;
-  // on failure, mark the entry so the UI can offer a retry. Non-blocking.
+  // on failure, mark the entry and capture the server's error message so
+  // the UI can show it. Non-blocking.
   const categorize = useCallback(async (id: string, text: string) => {
     try {
       const authHash = await getAuthHashAsync();
@@ -95,14 +96,33 @@ export function useGarden() {
           authHash,
         }),
       });
-      if (!response.ok) throw new Error('AI call failed');
+      if (!response.ok) {
+        const raw = await response.text().catch(() => '');
+        let errMsg = raw;
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed.error === 'string') errMsg = parsed.error;
+        } catch {
+          // non-JSON body; keep the raw text
+        }
+        throw new Error(`HTTP ${response.status}: ${(errMsg || 'AI call failed').slice(0, 400)}`);
+      }
       const data = await response.json();
       if (!data.primary) throw new Error('No primary category returned');
       const category: GardenCategory = { primary: data.primary };
       if (data.sub) category.sub = data.sub;
-      setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, category, categorizationFailed: false } : e)));
-    } catch {
-      setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, categorizationFailed: true } : e)));
+      setEntries((prev) => prev.map((e) => (
+        e.id === id
+          ? { ...e, category, categorizationFailed: false, categorizationError: undefined }
+          : e
+      )));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Categorization failed';
+      setEntries((prev) => prev.map((e) => (
+        e.id === id
+          ? { ...e, categorizationFailed: true, categorizationError: message }
+          : e
+      )));
     }
   }, []);
 

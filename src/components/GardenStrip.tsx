@@ -120,7 +120,10 @@ export default function GardenStrip({
                 <span className="text-[10px] text-gray-400 dark:text-gray-500 flex-shrink-0 animate-pulse">…</span>
               )}
               {e.categorizationFailed && (
-                <span className="text-[10px] text-amber-600 dark:text-amber-400 flex-shrink-0" title="Categorize failed">!</span>
+                <span
+                  className="text-[10px] text-amber-600 dark:text-amber-400 flex-shrink-0"
+                  title={e.categorizationError || 'Categorize failed'}
+                >!</span>
               )}
             </li>
           ))}
