@@ -303,12 +303,23 @@ function EntryRow({
               {entry.category.sub && <span className="opacity-80">· {entry.category.sub}</span>}
             </span>
           ) : entry.categorizationFailed ? (
-            <button
-              onClick={() => onRetry(entry.id)}
-              className="text-[10px] font-medium text-amber-700 dark:text-amber-400 hover:underline"
-            >
-              ↻ retry categorize
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => onRetry(entry.id)}
+                className="text-[10px] font-medium text-amber-700 dark:text-amber-400 hover:underline"
+                title={entry.categorizationError || 'AI call failed'}
+              >
+                ↻ retry categorize
+              </button>
+              {entry.categorizationError && (
+                <span
+                  className="text-[10px] text-amber-600 dark:text-amber-500 truncate max-w-xs"
+                  title={entry.categorizationError}
+                >
+                  · {entry.categorizationError}
+                </span>
+              )}
+            </div>
           ) : (
             <span className="inline-flex items-center gap-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
               <span className="inline-block w-1.5 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full animate-pulse" />

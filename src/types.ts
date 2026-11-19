@@ -1265,6 +1265,7 @@ export interface GardenEntry {
   createdAt: string;      // ISO
   category?: GardenCategory;  // set by AI; undefined = pending
   categorizationFailed?: boolean; // AI failed; user can retry
+  categorizationError?: string;   // server/network error message for diagnosis
 }
 
 export interface GardenState {
