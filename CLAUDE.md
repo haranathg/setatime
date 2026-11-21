@@ -17,9 +17,10 @@ Read this first on every session. It's short on purpose.
   branches never deploy.
 - `workflow_dispatch` is also enabled for manual redeploys from the Actions
   tab.
-- Lambda runtime secrets (`ANTHROPIC_API_KEY`, `ALLOWED_KEY_HASHES`) live as
-  Lambda environment variables. They are never passed through the workflow
-  and never belong in this repo.
+- The Anthropic API key lives in AWS Secrets Manager as
+  `setatime/anthropic-api-key` (us-west-2). Only `setatime-lambda-role` can
+  read it; the Lambda fetches it at cold start. `ALLOWED_KEY_HASHES` lives as a
+  Lambda env var. Neither is passed through the workflow or belongs in this repo.
 
 **How Claude deploys:** open a PR from a feature branch to `main`, get human
 approval, merge. That's the only path. Never push directly to `main` without
@@ -67,14 +68,15 @@ Before every `git add` / `commit` / `push`:
 | API Gateway ID | `p7r6m54moa` |
 | Lambda functions | `setatime-ai-breakdown`, `setatime-sync` |
 | Lambda IAM role | `setatime-lambda-role` |
+| Anthropic key secret | `setatime/anthropic-api-key` (Secrets Manager, us-west-2) |
 | Log groups | `/aws/lambda/setatime-ai-breakdown`, `/aws/lambda/setatime-sync` |
 | Workflow file | `.github/workflows/deploy.yml` |
 
 ## Repo layout pointers
 
 - `src/` — Vite + React frontend (TypeScript).
-- `lambda/ai-breakdown/index.mjs` — single-file Lambda, reads
-  `ANTHROPIC_API_KEY` from env. Must stay dependency-free (the workflow zips
+- `lambda/ai-breakdown/index.mjs` — single-file Lambda, reads the Anthropic
+  key from Secrets Manager via the runtime's built-in AWS SDK. Must stay dependency-free (the workflow zips
   `index.mjs` flat; no `node_modules` shipped).
 - `lambda/sync/index.mjs` — single-file Lambda, same constraint.
 - `DEPLOYMENT.md` — full runbook, including manual CLI fallback if GitHub

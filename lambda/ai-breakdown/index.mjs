@@ -1,4 +1,34 @@
+import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
+
+// The Anthropic key lives in Secrets Manager; only setatime-lambda-role can
+// read it. The AWS SDK ships with the nodejs22.x runtime, so this file stays
+// dependency-free. Never log the key or the raw secret response.
+const ANTHROPIC_SECRET_ID = process.env.ANTHROPIC_SECRET_ID || 'setatime/anthropic-api-key';
+const secretsClient = new SecretsManagerClient({});
+let cachedApiKey = null; // fetched once per cold start
+
+async function getAnthropicApiKey() {
+  if (cachedApiKey) return cachedApiKey;
+  try {
+    const res = await secretsClient.send(new GetSecretValueCommand({ SecretId: ANTHROPIC_SECRET_ID }));
+    const value = res.SecretString?.trim();
+    if (value) {
+      cachedApiKey = value;
+      return cachedApiKey;
+    }
+    console.error('Anthropic secret is empty');
+  } catch (err) {
+    console.error('Could not read Anthropic secret:', err.name);
+  }
+  // Temporary fallback during migration; remove once the env var is deleted.
+  if (process.env.ANTHROPIC_API_KEY) {
+    console.warn('Falling back to ANTHROPIC_API_KEY env var');
+    return process.env.ANTHROPIC_API_KEY;
+  }
+  return null;
+}
 
 export const handler = async (event) => {
   const headers = {
@@ -29,7 +59,7 @@ export const handler = async (event) => {
       }
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = await getAnthropicApiKey();
     if (!apiKey) {
       return {
         statusCode: 500,

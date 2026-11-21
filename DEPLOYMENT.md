@@ -37,9 +37,10 @@ Guardrails baked into the setup:
   touch unrelated account resources.
 - **Concurrency lock.** `concurrency.group: deploy-main` prevents overlapping
   deploys from racing. In-progress deploys are not cancelled.
-- **Lambda secrets stay on the Lambda.** `ANTHROPIC_API_KEY` and
-  `ALLOWED_KEY_HASHES` live as Lambda env vars and are never passed through
-  the workflow, never in GitHub secrets, never in this repo.
+- **Lambda secrets stay out of the workflow.** The Anthropic key lives in
+  Secrets Manager (`setatime/anthropic-api-key`, readable only by
+  `setatime-lambda-role`); `ALLOWED_KEY_HASHES` lives as a Lambda env var.
+  Neither is passed through the workflow, stored in GitHub secrets, or committed.
 
 ### To deploy a change
 
@@ -109,8 +110,8 @@ aws lambda update-function-code \
   --profile "$AWS_PROFILE" --region "$AWS_REGION"
 ```
 
-Effect is immediate. `ANTHROPIC_API_KEY` must be configured as a Lambda
-environment variable (never committed).
+Effect is immediate. The Lambda reads the Anthropic key from Secrets Manager
+(`setatime/anthropic-api-key`); nothing key-related needs configuring here.
 
 ---
 
