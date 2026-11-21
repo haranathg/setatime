@@ -1244,19 +1244,40 @@ export function effectiveZone(entry: StateLogEntry): RegulationZone {
 // ---------- Garden (positive-action log) ----------
 //
 // A "turbocharged gratitude journal": you log small positive actions as
-// they happen, AI auto-categorizes each entry, and the growing categories
-// are visualized so every log entry feels like it's building something.
+// they happen, AI slots each into one of seven life domains, and the
+// growing sub-categories inside each domain are visualized as a tree
+// that grows more complex the more you log — with sparse branches
+// flagging the domains you're neglecting.
 //
 // Flipping the script from goal-setting: instead of planning what you'll
 // do and measuring against failure, you log what you did and let the
 // accumulated record make the behavior self-reinforcing.
 //
-// Categories emerge organically — nothing is pre-defined. The AI either
-// slots a new entry into an existing category or proposes a new one.
+// Top-level domains are FIXED (the seven below plus Other) so the tree
+// has a stable shape and imbalance is legible. Sub-categories keep
+// emerging organically — the AI invents one the first time ("Fixing
+// TMJ" under Health) and reuses it on later matching entries.
+
+export const GARDEN_DOMAINS = [
+  'Health',
+  'Career Exploration',
+  'School',
+  'Relationships',
+  'Emotional Maturity',
+  'Environment & Lifestyle',
+  'Purpose & Meaning',
+  'Other',
+] as const;
+
+export type GardenDomain = (typeof GARDEN_DOMAINS)[number];
+
+export function isGardenDomain(s: string): s is GardenDomain {
+  return (GARDEN_DOMAINS as readonly string[]).includes(s);
+}
 
 export interface GardenCategory {
-  primary: string;        // short noun-phrase, Title Case (e.g. "Health")
-  sub?: string;           // optional sub-category (e.g. "Dental")
+  primary: string;        // one of GARDEN_DOMAINS once categorized; legacy entries may carry a free-form value until re-migrated
+  sub?: string;           // free-form sub-category (e.g. "Fixing TMJ"), invented per entry and reused across matching ones
 }
 
 export interface GardenEntry {

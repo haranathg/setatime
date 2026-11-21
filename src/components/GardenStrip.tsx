@@ -1,5 +1,7 @@
 import { useRef, useState } from 'react';
 import type { GardenEntry } from '../types';
+import { isGardenDomain } from '../types';
+import { colorForDomain } from './GardenTree';
 
 interface GardenStripProps {
   todaysEntries: GardenEntry[];
@@ -10,21 +12,11 @@ interface GardenStripProps {
   onOpenGarden: () => void;
 }
 
-// Same palette as GardenView — shared visual language.
-const BUBBLE_PALETTE = [
-  { bg: '#16a34a' },
-  { bg: '#0ea5e9' },
-  { bg: '#f59e0b' },
-  { bg: '#8b5cf6' },
-  { bg: '#ec4899' },
-  { bg: '#14b8a6' },
-  { bg: '#ef4444' },
-  { bg: '#a3a3a3' },
-];
+// Pull the chip color from the shared domain palette when the entry is
+// on the fixed taxonomy; fall back to neutral slate for legacy
+// free-form primaries that haven't been re-categorized yet.
 function colorForCategory(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  return BUBBLE_PALETTE[hash % BUBBLE_PALETTE.length].bg;
+  return isGardenDomain(name) ? colorForDomain(name) : '#94a3b8';
 }
 
 function formatTime(iso: string): string {

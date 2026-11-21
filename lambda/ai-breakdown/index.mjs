@@ -192,20 +192,36 @@ Rules for microSteps:
     }
 
     // Garden action categorization mode: take a positive-action log entry
-    // and slot it into a primary category + optional sub-category. Prefers
-    // an existing category if one fits, otherwise proposes a new one.
+    // and slot it into one of the user's seven life domains (plus an
+    // Other overflow) + a free-form sub-category inside that domain.
+    //
+    // The top level is deliberately fixed so the tree has a stable shape
+    // and the imbalance signal is legible — a sparse branch is a
+    // neglected domain. Sub-categories keep emerging organically so the
+    // tree grows more complex the more you log: "fixed my TMJ exercise"
+    // becomes Health · Fixing TMJ the first time and reuses that sub on
+    // every subsequent TMJ entry.
     if (body.mode === 'categorize-action') {
       const { text, existingCategories } = body;
       if (!text) {
         return { statusCode: 400, headers, body: JSON.stringify({ error: 'text is required' }) };
       }
 
-      const catList = Array.isArray(existingCategories) && existingCategories.length > 0
-        ? existingCategories.map((c) => {
-            const subs = Array.isArray(c.subs) && c.subs.length > 0 ? ` (sub: ${c.subs.join(', ')})` : '';
-            return `- ${c.primary}${subs}`;
-          }).join('\n')
-        : '(none yet)';
+      // existingCategories comes keyed by primary → [sub names]. Format
+      // it into a per-domain hint list so the AI prefers subs you've
+      // already named.
+      const subsByPrimary = new Map();
+      if (Array.isArray(existingCategories)) {
+        for (const c of existingCategories) {
+          if (!c || typeof c.primary !== 'string') continue;
+          const subs = Array.isArray(c.subs) ? c.subs.filter((s) => typeof s === 'string' && s) : [];
+          subsByPrimary.set(c.primary, subs);
+        }
+      }
+      const subHintLine = (name) => {
+        const subs = subsByPrimary.get(name) || [];
+        return subs.length > 0 ? ` — existing subs: ${subs.join(', ')}` : '';
+      };
 
       const response = await fetch(ANTHROPIC_API_URL, {
         method: 'POST',
@@ -220,22 +236,30 @@ Rules for microSteps:
           messages: [
             {
               role: 'user',
-              content: `Categorize this positive action the user took, into a primary category and an optional sub-category.
+              content: `Categorize this positive action the user took.
 
 User's action: "${text}"
 
-Existing categories (prefer these when they fit):
-${catList}
+TOP-LEVEL DOMAINS (pick EXACTLY ONE, use the name verbatim):
+- Health${subHintLine('Health')}
+- Career Exploration${subHintLine('Career Exploration')}
+- School${subHintLine('School')}
+- Relationships${subHintLine('Relationships')}
+- Emotional Maturity${subHintLine('Emotional Maturity')}
+- Environment & Lifestyle${subHintLine('Environment & Lifestyle')}
+- Purpose & Meaning${subHintLine('Purpose & Meaning')}
+- Other${subHintLine('Other')}
 
 Return ONLY valid JSON in this exact format, no other text:
-{"primary": "...", "sub": "..."}
+{"primary": "<one of the domains above>", "sub": "<a specific sub-category>"}
 
 Rules:
-- "primary" is required: a short noun-phrase category (1-2 words, Title Case). Examples: Health, Gratitude, Career, Connection, Learning, Home, Finance, Creativity, Movement, Mindfulness.
-- "sub" is optional: a more specific sub-category inside the primary (1-3 words, Title Case). Examples: "Dental", "GERD", "Exercise", "Family Call", "Side Project".
-- Strongly prefer an existing category if it fits; propose a new one only if nothing fits well.
-- Don't be overly specific. "Brushed teeth" is Health · Dental, not Health · "Morning Oral Care Routine".
-- If no clear sub-category, omit "sub" (return {"primary": "..."}).`,
+- "primary" MUST be one of the eight names above, spelled exactly (including ampersands and capitalization).
+- Use "Other" only when nothing else fits — strongly prefer one of the seven real domains.
+- "sub" is required: a short noun-phrase sub-category inside the chosen domain (1-3 words, Title Case).
+- Strongly prefer an existing sub listed next to the domain when one fits. Invent a new sub only when nothing on the list applies.
+- Keep subs honest and specific but not verbose. Examples: "Dental", "GERD", "Fixing TMJ", "Strength", "Family Call", "Side Project", "Therapy", "Journaling", "Deep Clean".
+- Map common synonyms to the same sub: "brushed teeth" and "flossed" both go to Health · Dental; "called mom" and "called dad" both go to Relationships · Family Call.`,
             },
           ],
         }),
@@ -273,11 +297,57 @@ Rules:
       }
 
       const parsed = JSON.parse(jsonMatch[0]);
-      const primary = typeof parsed.primary === 'string' ? parsed.primary.trim() : '';
+      const rawPrimary = typeof parsed.primary === 'string' ? parsed.primary.trim() : '';
       const sub = typeof parsed.sub === 'string' ? parsed.sub.trim() : '';
-      if (!primary) {
+      if (!rawPrimary) {
         return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI did not return a primary category' }) };
       }
+      // Snap drifted primaries ("Career" / "career exploration" / "Career &
+      // Exploration") back to a canonical domain. If nothing matches, the
+      // entry lands in "Other" rather than inventing a ninth branch.
+      const CANONICAL_DOMAINS = [
+        'Health',
+        'Career Exploration',
+        'School',
+        'Relationships',
+        'Emotional Maturity',
+        'Environment & Lifestyle',
+        'Purpose & Meaning',
+        'Other',
+      ];
+      const normalize = (s) => s.toLowerCase().replace(/[^a-z]+/g, '');
+      const canonicalByNorm = new Map(CANONICAL_DOMAINS.map((d) => [normalize(d), d]));
+      // Alias table for common AI drift. Keyed by normalized form.
+      const ALIASES = {
+        career: 'Career Exploration',
+        careers: 'Career Exploration',
+        work: 'Career Exploration',
+        job: 'Career Exploration',
+        education: 'School',
+        learning: 'School',
+        study: 'School',
+        academics: 'School',
+        relationship: 'Relationships',
+        family: 'Relationships',
+        friends: 'Relationships',
+        connection: 'Relationships',
+        social: 'Relationships',
+        emotions: 'Emotional Maturity',
+        emotional: 'Emotional Maturity',
+        mindfulness: 'Emotional Maturity',
+        mentalhealth: 'Emotional Maturity',
+        therapy: 'Emotional Maturity',
+        environment: 'Environment & Lifestyle',
+        lifestyle: 'Environment & Lifestyle',
+        home: 'Environment & Lifestyle',
+        finance: 'Environment & Lifestyle',
+        meaning: 'Purpose & Meaning',
+        purpose: 'Purpose & Meaning',
+        spirituality: 'Purpose & Meaning',
+        gratitude: 'Purpose & Meaning',
+      };
+      const norm = normalize(rawPrimary);
+      const primary = canonicalByNorm.get(norm) || ALIASES[norm] || 'Other';
       return {
         statusCode: 200,
         headers,

@@ -1,19 +1,22 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import type { GardenEntry, GardenCategory } from '../types';
+import { isGardenDomain } from '../types';
 import { getSecretKey, getAuthHashAsync, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
 
 const AI_API_URL = import.meta.env.VITE_AI_API_URL || '/api/ai-breakdown';
 
-// Cheap aggregate of what categories exist already, so we can send them
-// to the AI as a "prefer these if they fit" hint. Shape matches what the
-// Lambda expects.
+// Aggregate of which sub-categories live under each canonical domain so
+// the AI can prefer an existing sub when one fits. Entries whose primary
+// is a legacy free-form value (pre-taxonomy) are skipped from the hint;
+// they get re-categorized on load by the migration pass below.
 type CategorySummary = { primary: string; subs: string[] };
 function summarizeCategories(entries: GardenEntry[]): CategorySummary[] {
   const map = new Map<string, Set<string>>();
   for (const e of entries) {
     if (!e.category?.primary) continue;
+    if (!isGardenDomain(e.category.primary)) continue;
     const key = e.category.primary;
     if (!map.has(key)) map.set(key, new Set());
     if (e.category.sub) map.get(key)!.add(e.category.sub);
@@ -148,6 +151,42 @@ export function useGarden() {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, categorizationFailed: false, category: undefined } : e)));
     void categorize(id, entry.text);
   }, [categorize]);
+
+  // One-shot legacy migration: pre-taxonomy entries have free-form
+  // primaries like "Movement" or "Dental". Re-categorize them under the
+  // fixed seven-domain taxonomy so they land on the tree. Runs once per
+  // mount, serialized to avoid hammering the Lambda, and skips entries
+  // whose last attempt failed (the retry button handles those) or whose
+  // category is still being computed from the original log. Reads the
+  // entries ref rather than depending on `entries` so a mid-migration
+  // state update doesn't re-fire the effect and cancel its own loop.
+  const migrationRan = useRef(false);
+  useEffect(() => {
+    if (!loaded || migrationRan.current) return;
+    migrationRan.current = true;
+    const legacy = entriesRef.current.filter(
+      (e) =>
+        e.category &&
+        e.category.primary &&
+        !isGardenDomain(e.category.primary) &&
+        !e.categorizationFailed,
+    );
+    if (legacy.length === 0) return;
+    (async () => {
+      for (const e of legacy) {
+        // Clear the old category first so the UI shows "categorizing…"
+        // while the AI re-decides, then run categorize() fresh.
+        setEntries((prev) =>
+          prev.map((row) =>
+            row.id === e.id
+              ? { ...row, category: undefined, categorizationFailed: false, categorizationError: undefined }
+              : row,
+          ),
+        );
+        await categorize(e.id, e.text);
+      }
+    })();
+  }, [loaded, categorize]);
 
   const deleteEntry = useCallback((id: string) => {
     setEntries((prev) => prev.filter((e) => e.id !== id));
