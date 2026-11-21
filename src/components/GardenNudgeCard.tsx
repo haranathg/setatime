@@ -1,6 +1,6 @@
 import type { GardenNudge } from '../hooks/useGarden';
 import { dayKey } from '../utils/gardenGrowth';
-import { DOMAIN_COLORS } from '../utils/gardenColors';
+import { useBranchColors } from '../utils/gardenPalette';
 
 interface Props {
   nudge: GardenNudge | null;
@@ -14,8 +14,9 @@ interface Props {
 // Turns the tree's thinnest branch into one concrete thing to do now. Copy
 // stays encouraging on purpose: the point is a next step, not a scorecard.
 export default function GardenNudgeCard({ nudge, loading, weekCount, onDone, onAnother, compact }: Props) {
+  const colorOf = useBranchColors();
   if (!nudge && !loading) return null;
-  const color = nudge ? DOMAIN_COLORS[nudge.domain].bg : '#16a34a';
+  const color = nudge ? colorOf(nudge.domain).bg : '#16a34a';
   const doneToday = nudge?.doneDay === dayKey();
 
   if (compact) {
@@ -62,9 +63,14 @@ export default function GardenNudgeCard({ nudge, loading, weekCount, onDone, onA
               Watered today ✓ <span className="font-normal text-gray-500 dark:text-gray-400">— a new leaf is on the tree.</span>
             </p>
           ) : (
-            <p className={`mt-2 text-base font-semibold text-gray-900 dark:text-gray-100 ${loading ? 'opacity-50' : ''}`}>
-              {nudge.action}
-            </p>
+            <>
+              {nudge.goalId && nudge.sub && (
+                <p className="mt-2 text-xs font-semibold" style={{ color }}>★ For your goal: {nudge.sub}</p>
+              )}
+              <p className={`${nudge.goalId ? 'mt-0.5' : 'mt-2'} text-base font-semibold text-gray-900 dark:text-gray-100 ${loading ? 'opacity-50' : ''}`}>
+                {nudge.action}
+              </p>
+            </>
           )}
           <div className="mt-3 flex items-center gap-2">
             {!doneToday && (

@@ -1258,7 +1258,10 @@ export function effectiveZone(entry: StateLogEntry): RegulationZone {
 // emerging organically — the AI invents one the first time ("Fixing
 // TMJ" under Health) and reuses it on later matching entries.
 
-export const GARDEN_DOMAINS = [
+// The branches a new garden starts with. The user can rename, reorder,
+// remove or add branches from the Arrange editor, so once a layout exists
+// these are only defaults — read branch names from the layout instead.
+export const DEFAULT_GARDEN_BRANCHES = [
   'Health',
   'Career Exploration',
   'School',
@@ -1266,18 +1269,16 @@ export const GARDEN_DOMAINS = [
   'Emotional Maturity',
   'Environment & Lifestyle',
   'Purpose & Meaning',
-  'Other',
 ] as const;
 
-export type GardenDomain = (typeof GARDEN_DOMAINS)[number];
-
-export function isGardenDomain(s: string): s is GardenDomain {
-  return (GARDEN_DOMAINS as readonly string[]).includes(s);
-}
+// Overflow branch for entries that fit nowhere else. Always present, always
+// last, never renamed.
+export const GARDEN_OTHER = 'Other';
 
 export interface GardenCategory {
-  primary: string;        // one of GARDEN_DOMAINS once categorized; legacy entries may carry a free-form value until re-migrated
-  sub?: string;           // free-form sub-category (e.g. "Fixing TMJ"), invented per entry and reused across matching ones
+  primary: string;        // a branch name from the layout (or Other); legacy entries may carry a free-form value until re-migrated
+  sub?: string;           // free-form sub-category (e.g. "Fixing TMJ"), or the goal's name when goalId is set
+  goalId?: string;        // set when the entry counts toward one of the user's goals
 }
 
 export interface GardenEntry {
@@ -1289,8 +1290,43 @@ export interface GardenEntry {
   categorizationError?: string;   // server/network error message for diagnosis
 }
 
+// A top-level branch of the tree. `color` is a key into the garden palette.
+export interface GardenBranch {
+  id: string;
+  name: string;
+  color: string;
+}
+
+// Something the user is deliberately growing ("Learn to cook", "Learn
+// Telugu"). Lives inside one branch as a pinned, always-labeled
+// sub-branch, and the AI files matching entries onto it before anything else.
+export interface GardenGoal {
+  id: string;
+  name: string;
+  description?: string;   // one line that helps the AI recognise matching entries
+  branchId: string;
+  createdAt: string;
+}
+
+// A category the user set by hand after the AI got it wrong. The most
+// recent ones are sent to the AI as examples of how this user sorts things.
+export interface GardenCorrection {
+  text: string;
+  primary: string;
+  sub?: string;
+  goalId?: string;
+  at: string;
+}
+
+export interface GardenLayout {
+  branches: GardenBranch[];   // in tree order, left to right; Other is implicit and last
+  goals: GardenGoal[];
+  corrections?: GardenCorrection[];
+}
+
 export interface GardenState {
   entries: GardenEntry[];
+  layout?: GardenLayout;      // absent until the user first arranges; defaults apply
 }
 
 // Prefer new energy field; map legacy feeling to a coarse point on the scale.

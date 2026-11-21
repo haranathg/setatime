@@ -1,14 +1,14 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
-import { GARDEN_DOMAINS, type GardenDomain } from '../types';
-import { DOMAIN_COLORS } from '../utils/gardenColors';
+import type { BranchColors } from '../utils/gardenColors';
+import { labelLines } from '../utils/gardenLayout';
 
 // ---------- Geometry ----------
 //
 // Sized so the SVG renders close to 1:1 in the Garden card on desktop, which
-// keeps label text at its intended pixel size. Each domain owns a 20° wedge
-// of the canopy; its sub-branches stay inside that wedge so neighbors never
-// cross. Labels sit on a fixed outer ring, one per wedge, so they can't
-// collide no matter how long or short each branch grows.
+// keeps label text at its intended pixel size. Branches split a 140° fan
+// evenly, so each owns a wedge; its sub-branches stay inside that wedge so
+// neighbors never cross. Labels sit on a fixed outer ring, one per wedge, so
+// they can't collide no matter how long or short each branch grows.
 
 const VIEW_W = 640;
 const VIEW_H = 420;
@@ -17,27 +17,8 @@ const FORK_Y = 335;
 const GROUND_Y = 406;
 const LABEL_RING = 250;
 
-const ANGLES: Record<GardenDomain, number> = {
-  'Health':                  -70,
-  'Career Exploration':      -50,
-  'School':                  -30,
-  'Relationships':           -10,
-  'Emotional Maturity':       10,
-  'Environment & Lifestyle':  30,
-  'Purpose & Meaning':        50,
-  'Other':                    70,
-};
-
-const LABEL_LINES: Record<GardenDomain, string[]> = {
-  'Health':                  ['Health'],
-  'Career Exploration':      ['Career', 'Exploration'],
-  'School':                  ['School'],
-  'Relationships':           ['Relationships'],
-  'Emotional Maturity':      ['Emotional', 'Maturity'],
-  'Environment & Lifestyle': ['Environment &', 'Lifestyle'],
-  'Purpose & Meaning':       ['Purpose &', 'Meaning'],
-  'Other':                   ['Other'],
-};
+const FAN_DEG = 140;
+const CROWDED = 8; // above this many branches, stagger the top labels
 
 const EMPTY_LEN = 64;
 const MIN_LEN = 105;
@@ -148,18 +129,24 @@ const growIn = { transformBox: 'fill-box', transformOrigin: 'center', animation:
 const leafShape = (r: number) =>
   `M 0 0 C ${r * 0.6} ${-r * 0.75} ${r * 1.5} ${-r * 0.6} ${r * 2.1} 0 C ${r * 1.5} ${r * 0.6} ${r * 0.6} ${r * 0.75} 0 0 Z`;
 
+export interface TreeBranchInput {
+  name: string;
+  colors: BranchColors;
+  total: number;
+  subs: { name: string; count: number }[];               // free-form subs, goals excluded
+  goals: { id: string; name: string; count: number }[];  // pinned, drawn even at zero
+}
+
 interface TreeViewProps {
-  domainTotals: Map<GardenDomain, number>;
-  subCountsByDomain: Map<GardenDomain, Map<string, number>>;
+  branches: TreeBranchInput[]; // tree order, left to right, Other last
   selectedPrimary: string | null;
   selectedSub: string | null;
-  onSelectPrimary: (p: GardenDomain | null) => void;
-  onSelectSub: (p: GardenDomain, s: string) => void;
+  onSelectPrimary: (p: string | null) => void;
+  onSelectSub: (p: string, s: string) => void;
 }
 
 export default function TreeView({
-  domainTotals,
-  subCountsByDomain,
+  branches,
   selectedPrimary,
   selectedSub,
   onSelectPrimary,
@@ -185,31 +172,48 @@ export default function TreeView({
   const fs = 12 / scale;
 
   const layout = useMemo(() => {
-    const maxDomain = Math.max(6, ...GARDEN_DOMAINS.map((d) => domainTotals.get(d) || 0));
+    const n = branches.length;
+    const crowded = n > CROWDED;
+    const step = n > 1 ? FAN_DEG / (n - 1) : 0;
+    // Crowded trees shrink a little so the staggered labels have room.
+    const lenScale = crowded ? 0.88 : 1;
+    const subSpread = Math.min(SUB_SPREAD_DEG, step * 0.9 || SUB_SPREAD_DEG);
+    const maxDomain = Math.max(6, ...branches.map((b) => b.total));
 
-    return GARDEN_DOMAINS.map((domain) => {
-      const a = (ANGLES[domain] * Math.PI) / 180;
+    return branches.map((branch, bi) => {
+      const domain = branch.name;
+      const angleDeg = n > 1 ? -FAN_DEG / 2 + bi * step : 0;
+      const a = (angleDeg * Math.PI) / 180;
       const dir = { x: Math.sin(a), y: -Math.cos(a) };
-      const count = domainTotals.get(domain) || 0;
+      const count = branch.total;
       const empty = count === 0;
-      const len = empty ? EMPTY_LEN : lerpBySqrt(count, maxDomain, MIN_LEN, MAX_LEN);
+      const hasGoals = branch.goals.length > 0;
+      // A branch with goals but no logs yet still needs room for its goal
+      // twigs, so it gets a real (faint) branch rather than a stub.
+      const len = lenScale * (empty
+        ? (hasGoals ? MIN_LEN * 0.9 : EMPTY_LEN)
+        : lerpBySqrt(count, maxDomain, MIN_LEN, MAX_LEN));
       // Reaching the Sturdy stage (5 entries) gives the branch a visible step
       // up in thickness on top of the smooth growth.
       const w0 = empty ? 2.5 : lerpBySqrt(count, maxDomain, MIN_W, MAX_W) + (count >= 5 ? 1.5 : 0);
 
       // Leave the trunk heading straight up, then bend out toward the
       // wedge — the shared upward start is what reads as one tree.
-      const p0 = { x: FORK_X + (ANGLES[domain] / 70) * 11, y: FORK_Y };
+      const p0 = { x: FORK_X + (angleDeg / 70) * 11, y: FORK_Y };
       const tip = { x: FORK_X + dir.x * len, y: FORK_Y + dir.y * len };
       const p1 = { x: p0.x, y: p0.y - len * 0.26 };
       const p2 = { x: tip.x - dir.x * len * 0.32, y: tip.y - dir.y * len * 0.32 };
       const centerline = Array.from({ length: 20 }, (_, i) => cubic(p0, p1, p2, tip, i / 19));
 
-      const subMap = subCountsByDomain.get(domain) || new Map<string, number>();
-      const subs = Array.from(subMap.entries()).sort((x, y) => y[1] - x[1]);
-      const maxSub = Math.max(4, ...subs.map(([, n]) => n));
+      // Goals come first so they fork nearest the trunk, where they're easiest
+      // to find, then free-form subs, biggest first.
+      const subs: { name: string; count: number; goal: boolean }[] = [
+        ...branch.goals.map((g) => ({ name: g.name, count: g.count, goal: true })),
+        ...branch.subs.map((x) => ({ ...x, goal: false })),
+      ];
+      const maxSub = Math.max(4, ...subs.map((x) => x.count));
 
-      const subLayouts = subs.map(([name, n], i) => {
+      const subLayouts = subs.map(({ name, count: n, goal }, i) => {
         // Spread forks along the outer half of the branch, alternating sides.
         const t = subs.length === 1 ? 0.78 : 0.5 + (i / (subs.length - 1)) * 0.45;
         const f = cubic(p0, p1, p2, tip, t);
@@ -217,12 +221,14 @@ export default function TreeView({
         const tl = Math.hypot(g.x - f.x, g.y - f.y) || 1;
         const tan = { x: (g.x - f.x) / tl, y: (g.y - f.y) / tl };
         const side = i % 2 === 0 ? 1 : -1;
-        const rot = (side * SUB_SPREAD_DEG * Math.PI) / 180;
+        const rot = (side * subSpread * Math.PI) / 180;
         const sdir = {
           x: tan.x * Math.cos(rot) - tan.y * Math.sin(rot),
           y: tan.x * Math.sin(rot) + tan.y * Math.cos(rot),
         };
-        const sl = lerpBySqrt(n, maxSub, MIN_SUB_LEN, MAX_SUB_LEN);
+        const sl = goal
+          ? Math.max(MIN_SUB_LEN + 8, lerpBySqrt(n, maxSub, MIN_SUB_LEN, MAX_SUB_LEN))
+          : lerpBySqrt(n, maxSub, MIN_SUB_LEN, MAX_SUB_LEN);
         const stip = { x: f.x + sdir.x * sl, y: f.y + sdir.y * sl };
         const ctrl = { x: f.x + tan.x * sl * 0.5, y: f.y + tan.y * sl * 0.5 };
         const spts = Array.from({ length: 10 }, (_, k) => quad(f, ctrl, stip, k / 9));
@@ -248,9 +254,17 @@ export default function TreeView({
           };
         });
 
+        // Goal labels stay visible, so they sit beyond the leaf cluster in
+        // the direction the twig points, anchored to that side.
+        const labelAt = { x: stip.x + sdir.x * (spread + 9), y: stip.y + sdir.y * (spread + 9) };
+        const labelAnchor: 'start' | 'middle' | 'end' = sdir.x > 0.35 ? 'start' : sdir.x < -0.35 ? 'end' : 'middle';
+
         return {
           name,
           count: n,
+          goal,
+          labelAt,
+          labelAnchor,
           path: taperedPath(spts, sw0, Math.max(1, sw0 * 0.45)),
           hit: `M ${f.x} ${f.y} Q ${ctrl.x} ${ctrl.y} ${stip.x} ${stip.y}`,
           tip: stip,
@@ -268,7 +282,7 @@ export default function TreeView({
       );
       const leadFrom = extent + 8;
       const leadTo = LABEL_RING - 24;
-      const leader = !empty && leadTo - leadFrom > 8
+      const leader = (!empty || hasGoals) && leadTo - leadFrom > 8
         ? {
             x1: FORK_X + dir.x * leadFrom,
             y1: FORK_Y + dir.y * leadFrom,
@@ -277,14 +291,20 @@ export default function TreeView({
           }
         : null;
 
-      const ring = { x: FORK_X + dir.x * LABEL_RING, y: FORK_Y + dir.y * LABEL_RING };
       const anchor: 'start' | 'middle' | 'end' =
-        ANGLES[domain] <= -45 ? 'end' : ANGLES[domain] >= 45 ? 'start' : 'middle';
+        angleDeg <= -45 ? 'end' : angleDeg >= 45 ? 'start' : 'middle';
+      // With many branches, the top labels are too close side by side, so
+      // alternate ones step inward to their own row.
+      const ringR = crowded && anchor === 'middle' && bi % 2 === 1 ? LABEL_RING - 30 : LABEL_RING;
+      const ring = { x: FORK_X + dir.x * ringR, y: FORK_Y + dir.y * ringR };
 
       return {
         domain,
+        colors: branch.colors,
+        lines: labelLines(domain),
         count,
         empty,
+        hasGoals,
         path: taperedPath(centerline, w0, Math.max(1.4, w0 * 0.35)),
         hit: `M ${p0.x} ${p0.y} C ${p1.x} ${p1.y} ${p2.x} ${p2.y} ${tip.x} ${tip.y}`,
         tip,
@@ -295,7 +315,7 @@ export default function TreeView({
         ...growthMarks(domain, count, subLayouts),
       };
     });
-  }, [domainTotals, subCountsByDomain]);
+  }, [branches]);
 
   const anySelected = selectedPrimary !== null;
   const haloClass = 'stroke-white dark:stroke-gray-900';
@@ -306,7 +326,7 @@ export default function TreeView({
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
         className="w-full h-auto select-none"
         role="img"
-        aria-label="Garden tree with one branch per life domain"
+        aria-label="Garden tree with one branch per area of your life"
       >
         <defs>
           <radialGradient id={`${gradId}-glow`} cx="50%" cy="55%" r="50%">
@@ -334,7 +354,7 @@ export default function TreeView({
         />
 
         {layout.map((b) => {
-          const c = DOMAIN_COLORS[b.domain];
+          const c = b.colors;
           const isSel = selectedPrimary === b.domain;
           const vars = { '--c': c.bg, '--cd': c.dark, '--cl': c.label } as CSSProperties;
           const toggle = () => onSelectPrimary(isSel ? null : b.domain);
@@ -344,7 +364,15 @@ export default function TreeView({
               key={b.domain}
               style={{ ...vars, opacity: anySelected && !isSel ? 0.22 : 1, transition: 'opacity 150ms' }}
             >
-              {b.empty ? (
+              {b.empty && b.hasGoals ? (
+                <path
+                  d={b.hit}
+                  fill="none"
+                  strokeWidth={2.5}
+                  strokeLinecap="round"
+                  className="stroke-[var(--c)] dark:stroke-[var(--cd)] opacity-40"
+                />
+              ) : b.empty ? (
                 <>
                   <path
                     d={b.hit}
@@ -378,8 +406,27 @@ export default function TreeView({
               {b.subs.map((s) => {
                 const subSel = isSel && selectedSub === s.name;
                 return (
-                  <g key={s.name} className="group">
-                    <path d={s.path} className="fill-[var(--c)] dark:fill-[var(--cd)]" />
+                  <g key={`${s.goal ? 'goal' : 'sub'}:${s.name}`} className="group">
+                    {s.goal && s.count === 0 ? (
+                      <>
+                        <path
+                          d={s.hit}
+                          fill="none"
+                          strokeWidth={1.6}
+                          strokeLinecap="round"
+                          className="stroke-[var(--c)] dark:stroke-[var(--cd)] opacity-60"
+                        />
+                        <circle
+                          cx={s.tip.x}
+                          cy={s.tip.y}
+                          r={3.5}
+                          strokeWidth={1.5}
+                          className="fill-white dark:fill-gray-900 stroke-[var(--c)] dark:stroke-[var(--cd)]"
+                        />
+                      </>
+                    ) : (
+                      <path d={s.path} className="fill-[var(--c)] dark:fill-[var(--cd)]" />
+                    )}
                     {s.leaves.map((l, i) => (
                       <path
                         key={i}
@@ -413,7 +460,42 @@ export default function TreeView({
                         onSelectSub(b.domain, s.name);
                       }}
                     />
-                    {!compact && (
+                    {s.goal && (
+                      // Goals are marked with a star at the twig tip. Their names
+                      // live in the list under the tree; on the tree they show on
+                      // hover or when the branch is selected, since a canopy full
+                      // of always-on labels collides with the leaves.
+                      <text
+                        x={s.labelAt.x}
+                        y={s.labelAt.y + fs * 0.35}
+                        textAnchor="middle"
+                        fontSize={fs * 1.05}
+                        strokeWidth={fs * 0.3}
+                        strokeLinejoin="round"
+                        paintOrder="stroke"
+                        className={`${haloClass} fill-[var(--c)] dark:fill-[var(--cd)] pointer-events-none`}
+                      >
+                        ★
+                      </text>
+                    )}
+                    {!compact && s.goal && (
+                      <text
+                        x={s.labelAt.x}
+                        y={s.labelAt.y - fs * 0.75}
+                        textAnchor="middle"
+                        fontSize={fs * 0.92}
+                        fontWeight={700}
+                        strokeWidth={fs * 0.35}
+                        strokeLinejoin="round"
+                        paintOrder="stroke"
+                        className={`${haloClass} fill-[var(--cl)] dark:fill-[var(--cd)] pointer-events-none transition-opacity ${
+                          subSel || isSel ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                        }`}
+                      >
+                        {s.name} · {s.count}
+                      </text>
+                    )}
+                    {!compact && !s.goal && (
                       <text
                         x={s.tip.x}
                         y={s.labelY}
@@ -503,7 +585,7 @@ export default function TreeView({
                   onClick={toggle}
                 >
                   {(() => {
-                    const lines = LABEL_LINES[b.domain];
+                    const lines = b.lines;
                     const lh = fs * 1.2;
                     const top = b.ring.y - (lines.length * lh) / 2 + fs * 0.35;
                     return (
@@ -514,7 +596,7 @@ export default function TreeView({
                             x={b.ring.x}
                             y={top + i * lh}
                             fontWeight={isSel ? 800 : 650}
-                            className={b.empty ? 'fill-gray-400 dark:fill-gray-500' : 'fill-gray-800 dark:fill-gray-100'}
+                            className={b.empty && !b.hasGoals ? 'fill-gray-400 dark:fill-gray-500' : 'fill-gray-800 dark:fill-gray-100'}
                           >
                             {ln}
                             {i === lines.length - 1 && (

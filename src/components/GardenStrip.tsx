@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react';
 import type { GardenEntry } from '../types';
-import { isGardenDomain } from '../types';
-import { colorForDomain } from '../utils/gardenColors';
+import { useBranchColors } from '../utils/gardenPalette';
 import GardenNudgeCard from './GardenNudgeCard';
 import type { GardenNudge } from '../hooks/useGarden';
 
@@ -16,12 +15,6 @@ interface GardenStripProps {
   onNudgeDone?: () => void;
 }
 
-// Pull the chip color from the shared domain palette when the entry is
-// on the fixed taxonomy; fall back to neutral slate for legacy
-// free-form primaries that haven't been re-categorized yet.
-function colorForCategory(name: string): string {
-  return isGardenDomain(name) ? colorForDomain(name) : '#94a3b8';
-}
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -37,6 +30,7 @@ export default function GardenStrip({
   nudge = null,
   onNudgeDone,
 }: GardenStripProps) {
+  const colorOf = useBranchColors();
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -112,7 +106,7 @@ export default function GardenStrip({
               {e.category && (
                 <span
                   className="text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white flex-shrink-0"
-                  style={{ backgroundColor: colorForCategory(e.category.primary) }}
+                  style={{ backgroundColor: colorOf(e.category.primary).bg }}
                   title={e.category.sub ? `${e.category.primary} · ${e.category.sub}` : e.category.primary}
                 >
                   {e.category.primary}
@@ -145,7 +139,7 @@ export default function GardenStrip({
               <span
                 key={c.primary}
                 className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full text-white"
-                style={{ backgroundColor: colorForCategory(c.primary) }}
+                style={{ backgroundColor: colorOf(c.primary).bg }}
               >
                 <span>{c.primary}</span>
                 <span className="opacity-80 tabular-nums">{c.total}</span>

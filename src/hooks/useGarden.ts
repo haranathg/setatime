@@ -1,31 +1,41 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { GardenEntry, GardenCategory, GardenDomain } from '../types';
-import { isGardenDomain } from '../types';
+import type { GardenEntry, GardenCategory, GardenLayout, GardenCorrection } from '../types';
 import {
   crossedStage,
   yearCountFor,
   thirstiestDomain,
   weekKey,
   dayKey,
-  FALLBACK_ACTIONS,
+  fallbackActionsFor,
   type GrowthStage,
 } from '../utils/gardenGrowth';
+import {
+  defaultLayout,
+  isBranchName,
+  goalsIn,
+  branchOfGoal,
+  paletteFor,
+  validateLayout,
+  normalizeLayout,
+  applyLayoutToEntries,
+  MAX_CORRECTIONS,
+} from '../utils/gardenLayout';
 import { getSecretKey, getAuthHashAsync, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
 
 const AI_API_URL = import.meta.env.VITE_AI_API_URL || '/api/ai-breakdown';
 
-// Aggregate of which sub-categories live under each canonical domain so
-// the AI can prefer an existing sub when one fits. Entries whose primary
-// is a legacy free-form value (pre-taxonomy) are skipped from the hint;
-// they get re-categorized on load by the migration pass below.
+// Aggregate of which sub-categories live under each branch so the AI can
+// prefer an existing sub when one fits. Entries whose primary isn't a branch
+// (legacy free-form values) are skipped; the migration below re-sorts them.
+// Goal entries are skipped too — goals are sent to the AI separately.
 type CategorySummary = { primary: string; subs: string[] };
-function summarizeCategories(entries: GardenEntry[]): CategorySummary[] {
+function summarizeCategories(entries: GardenEntry[], layout: GardenLayout): CategorySummary[] {
   const map = new Map<string, Set<string>>();
   for (const e of entries) {
-    if (!e.category?.primary) continue;
-    if (!isGardenDomain(e.category.primary)) continue;
+    if (!e.category?.primary || e.category.goalId) continue;
+    if (!isBranchName(layout, e.category.primary)) continue;
     const key = e.category.primary;
     if (!map.has(key)) map.set(key, new Set());
     if (e.category.sub) map.get(key)!.add(e.category.sub);
@@ -46,10 +56,20 @@ export function useGarden() {
   const entriesRef = useRef<GardenEntry[]>([]);
   useEffect(() => { entriesRef.current = entries; }, [entries]);
 
+  // The user's branches and goals. Defaults until they first arrange.
+  const [layout, setLayout] = useState<GardenLayout>(defaultLayout);
+  const layoutRef = useRef<GardenLayout>(layout);
+  useEffect(() => { layoutRef.current = layout; }, [layout]);
+  // True once the cloud copy has been merged (or there is none). Anything
+  // that judges entries against the layout waits for this, so a new device
+  // doesn't mistake another device's custom branches for legacy data.
+  const [cloudChecked, setCloudChecked] = useState(false);
+
   useEffect(() => {
     const init = async () => {
       const local = loadState();
       setEntries(local.garden?.entries || []);
+      if (local.garden?.layout) setLayout(local.garden.layout);
       setLoaded(true);
 
       const key = getSecretKey();
@@ -64,10 +84,13 @@ export function useGarden() {
             }
             setEntries(Array.from(merged.values()));
           }
+          // Layout is one document, not a list to merge: cloud wins.
+          if (cloud.garden?.layout) setLayout(cloud.garden.layout);
         } catch {
           // sync errors handled elsewhere
         }
       }
+      setCloudChecked(true);
     };
     init();
   }, []);
@@ -75,7 +98,7 @@ export function useGarden() {
   useEffect(() => {
     if (!loaded) return;
     const state = loadState();
-    const updated = { ...state, garden: { entries } };
+    const updated = { ...state, garden: { entries, layout } };
     saveState(updated);
 
     const key = getSecretKey();
@@ -89,16 +112,30 @@ export function useGarden() {
         }
       }, 1500);
     }
-  }, [entries, loaded]);
+  }, [entries, layout, loaded]);
 
-  // The most recent growth stage a branch reached, for the celebration
-  // toast. Counted over the current year, the same scope the tree draws.
-  const [milestone, setMilestone] = useState<{ domain: string; stage: GrowthStage; at: number } | null>(null);
-  const announceGrowth = useCallback((id: string, primary: string) => {
-    if (!isGardenDomain(primary)) return;
-    const before = yearCountFor(entriesRef.current.filter((e) => e.id !== id), primary);
+  // The most recent growth stage a goal or branch reached, for the
+  // celebration toast. Counted over the current year, the same scope the
+  // tree draws. A goal crossing a stage is announced ahead of its branch.
+  const [milestone, setMilestone] = useState<GardenMilestone | null>(null);
+  const announceGrowth = useCallback((id: string, category: GardenCategory) => {
+    const others = entriesRef.current.filter((e) => e.id !== id);
+    const year = new Date().getFullYear();
+    if (category.goalId) {
+      const goal = layoutRef.current.goals.find((g) => g.id === category.goalId);
+      const before = others.filter(
+        (e) => e.category?.goalId === category.goalId && new Date(e.createdAt).getFullYear() === year,
+      ).length;
+      const stage = crossedStage(before, before + 1);
+      if (goal && stage) {
+        setMilestone({ name: goal.name, branch: category.primary, isGoal: true, stage, at: Date.now() });
+        return;
+      }
+    }
+    if (!isBranchName(layoutRef.current, category.primary)) return;
+    const before = yearCountFor(others, category.primary);
     const stage = crossedStage(before, before + 1);
-    if (stage) setMilestone({ domain: primary, stage, at: Date.now() });
+    if (stage) setMilestone({ name: category.primary, branch: category.primary, isGoal: false, stage, at: Date.now() });
   }, []);
   const dismissMilestone = useCallback(() => setMilestone(null), []);
 
@@ -108,7 +145,8 @@ export function useGarden() {
   const categorize = useCallback(async (id: string, text: string, announce = true) => {
     try {
       const authHash = await getAuthHashAsync();
-      const existingCategories = summarizeCategories(entriesRef.current);
+      const lay = layoutRef.current;
+      const existingCategories = summarizeCategories(entriesRef.current, lay);
       const response = await fetch(AI_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -116,6 +154,18 @@ export function useGarden() {
           mode: 'categorize-action',
           text,
           existingCategories,
+          branches: lay.branches.map((b) => b.name),
+          goals: lay.goals.map((g) => ({
+            id: g.id,
+            name: g.name,
+            description: g.description,
+            branch: branchOfGoal(lay, g)?.name,
+          })),
+          examples: (lay.corrections || []).slice(-15).map((c) => ({
+            text: c.text,
+            primary: c.primary,
+            sub: c.sub,
+          })),
           authHash,
         }),
       });
@@ -132,9 +182,18 @@ export function useGarden() {
       }
       const data = await response.json();
       if (!data.primary) throw new Error('No primary category returned');
-      const category: GardenCategory = { primary: data.primary };
+      let category: GardenCategory = { primary: data.primary };
       if (data.sub) category.sub = data.sub;
-      if (announce) announceGrowth(id, category.primary);
+      // Trust a goal id only if it's still in the layout, and file the entry
+      // under the goal's own branch and name whatever the AI said.
+      const goal = typeof data.goalId === 'string'
+        ? layoutRef.current.goals.find((g) => g.id === data.goalId)
+        : undefined;
+      if (goal) {
+        const branch = branchOfGoal(layoutRef.current, goal);
+        if (branch) category = { primary: branch.name, sub: goal.name, goalId: goal.id };
+      }
+      if (announce) announceGrowth(id, category);
       setEntries((prev) => prev.map((e) => (
         e.id === id
           ? { ...e, category, categorizationFailed: false, categorizationError: undefined }
@@ -161,7 +220,7 @@ export function useGarden() {
       createdAt: new Date().toISOString(),
       ...(preset ? { category: preset } : {}),
     };
-    if (preset) announceGrowth(entry.id, preset.primary);
+    if (preset) announceGrowth(entry.id, preset);
     setEntries((prev) => [entry, ...prev]);
     // Kick off categorization in the background. Entry stays visible
     // as "pending" until the AI responds.
@@ -187,13 +246,13 @@ export function useGarden() {
   // state update doesn't re-fire the effect and cancel its own loop.
   const migrationRan = useRef(false);
   useEffect(() => {
-    if (!loaded || migrationRan.current) return;
+    if (!loaded || !cloudChecked || migrationRan.current) return;
     migrationRan.current = true;
     const legacy = entriesRef.current.filter(
       (e) =>
         e.category &&
         e.category.primary &&
-        !isGardenDomain(e.category.primary) &&
+        !isBranchName(layoutRef.current, e.category.primary) &&
         !e.categorizationFailed,
     );
     if (legacy.length === 0) return;
@@ -211,7 +270,7 @@ export function useGarden() {
         await categorize(e.id, e.text, false);
       }
     })();
-  }, [loaded, categorize]);
+  }, [loaded, cloudChecked, categorize]);
 
   const deleteEntry = useCallback((id: string) => {
     setEntries((prev) => prev.filter((e) => e.id !== id));
@@ -223,6 +282,54 @@ export function useGarden() {
   const setCategory = useCallback((id: string, category: GardenCategory | undefined) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, category, categorizationFailed: false } : e)));
   }, []);
+
+  // The user moving an entry by hand. Besides updating the entry, this
+  // records the correction so future AI calls see how this user sorts.
+  const recategorizeEntry = useCallback((id: string, category: GardenCategory) => {
+    const entry = entriesRef.current.find((e) => e.id === id);
+    if (!entry) return;
+    announceGrowth(id, category);
+    setEntries((prev) => prev.map((e) => (
+      e.id === id ? { ...e, category, categorizationFailed: false, categorizationError: undefined } : e
+    )));
+    const correction: GardenCorrection = {
+      text: entry.text,
+      primary: category.primary,
+      ...(category.sub ? { sub: category.sub } : {}),
+      ...(category.goalId ? { goalId: category.goalId } : {}),
+      at: new Date().toISOString(),
+    };
+    setLayout((prev) => ({
+      ...prev,
+      corrections: [...(prev.corrections || []).filter((c) => c.text !== entry.text), correction].slice(-MAX_CORRECTIONS),
+    }));
+  }, [announceGrowth]);
+
+  // Save an edited layout from the Arrange editor. Renames and removals are
+  // carried into existing entries in the same step so nothing is orphaned.
+  // Returns an error message if the layout is invalid, otherwise null.
+  const saveLayout = useCallback((draft: GardenLayout): string | null => {
+    const next = normalizeLayout(draft);
+    const error = validateLayout(next);
+    if (error) return error;
+    const prev = layoutRef.current;
+    setEntries((rows) => applyLayoutToEntries(prev, next, rows));
+    setLayout({ ...next, corrections: prev.corrections });
+    return null;
+  }, []);
+
+  const palette = useMemo(() => paletteFor(layout), [layout]);
+
+  // Year-to-date count per goal, for the tree's goal branches and the list.
+  const goalCounts = useMemo(() => {
+    const year = new Date().getFullYear();
+    const m = new Map<string, number>();
+    for (const e of entries) {
+      const gid = e.category?.goalId;
+      if (gid && new Date(e.createdAt).getFullYear() === year) m.set(gid, (m.get(gid) || 0) + 1);
+    }
+    return m;
+  }, [entries]);
 
   // ---------- Derived memos ----------
 
@@ -317,7 +424,10 @@ export function useGarden() {
   // Once a week (or when another domain becomes the least-tended one), ask
   // the AI for a two-minute action in the domain with the fewest recent logs.
   // Stored per device: it is a prompt, not data, so it doesn't need to sync.
-  const thirsty = useMemo(() => thirstiestDomain(entries), [entries]);
+  const thirsty = useMemo(
+    () => thirstiestDomain(entries, layout.branches.map((b) => b.name)),
+    [entries, layout.branches],
+  );
   const [nudge, setNudge] = useState<GardenNudge | null>(readNudge);
   const [nudgeLoading, setNudgeLoading] = useState(false);
   const nudgeInflight = useRef(false);
@@ -330,7 +440,7 @@ export function useGarden() {
     }
   }, [nudge]);
 
-  const fetchNudge = useCallback(async (domain: GardenDomain, avoid: string[]) => {
+  const fetchNudge = useCallback(async (domain: string, avoid: string[]) => {
     if (nudgeInflight.current) return;
     nudgeInflight.current = true;
     setNudgeLoading(true);
@@ -339,20 +449,35 @@ export function useGarden() {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     const subs = Array.from(new Set(inDomain.map((e) => e.category?.sub).filter((s): s is string => !!s)));
     const recent = inDomain.slice(0, 8).map((e) => e.text);
-    let next: Pick<GardenNudge, 'action' | 'sub' | 'source'>;
+    const goals = goalsIn(layoutRef.current, domain);
+    let next: Pick<GardenNudge, 'action' | 'sub' | 'source' | 'goalId'>;
     try {
       const authHash = await getAuthHashAsync();
       const response = await fetch(AI_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'suggest-micro-action', domain, subs, recent, avoid, authHash }),
+        body: JSON.stringify({
+          mode: 'suggest-micro-action',
+          domain,
+          subs,
+          recent,
+          avoid,
+          goals: goals.map((g) => ({ id: g.id, name: g.name, description: g.description })),
+          authHash,
+        }),
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const data = await response.json();
       if (typeof data.action !== 'string' || !data.action) throw new Error('No action returned');
-      next = { action: data.action, sub: typeof data.sub === 'string' ? data.sub : undefined, source: 'ai' };
+      const goal = goals.find((g) => g.id === data.goalId);
+      next = {
+        action: data.action,
+        sub: goal ? goal.name : typeof data.sub === 'string' ? data.sub : undefined,
+        ...(goal ? { goalId: goal.id } : {}),
+        source: 'ai',
+      };
     } catch {
-      const options = FALLBACK_ACTIONS[domain];
+      const options = fallbackActionsFor(domain);
       const pick = options.find((o) => !avoid.includes(o.action)) ?? options[0];
       next = { ...pick, source: 'fallback' };
     }
@@ -361,29 +486,39 @@ export function useGarden() {
     setNudgeLoading(false);
   }, []);
 
+  const thirstyDomain = thirsty?.domain ?? null;
   useEffect(() => {
-    if (!loaded) return;
+    if (!loaded || !cloudChecked || !thirstyDomain) return;
     const wk = weekKey();
     const doneToday = nudge?.doneDay === dayKey();
-    const stale = !nudge || nudge.week !== wk || (nudge.domain !== thirsty.domain && !doneToday);
+    const gone = nudge ? !isBranchName(layout, nudge.domain) : false;
+    const stale = !nudge || gone || nudge.week !== wk || (nudge.domain !== thirstyDomain && !doneToday);
     if (!stale) return;
-    // Let the cloud merge and legacy migration settle before deciding which
-    // branch is thirstiest, so a load doesn't trigger two AI calls.
+    // Let the legacy migration settle before deciding which branch is
+    // thirstiest, so a load doesn't trigger two AI calls.
     const t = setTimeout(() => {
-      const sameThread = nudge && nudge.week === wk && nudge.domain === thirsty.domain;
-      void fetchNudge(thirsty.domain, sameThread ? nudge.history : []);
+      const sameThread = nudge && nudge.week === wk && nudge.domain === thirstyDomain;
+      void fetchNudge(thirstyDomain, sameThread ? nudge.history : []);
     }, 1500);
     return () => clearTimeout(t);
-  }, [loaded, thirsty.domain, nudge, fetchNudge]);
+  }, [loaded, cloudChecked, thirstyDomain, nudge, layout, fetchNudge]);
 
   const refreshNudge = useCallback(() => {
-    const sameThread = nudge && nudge.domain === thirsty.domain;
-    void fetchNudge(thirsty.domain, sameThread ? nudge.history : []);
-  }, [nudge, thirsty.domain, fetchNudge]);
+    if (!thirstyDomain) return;
+    const sameThread = nudge && nudge.domain === thirstyDomain;
+    void fetchNudge(thirstyDomain, sameThread ? nudge.history : []);
+  }, [nudge, thirstyDomain, fetchNudge]);
 
   const completeNudge = useCallback(() => {
     if (!nudge) return;
-    addEntry(nudge.action, { primary: nudge.domain, ...(nudge.sub ? { sub: nudge.sub } : {}) });
+    const goal = nudge.goalId ? layoutRef.current.goals.find((g) => g.id === nudge.goalId) : undefined;
+    const branch = goal ? branchOfGoal(layoutRef.current, goal) : undefined;
+    addEntry(
+      nudge.action,
+      goal && branch
+        ? { primary: branch.name, sub: goal.name, goalId: goal.id }
+        : { primary: nudge.domain, ...(nudge.sub ? { sub: nudge.sub } : {}) },
+    );
     setNudge({ ...nudge, doneDay: dayKey() });
   }, [nudge, addEntry]);
 
@@ -398,22 +533,36 @@ export function useGarden() {
     addEntry,
     retryCategorize,
     setCategory,
+    recategorizeEntry,
     deleteEntry,
+    layout,
+    saveLayout,
+    palette,
+    goalCounts,
     milestone,
     dismissMilestone,
-    nudge: nudge && nudge.week === weekKey() ? nudge : null,
+    nudge: nudge && nudge.week === weekKey() && isBranchName(layout, nudge.domain) ? nudge : null,
     nudgeLoading,
-    nudgeWeekCount: thirsty.weekCount,
+    nudgeWeekCount: thirsty?.weekCount ?? 0,
     refreshNudge,
     completeNudge,
   };
 }
 
+export interface GardenMilestone {
+  name: string;            // the goal's or branch's name
+  branch: string;          // branch name, for color
+  isGoal: boolean;
+  stage: GrowthStage;
+  at: number;
+}
+
 export interface GardenNudge {
-  domain: GardenDomain;
+  domain: string;          // branch name
   week: string;            // weekKey() the suggestion was made for
   action: string;
   sub?: string;
+  goalId?: string;         // set when the suggestion advances one of the branch's goals
   source: 'ai' | 'fallback';
   history: string[];       // this week's suggestions, so "another idea" doesn't repeat
   doneDay?: string;        // dayKey() when the user tapped "Did it"
@@ -426,7 +575,7 @@ function readNudge(): GardenNudge | null {
     const raw = localStorage.getItem(NUDGE_STORAGE);
     if (!raw) return null;
     const n = JSON.parse(raw);
-    return n && typeof n.action === 'string' && isGardenDomain(n.domain) ? (n as GardenNudge) : null;
+    return n && typeof n.action === 'string' && typeof n.domain === 'string' ? (n as GardenNudge) : null;
   } catch {
     return null;
   }

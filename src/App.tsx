@@ -29,6 +29,7 @@ import NorthStarsView from './components/NorthStarsView';
 import PredictionLabView from './components/PredictionLabView';
 import GardenView from './components/GardenView';
 import GardenMilestoneToast from './components/GardenMilestoneToast';
+import { GardenPaletteContext } from './utils/gardenPalette';
 import TodayView from './components/TodayView';
 import ProjectsView from './components/ProjectsView';
 import LecturesView from './components/LecturesView';
@@ -506,6 +507,11 @@ function AppMain({
     nudgeWeekCount: gardenNudgeWeekCount,
     refreshNudge: refreshGardenNudge,
     completeNudge: completeGardenNudge,
+    layout: gardenLayout,
+    saveLayout: saveGardenLayout,
+    palette: gardenPalette,
+    goalCounts: gardenGoalCounts,
+    recategorizeEntry: recategorizeGardenEntry,
   } = useGarden();
 
   // Top-3 categories (by count) in a flat shape — passed to TodayView's
@@ -660,6 +666,7 @@ function AppMain({
   };
 
   return (
+    <GardenPaletteContext.Provider value={gardenPalette}>
     <div className="h-full flex flex-col bg-gray-50 dark:bg-gray-950 font-sans">
       <Header
         activeView={activeView}
@@ -1279,6 +1286,10 @@ function AppMain({
           nudgeWeekCount={gardenNudgeWeekCount}
           onNudgeDone={completeGardenNudge}
           onNudgeAnother={refreshGardenNudge}
+          layout={gardenLayout}
+          goalCounts={gardenGoalCounts}
+          onSaveLayout={saveGardenLayout}
+          onRecategorize={recategorizeGardenEntry}
         />
       ) : activeView === 'horizon' ? (
         <HorizonView
@@ -1312,5 +1323,6 @@ function AppMain({
         onNote={(text) => addNote(text)}
       />
     </div>
+    </GardenPaletteContext.Provider>
   );
 }
