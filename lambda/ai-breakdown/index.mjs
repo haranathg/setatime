@@ -22,11 +22,6 @@ async function getAnthropicApiKey() {
   } catch (err) {
     console.error('Could not read Anthropic secret:', err.name);
   }
-  // Temporary fallback during migration; remove once the env var is deleted.
-  if (process.env.ANTHROPIC_API_KEY) {
-    console.warn('Falling back to ANTHROPIC_API_KEY env var');
-    return process.env.ANTHROPIC_API_KEY;
-  }
   return null;
 }
 
