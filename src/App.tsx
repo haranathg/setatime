@@ -28,6 +28,7 @@ import LogView from './components/LogView';
 import NorthStarsView from './components/NorthStarsView';
 import PredictionLabView from './components/PredictionLabView';
 import GardenView from './components/GardenView';
+import GardenMilestoneToast from './components/GardenMilestoneToast';
 import TodayView from './components/TodayView';
 import ProjectsView from './components/ProjectsView';
 import LecturesView from './components/LecturesView';
@@ -498,6 +499,13 @@ function AppMain({
     addEntry: addGardenEntry,
     retryCategorize: retryGardenCategorize,
     deleteEntry: deleteGardenEntry,
+    milestone: gardenMilestone,
+    dismissMilestone: dismissGardenMilestone,
+    nudge: gardenNudge,
+    nudgeLoading: gardenNudgeLoading,
+    nudgeWeekCount: gardenNudgeWeekCount,
+    refreshNudge: refreshGardenNudge,
+    completeNudge: completeGardenNudge,
   } = useGarden();
 
   // Top-3 categories (by count) in a flat shape — passed to TodayView's
@@ -1012,6 +1020,8 @@ function AppMain({
           gardenTopCategories={gardenTopCategories}
           onAddGardenEntry={(text) => { addGardenEntry(text); }}
           onOpenGarden={() => setActiveView('garden')}
+          gardenNudge={gardenNudge}
+          onCompleteGardenNudge={completeGardenNudge}
           weekBoardItems={weekBoardItems}
           weekBoardDropsThisWeek={weekBoardDropsThisWeek}
           onAddWeekBoardItem={addWeekBoardItem}
@@ -1264,6 +1274,11 @@ function AppMain({
           onAdd={addGardenEntry}
           onRetry={retryGardenCategorize}
           onDelete={deleteGardenEntry}
+          nudge={gardenNudge}
+          nudgeLoading={gardenNudgeLoading}
+          nudgeWeekCount={gardenNudgeWeekCount}
+          onNudgeDone={completeGardenNudge}
+          onNudgeAnother={refreshGardenNudge}
         />
       ) : activeView === 'horizon' ? (
         <HorizonView
@@ -1285,6 +1300,12 @@ function AppMain({
           ↗ Schedule is the secondary escape hatch. Lives at the bottom of
           the flex column so it lands under the thumb on iPhone with
           safe-area padding for the home indicator. */}
+      <GardenMilestoneToast
+        milestone={gardenMilestone}
+        onDismiss={dismissGardenMilestone}
+        onOpen={() => setActiveView('garden')}
+      />
+
       <QuickCaptureBar
         onLog={(text) => { addGardenEntry(text); }}
         onSchedule={(text) => scheduleThis({ taskName: text })}

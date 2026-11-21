@@ -1,7 +1,16 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import type { GardenEntry, GardenCategory } from '../types';
+import type { GardenEntry, GardenCategory, GardenDomain } from '../types';
 import { isGardenDomain } from '../types';
+import {
+  crossedStage,
+  yearCountFor,
+  thirstiestDomain,
+  weekKey,
+  dayKey,
+  FALLBACK_ACTIONS,
+  type GrowthStage,
+} from '../utils/gardenGrowth';
 import { getSecretKey, getAuthHashAsync, syncLoad, syncSave } from '../services/syncService';
 import { loadState, saveState } from '../utils/storage';
 
@@ -82,10 +91,21 @@ export function useGarden() {
     }
   }, [entries, loaded]);
 
+  // The most recent growth stage a branch reached, for the celebration
+  // toast. Counted over the current year, the same scope the tree draws.
+  const [milestone, setMilestone] = useState<{ domain: string; stage: GrowthStage; at: number } | null>(null);
+  const announceGrowth = useCallback((id: string, primary: string) => {
+    if (!isGardenDomain(primary)) return;
+    const before = yearCountFor(entriesRef.current.filter((e) => e.id !== id), primary);
+    const stage = crossedStage(before, before + 1);
+    if (stage) setMilestone({ domain: primary, stage, at: Date.now() });
+  }, []);
+  const dismissMilestone = useCallback(() => setMilestone(null), []);
+
   // Kick off AI categorization for an entry. On success, set the category;
   // on failure, mark the entry and capture the server's error message so
   // the UI can show it. Non-blocking.
-  const categorize = useCallback(async (id: string, text: string) => {
+  const categorize = useCallback(async (id: string, text: string, announce = true) => {
     try {
       const authHash = await getAuthHashAsync();
       const existingCategories = summarizeCategories(entriesRef.current);
@@ -114,6 +134,7 @@ export function useGarden() {
       if (!data.primary) throw new Error('No primary category returned');
       const category: GardenCategory = { primary: data.primary };
       if (data.sub) category.sub = data.sub;
+      if (announce) announceGrowth(id, category.primary);
       setEntries((prev) => prev.map((e) => (
         e.id === id
           ? { ...e, category, categorizationFailed: false, categorizationError: undefined }
@@ -127,22 +148,26 @@ export function useGarden() {
           : e
       )));
     }
-  }, []);
+  }, [announceGrowth]);
 
-  const addEntry = useCallback((text: string): GardenEntry | null => {
+  // `preset` skips the AI call when the category is already known — the
+  // thirsty-branch nudge logs straight onto its branch.
+  const addEntry = useCallback((text: string, preset?: GardenCategory): GardenEntry | null => {
     const clean = text.trim();
     if (!clean) return null;
     const entry: GardenEntry = {
       id: uuidv4(),
       text: clean,
       createdAt: new Date().toISOString(),
+      ...(preset ? { category: preset } : {}),
     };
+    if (preset) announceGrowth(entry.id, preset.primary);
     setEntries((prev) => [entry, ...prev]);
     // Kick off categorization in the background. Entry stays visible
     // as "pending" until the AI responds.
-    void categorize(entry.id, clean);
+    if (!preset) void categorize(entry.id, clean);
     return entry;
-  }, [categorize]);
+  }, [categorize, announceGrowth]);
 
   const retryCategorize = useCallback((id: string) => {
     const entry = entriesRef.current.find((e) => e.id === id);
@@ -183,7 +208,7 @@ export function useGarden() {
               : row,
           ),
         );
-        await categorize(e.id, e.text);
+        await categorize(e.id, e.text, false);
       }
     })();
   }, [loaded, categorize]);
@@ -287,6 +312,81 @@ export function useGarden() {
     return map;
   }, [entries]);
 
+  // ---------- Thirsty-branch nudge ----------
+  //
+  // Once a week (or when another domain becomes the least-tended one), ask
+  // the AI for a two-minute action in the domain with the fewest recent logs.
+  // Stored per device: it is a prompt, not data, so it doesn't need to sync.
+  const thirsty = useMemo(() => thirstiestDomain(entries), [entries]);
+  const [nudge, setNudge] = useState<GardenNudge | null>(readNudge);
+  const [nudgeLoading, setNudgeLoading] = useState(false);
+  const nudgeInflight = useRef(false);
+
+  useEffect(() => {
+    try {
+      if (nudge) localStorage.setItem(NUDGE_STORAGE, JSON.stringify(nudge));
+    } catch {
+      // storage unavailable — the nudge just regenerates next visit
+    }
+  }, [nudge]);
+
+  const fetchNudge = useCallback(async (domain: GardenDomain, avoid: string[]) => {
+    if (nudgeInflight.current) return;
+    nudgeInflight.current = true;
+    setNudgeLoading(true);
+    const inDomain = entriesRef.current
+      .filter((e) => e.category?.primary === domain)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const subs = Array.from(new Set(inDomain.map((e) => e.category?.sub).filter((s): s is string => !!s)));
+    const recent = inDomain.slice(0, 8).map((e) => e.text);
+    let next: Pick<GardenNudge, 'action' | 'sub' | 'source'>;
+    try {
+      const authHash = await getAuthHashAsync();
+      const response = await fetch(AI_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'suggest-micro-action', domain, subs, recent, avoid, authHash }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      if (typeof data.action !== 'string' || !data.action) throw new Error('No action returned');
+      next = { action: data.action, sub: typeof data.sub === 'string' ? data.sub : undefined, source: 'ai' };
+    } catch {
+      const options = FALLBACK_ACTIONS[domain];
+      const pick = options.find((o) => !avoid.includes(o.action)) ?? options[0];
+      next = { ...pick, source: 'fallback' };
+    }
+    setNudge({ domain, week: weekKey(), history: [...avoid, next.action].slice(-6), ...next });
+    nudgeInflight.current = false;
+    setNudgeLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    const wk = weekKey();
+    const doneToday = nudge?.doneDay === dayKey();
+    const stale = !nudge || nudge.week !== wk || (nudge.domain !== thirsty.domain && !doneToday);
+    if (!stale) return;
+    // Let the cloud merge and legacy migration settle before deciding which
+    // branch is thirstiest, so a load doesn't trigger two AI calls.
+    const t = setTimeout(() => {
+      const sameThread = nudge && nudge.week === wk && nudge.domain === thirsty.domain;
+      void fetchNudge(thirsty.domain, sameThread ? nudge.history : []);
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [loaded, thirsty.domain, nudge, fetchNudge]);
+
+  const refreshNudge = useCallback(() => {
+    const sameThread = nudge && nudge.domain === thirsty.domain;
+    void fetchNudge(thirsty.domain, sameThread ? nudge.history : []);
+  }, [nudge, thirsty.domain, fetchNudge]);
+
+  const completeNudge = useCallback(() => {
+    if (!nudge) return;
+    addEntry(nudge.action, { primary: nudge.domain, ...(nudge.sub ? { sub: nudge.sub } : {}) });
+    setNudge({ ...nudge, doneDay: dayKey() });
+  }, [nudge, addEntry]);
+
   return {
     entries,
     todaysEntries,
@@ -299,5 +399,35 @@ export function useGarden() {
     retryCategorize,
     setCategory,
     deleteEntry,
+    milestone,
+    dismissMilestone,
+    nudge: nudge && nudge.week === weekKey() ? nudge : null,
+    nudgeLoading,
+    nudgeWeekCount: thirsty.weekCount,
+    refreshNudge,
+    completeNudge,
   };
+}
+
+export interface GardenNudge {
+  domain: GardenDomain;
+  week: string;            // weekKey() the suggestion was made for
+  action: string;
+  sub?: string;
+  source: 'ai' | 'fallback';
+  history: string[];       // this week's suggestions, so "another idea" doesn't repeat
+  doneDay?: string;        // dayKey() when the user tapped "Did it"
+}
+
+const NUDGE_STORAGE = 'setatime.garden.nudge';
+
+function readNudge(): GardenNudge | null {
+  try {
+    const raw = localStorage.getItem(NUDGE_STORAGE);
+    if (!raw) return null;
+    const n = JSON.parse(raw);
+    return n && typeof n.action === 'string' && isGardenDomain(n.domain) ? (n as GardenNudge) : null;
+  } catch {
+    return null;
+  }
 }

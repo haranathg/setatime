@@ -33,6 +33,7 @@ import { ProjectChip, ProjectPicker } from './ProjectChip';
 import { downscaleForStorage } from '../utils/imageDownscale';
 import { formatDaysUntil, isStalled, nextDeadline } from '../hooks/useProjects';
 import GardenStrip from './GardenStrip';
+import type { GardenNudge } from '../hooks/useGarden';
 
 interface TodayViewProps {
   todaysBlocks: TaskBlock[];
@@ -169,6 +170,8 @@ interface TodayViewProps {
   gardenTopCategories: { primary: string; total: number }[];
   onAddGardenEntry: (text: string) => void;
   onOpenGarden: () => void;
+  gardenNudge?: GardenNudge | null;
+  onCompleteGardenNudge?: () => void;
 }
 
 function effectiveCompleted(sub: SubTask): boolean {
@@ -290,6 +293,8 @@ export default function TodayView({
   gardenTopCategories,
   onAddGardenEntry,
   onOpenGarden,
+  gardenNudge,
+  onCompleteGardenNudge,
 }: TodayViewProps) {
   // "Show more on today" — collapses the secondary widgets (State log,
   // Basics, Overdue predictions, Aged dump, Pins, North Stars) below a
@@ -421,6 +426,8 @@ export default function TodayView({
         topCategories={gardenTopCategories}
         onAdd={onAddGardenEntry}
         onOpenGarden={onOpenGarden}
+        nudge={gardenNudge}
+        onNudgeDone={onCompleteGardenNudge}
       />
     ),
     planDay: dueLectureCount > 0 || weeklyStudyMinutes > 0 ? (
