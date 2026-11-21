@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import type { GardenEntry } from '../types';
+import type { GardenEntry, GardenDomain } from '../types';
+import { GARDEN_DOMAINS, isGardenDomain } from '../types';
+import GardenTree, { DOMAIN_COLORS, colorForDomain } from './GardenTree';
 
 interface GardenViewProps {
   entries: GardenEntry[];
@@ -14,25 +16,12 @@ interface GardenViewProps {
   onDelete: (id: string) => void;
 }
 
-// Deterministic color pulled from a primary-category name. Earthy /
-// botanical palette so the garden metaphor reads at a glance; stable
-// across renders so "Health" is always the same green.
-const BUBBLE_PALETTE = [
-  { bg: '#16a34a', ring: '#15803d' }, // green — health / movement
-  { bg: '#0ea5e9', ring: '#0369a1' }, // sky — mindfulness
-  { bg: '#f59e0b', ring: '#b45309' }, // amber — gratitude
-  { bg: '#8b5cf6', ring: '#6d28d9' }, // violet — creativity
-  { bg: '#ec4899', ring: '#be185d' }, // pink — connection
-  { bg: '#14b8a6', ring: '#0f766e' }, // teal — learning
-  { bg: '#ef4444', ring: '#b91c1c' }, // red — hot items
-  { bg: '#a3a3a3', ring: '#525252' }, // neutral — misc
-];
-function colorForCategory(name: string): { bg: string; ring: string } {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
-  }
-  return BUBBLE_PALETTE[hash % BUBBLE_PALETTE.length];
+// Map an entry's primary (which may be a legacy free-form value for
+// not-yet-migrated entries) to a chip color. Canonical domains use the
+// shared DOMAIN_COLORS palette so a chip and a tree branch read as the
+// same thing. Legacy values fall back to a neutral slate.
+function chipColor(primary: string): string {
+  return isGardenDomain(primary) ? colorForDomain(primary) : '#94a3b8';
 }
 
 function formatTime(iso: string): string {
@@ -66,7 +55,13 @@ export default function GardenView({
 }: GardenViewProps) {
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  // Selecting a branch on the tree filters history; selecting a sub-branch
+  // narrows that filter to one leaf cluster. Selecting the same branch
+  // again clears both. filterPrimary is the canonical domain name once a
+  // branch is picked, or any string when filtering by a legacy value
+  // (passed in from, say, a chip click — not currently exposed).
   const [filterPrimary, setFilterPrimary] = useState<string | null>(null);
+  const [filterSub, setFilterSub] = useState<string | null>(null);
 
   const handleAdd = () => {
     const clean = text.trim();
@@ -95,15 +90,46 @@ export default function GardenView({
         return `${y}-${m}-${dd}` !== todayKey;
       })
       .filter((e) => (filterPrimary ? e.category?.primary === filterPrimary : true))
+      .filter((e) => (filterSub ? e.category?.sub === filterSub : true))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 100);
-  }, [entries, todayKey, filterPrimary]);
+  }, [entries, todayKey, filterPrimary, filterSub]);
 
-  // Sorted categories: biggest first.
-  const sortedCategories = useMemo(() => {
-    return Array.from(yearCategoryCounts.entries())
-      .map(([primary, b]) => ({ primary, total: b.total, subs: Array.from(b.subs.entries()).sort((a, b) => b[1] - a[1]) }))
-      .sort((a, b) => b.total - a.total);
+  // Canonical domain → total, including zero-count domains so every main
+  // branch of the tree renders even before the user has logged into it.
+  // Entries whose primary is a legacy free-form value are ignored here —
+  // they'll be re-categorized on load by the migration in useGarden and
+  // join a canonical domain shortly.
+  const domainTotals = useMemo(() => {
+    const m = new Map<GardenDomain, number>();
+    for (const d of GARDEN_DOMAINS) m.set(d, 0);
+    for (const [primary, b] of yearCategoryCounts.entries()) {
+      if (isGardenDomain(primary)) m.set(primary, (m.get(primary) || 0) + b.total);
+    }
+    return m;
+  }, [yearCategoryCounts]);
+
+  // Canonical domain → sub → count. Drives the sub-branches on the tree
+  // and the breakdown list below it.
+  const subCountsByDomain = useMemo(() => {
+    const m = new Map<GardenDomain, Map<string, number>>();
+    for (const d of GARDEN_DOMAINS) m.set(d, new Map());
+    for (const [primary, b] of yearCategoryCounts.entries()) {
+      if (!isGardenDomain(primary)) continue;
+      const inner = m.get(primary)!;
+      for (const [sub, n] of b.subs.entries()) inner.set(sub, (inner.get(sub) || 0) + n);
+    }
+    return m;
+  }, [yearCategoryCounts]);
+
+  // Legacy entries still waiting on migration — surfaced as a small
+  // note so the user understands why a few rows aren't on the tree yet.
+  const legacyPendingCount = useMemo(() => {
+    let n = 0;
+    for (const [primary, b] of yearCategoryCounts.entries()) {
+      if (!isGardenDomain(primary)) n += b.total;
+    }
+    return n;
   }, [yearCategoryCounts]);
 
   if (!loaded) {
@@ -131,7 +157,7 @@ export default function GardenView({
               </span>
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              Log small positive actions. Watch your categories grow.
+              Log small positive actions. Watch the tree grow — one leaf per log, one branch per life domain.
             </p>
           </div>
           <div className="flex items-center gap-3 text-right">
@@ -177,48 +203,85 @@ export default function GardenView({
           </div>
         </div>
 
-        {/* Category bubbles — the "growing tree" metaphor */}
-        {sortedCategories.length > 0 && (
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Your garden, by category</h2>
-              {filterPrimary && (
-                <button
-                  onClick={() => setFilterPrimary(null)}
-                  className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline"
-                >
-                  clear filter
-                </button>
-              )}
-            </div>
-            <CategoryBubbles
-              categories={sortedCategories}
-              onSelect={(p) => setFilterPrimary((cur) => (cur === p ? null : p))}
-              selected={filterPrimary}
-            />
-            {/* Sub-category breakdowns under the bubbles */}
-            <div className="mt-3 space-y-1.5">
-              {sortedCategories.map((c) => {
-                const color = colorForCategory(c.primary);
-                return (
-                  <div key={c.primary} className="flex items-baseline gap-2 text-xs">
-                    <span
-                      className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: color.bg }}
-                    />
-                    <span className="font-semibold text-gray-700 dark:text-gray-200">{c.primary}</span>
-                    <span className="tabular-nums text-gray-500 dark:text-gray-400">{c.total}</span>
-                    {c.subs.length > 0 && (
-                      <span className="text-gray-400 dark:text-gray-500 truncate">
-                        · {c.subs.map(([s, n]) => `${s} ${n}`).join(' · ')}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+        {/* The tree. Eight branches, one per life domain, with
+            sub-branches that grow as new sub-categories accumulate. */}
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+              {filterPrimary
+                ? filterSub
+                  ? `${filterPrimary} · ${filterSub}`
+                  : filterPrimary
+                : 'Your garden'}
+            </h2>
+            {(filterPrimary || filterSub) && (
+              <button
+                onClick={() => { setFilterPrimary(null); setFilterSub(null); }}
+                className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                clear filter
+              </button>
+            )}
           </div>
-        )}
+          <GardenTree
+            domainTotals={domainTotals}
+            subCountsByDomain={subCountsByDomain}
+            selectedPrimary={filterPrimary}
+            selectedSub={filterSub}
+            onSelectPrimary={(d) => {
+              setFilterPrimary(d);
+              setFilterSub(null);
+            }}
+            onSelectSub={(d, s) => {
+              setFilterPrimary(d);
+              setFilterSub((cur) => (cur === s ? null : s));
+            }}
+          />
+          {legacyPendingCount > 0 && (
+            <p className="text-[11px] text-amber-600 dark:text-amber-400 italic mt-1">
+              {legacyPendingCount} earlier {legacyPendingCount === 1 ? 'entry is' : 'entries are'} being re-sorted into your domains — the tree will grow to include them in a moment.
+            </p>
+          )}
+          {/* Per-domain sub-category breakdown — a readable companion
+              to the visual tree. Zero-count domains render too so the
+              imbalance signal is explicit in text as well. */}
+          <div className="mt-3 space-y-1.5">
+            {GARDEN_DOMAINS.map((domain) => {
+              const total = domainTotals.get(domain) || 0;
+              const subs = Array.from((subCountsByDomain.get(domain) || new Map()).entries())
+                .sort((a, b) => b[1] - a[1]);
+              const color = DOMAIN_COLORS[domain];
+              const isEmpty = total === 0;
+              return (
+                <div key={domain} className="flex items-baseline gap-2 text-xs">
+                  <span
+                    className="inline-block w-2 h-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: isEmpty ? '#cbd5e1' : color.bg }}
+                  />
+                  <button
+                    onClick={() => {
+                      setFilterPrimary(filterPrimary === domain ? null : domain);
+                      setFilterSub(null);
+                    }}
+                    className={`font-semibold hover:underline ${
+                      isEmpty
+                        ? 'text-gray-400 dark:text-gray-600'
+                        : 'text-gray-700 dark:text-gray-200'
+                    }`}
+                  >
+                    {domain}
+                  </button>
+                  <span className="tabular-nums text-gray-500 dark:text-gray-400">{total}</span>
+                  {subs.length > 0 && (
+                    <span className="text-gray-400 dark:text-gray-500 truncate">
+                      · {subs.map(([s, n]) => `${s} ${n}`).join(' · ')}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Today's entries */}
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-4">
@@ -285,7 +348,7 @@ function EntryRow({
     return () => clearTimeout(id);
   }, [confirming]);
 
-  const color = entry.category?.primary ? colorForCategory(entry.category.primary) : null;
+  const bg = entry.category?.primary ? chipColor(entry.category.primary) : null;
   return (
     <li className="flex items-start gap-2 group">
       <span className="text-[10px] font-mono tabular-nums text-gray-400 dark:text-gray-500 pt-1 w-20 flex-shrink-0">
@@ -297,7 +360,7 @@ function EntryRow({
           {entry.category ? (
             <span
               className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white"
-              style={{ backgroundColor: color!.bg }}
+              style={{ backgroundColor: bg! }}
             >
               {entry.category.primary}
               {entry.category.sub && <span className="opacity-80">· {entry.category.sub}</span>}
@@ -347,120 +410,6 @@ function EntryRow({
         {confirming ? 'sure?' : '×'}
       </button>
     </li>
-  );
-}
-
-// ---------- Category bubbles ----------
-// Sunflower-ish packed bubble chart. Bubbles are sized by sqrt(count) so
-// the big ones don't crowd everything out, and labels float in each
-// bubble. A click filters the history list to that category.
-
-function CategoryBubbles({
-  categories,
-  onSelect,
-  selected,
-}: {
-  categories: { primary: string; total: number }[];
-  onSelect: (primary: string) => void;
-  selected: string | null;
-}) {
-  const WIDTH = 480;
-  const HEIGHT = 200;
-  // Scale by sqrt(count) because a bubble's visual weight is its area,
-  // not its radius. Minimum radius so a one-entry category is still
-  // tappable; cap on max so no single category eats the whole canvas.
-  const maxCount = Math.max(1, ...categories.map((c) => c.total));
-  const minR = 22;
-  const maxR = 60;
-  const scale = (n: number) => minR + (maxR - minR) * Math.sqrt(n / maxCount);
-
-  // Simple deterministic placement: a spiral walk from center. Greedy —
-  // each bubble is placed at the first lattice point where it doesn't
-  // overlap. Good enough for ≤8 or so categories, which is realistic
-  // for a year.
-  const placed: { x: number; y: number; r: number; c: { primary: string; total: number } }[] = [];
-  const cx = WIDTH / 2;
-  const cy = HEIGHT / 2;
-  for (const c of categories) {
-    const r = scale(c.total);
-    let placedThis = false;
-    // Try center first for the first bubble.
-    if (placed.length === 0) {
-      placed.push({ x: cx, y: cy, r, c });
-      placedThis = true;
-    } else {
-      // Spiral outwards.
-      for (let step = 0; step < 400 && !placedThis; step++) {
-        const angle = step * 0.5;
-        const radius = 4 + step * 1.2;
-        const x = cx + Math.cos(angle) * radius;
-        const y = cy + Math.sin(angle) * radius;
-        if (x - r < 4 || x + r > WIDTH - 4 || y - r < 4 || y + r > HEIGHT - 4) continue;
-        const clash = placed.some((p) => {
-          const dx = p.x - x;
-          const dy = p.y - y;
-          return Math.sqrt(dx * dx + dy * dy) < p.r + r + 2;
-        });
-        if (!clash) {
-          placed.push({ x, y, r, c });
-          placedThis = true;
-        }
-      }
-      // Fallback — push off-canvas rather than overlap (shouldn't trigger
-      // for the realistic category counts this app sees).
-      if (!placedThis) placed.push({ x: cx, y: cy, r, c });
-    }
-  }
-
-  return (
-    <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-auto">
-      {placed.map(({ x, y, r, c }) => {
-        const color = colorForCategory(c.primary);
-        const isSelected = selected === c.primary;
-        const fontSize = Math.max(10, Math.min(16, r / 3));
-        return (
-          <g
-            key={c.primary}
-            className="cursor-pointer transition-transform"
-            style={{ transformOrigin: `${x}px ${y}px`, transform: isSelected ? 'scale(1.05)' : 'scale(1)' }}
-            onClick={() => onSelect(c.primary)}
-          >
-            <circle
-              cx={x}
-              cy={y}
-              r={r}
-              fill={color.bg}
-              fillOpacity={isSelected ? 1 : 0.85}
-              stroke={color.ring}
-              strokeWidth={isSelected ? 3 : 1.5}
-            />
-            <text
-              x={x}
-              y={y - 2}
-              textAnchor="middle"
-              fill="#fff"
-              fontSize={fontSize}
-              fontWeight="700"
-              style={{ pointerEvents: 'none' }}
-            >
-              {c.primary}
-            </text>
-            <text
-              x={x}
-              y={y + fontSize - 1}
-              textAnchor="middle"
-              fill="#fff"
-              fillOpacity={0.85}
-              fontSize={fontSize * 0.85}
-              fontWeight="500"
-              style={{ pointerEvents: 'none' }}
-            >
-              {c.total}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
   );
 }
 
