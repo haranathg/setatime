@@ -153,8 +153,18 @@ Swap the log group name for `/aws/lambda/setatime-sync` as needed.
 | Frontend URL | https://d1bycim0bytkm9.cloudfront.net |
 | S3 frontend bucket | `setatime-frontend-us-west-2` |
 | S3 userdata bucket | `setatime-userdata-us-west-2` |
+| CloudFront distribution | `E26AJUHQAV6UYQ` |
+| API Gateway ID | `p7r6m54moa` |
+| AI API URL | `https://p7r6m54moa.execute-api.us-west-2.amazonaws.com/ai-breakdown` |
+| Sync API URL | `https://p7r6m54moa.execute-api.us-west-2.amazonaws.com/sync` |
+| Lambda functions | `setatime-ai-breakdown`, `setatime-sync` |
+| Lambda IAM role | `setatime-lambda-role` |
+| Anthropic key secret | `setatime/anthropic-api-key` (Secrets Manager, `us-west-2`) |
+| CloudWatch log groups | `/aws/lambda/setatime-ai-breakdown`, `/aws/lambda/setatime-sync` |
 
-### Calendar feed fetching (`setatime-sync`)
+---
+
+## Calendar feed fetching (`setatime-sync`)
 
 The sync Lambda also serves `action: 'fetchCalendars'`, which fetches
 subscribed `.ics` feeds on the frontend's behalf — browsers can't, because
@@ -175,13 +185,61 @@ permitted secret keys) **when that variable is set on this Lambda**. It is
 not set there today, so the fallback applies: the key must already own a
 data object in the bucket. Setting `ALLOWED_KEY_HASHES` on
 `setatime-sync` is the way to tighten this to an explicit allowlist.
-| CloudFront distribution | `E26AJUHQAV6UYQ` |
-| API Gateway ID | `p7r6m54moa` |
-| AI API URL | `https://p7r6m54moa.execute-api.us-west-2.amazonaws.com/ai-breakdown` |
-| Sync API URL | `https://p7r6m54moa.execute-api.us-west-2.amazonaws.com/sync` |
-| Lambda functions | `setatime-ai-breakdown`, `setatime-sync` |
-| Lambda IAM role | `setatime-lambda-role` |
-| CloudWatch log groups | `/aws/lambda/setatime-ai-breakdown`, `/aws/lambda/setatime-sync` |
+
+---
+
+## Anthropic API key (Secrets Manager)
+
+The AI Lambda (`setatime-ai-breakdown`) reads its Anthropic key from the
+Secrets Manager secret `setatime/anthropic-api-key` in `us-west-2`. The key
+is not a Lambda environment variable, is not in GitHub secrets, and never
+passes through the deploy workflow.
+
+- **Who can read it.** `setatime-lambda-role` needs
+  `secretsmanager:GetSecretValue` on this secret's ARN (plus `kms:Decrypt`
+  if it is encrypted with a customer-managed KMS key). Nothing else needs
+  read access.
+- **When it is read.** Once per cold start; each warm Lambda instance keeps
+  the value in memory. A changed secret is therefore picked up only by new
+  instances (see rotation below).
+- **Override.** The secret name can be overridden with the
+  `ANTHROPIC_SECRET_ID` Lambda environment variable. It is not set today,
+  and only needs setting if the secret is ever renamed.
+- **Logging.** The Lambda never logs the key or the raw secret response.
+  On failure it logs only the error name.
+
+### Rotate the key
+
+1. Create a new key in the Anthropic Console.
+2. Store it as the new secret value, using credentials that can write this
+   secret. Either use the AWS console (Secrets Manager →
+   `setatime/anthropic-api-key` → **Retrieve secret value** → **Edit**), or
+   use the CLI reading from stdin so the key never lands in shell history:
+
+   ```bash
+   aws secretsmanager put-secret-value \
+     --secret-id setatime/anthropic-api-key \
+     --secret-string file:///dev/stdin \
+     --profile "$AWS_PROFILE" --region us-west-2
+   # paste the key, press Enter, then Ctrl-D
+   ```
+
+   The Lambda trims surrounding whitespace, so the trailing newline is fine.
+   Never put the key on the command line, in a file in this repo, or in chat.
+3. Force fresh Lambda instances so the new value is read. Warm instances
+   otherwise keep the old key until AWS recycles them. The credential-free
+   way is **Actions → Deploy SetATime → Run workflow** on `main`: a manual
+   run redeploys both Lambdas.
+4. Verify by logging an entry in Garden. It should be categorized within a
+   few seconds.
+5. Revoke the old key in the Anthropic Console.
+
+### Troubleshooting
+
+| Symptom (shown inline on the Garden entry) | Meaning | Fix |
+|---|---|---|
+| `HTTP 500: API key not configured` | The Lambda could not read the secret, or it is empty. CloudWatch shows `Could not read Anthropic secret: <ErrorName>` or `Anthropic secret is empty`. | `AccessDeniedException`: check the role's `GetSecretValue` permission. `ResourceNotFoundException`: check the secret name and region. Empty: store a value. |
+| `HTTP 502: AI service error (401)` | The secret was read, but Anthropic rejected the key. | The key is wrong, revoked, or expired. Rotate it (steps above). |
 
 ---
 
