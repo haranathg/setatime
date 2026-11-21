@@ -355,6 +355,91 @@ Rules:
       };
     }
 
+    // Garden "thirsty branch" nudge: one tiny, concrete action in the life
+    // domain the user has logged least this week. Small enough to do in two
+    // minutes so the nudge turns imbalance into a next step, not guilt.
+    if (body.mode === 'suggest-micro-action') {
+      const DOMAINS = [
+        'Health', 'Career Exploration', 'School', 'Relationships',
+        'Emotional Maturity', 'Environment & Lifestyle', 'Purpose & Meaning',
+      ];
+      const domain = typeof body.domain === 'string' ? body.domain : '';
+      if (!DOMAINS.includes(domain)) {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'domain must be one of the seven garden domains' }) };
+      }
+      const cleanList = (v, max, len) =>
+        (Array.isArray(v) ? v : [])
+          .filter((s) => typeof s === 'string' && s.trim())
+          .slice(0, max)
+          .map((s) => s.trim().slice(0, len));
+      const subs = cleanList(body.subs, 20, 40);
+      const recent = cleanList(body.recent, 8, 120);
+      const avoid = cleanList(body.avoid, 6, 120);
+
+      const response = await fetch(ANTHROPIC_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-beta': 'server-side-fallback-2026-07-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-opus-5-5',
+          max_tokens: 1024,
+          output_config: { effort: 'low' },
+          fallbacks: 'default',
+          messages: [
+            {
+              role: 'user',
+              content: `The user keeps a "garden" log of small positive actions, grouped into life domains. This week they have logged least in: ${domain}.
+
+Suggest ONE tiny positive action in that domain that they could do in about two minutes, right now, wherever they are. It should be concrete and physically startable (not "think about your career" but "skim one job posting in a field you're curious about"). The user is a student.
+
+Sub-categories they already use in ${domain}: ${subs.length ? subs.join(', ') : '(none yet)'}
+Recent ${domain} actions they logged: ${recent.length ? recent.map((r) => `"${r}"`).join('; ') : '(none yet)'}
+Do not repeat these earlier suggestions: ${avoid.length ? avoid.map((r) => `"${r}"`).join('; ') : '(none)'}
+
+Return ONLY valid JSON, no other text:
+{"action": "<imperative, under 12 words, no trailing period>", "sub": "<sub-category, 1-3 words, Title Case>"}
+
+For "sub", reuse one of their existing sub-categories when it fits; otherwise name a new one.`,
+            },
+          ],
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.text();
+        console.error('Anthropic API error:', response.status, err.slice(0, 500));
+        return { statusCode: 502, headers, body: JSON.stringify({ error: `AI service error (${response.status})` }) };
+      }
+
+      const data = await response.json();
+      if (data.stop_reason === 'refusal') {
+        return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI declined to suggest an action' }) };
+      }
+      const textBlock = Array.isArray(data.content) ? data.content.find((b) => b.type === 'text') : null;
+      const content = textBlock && typeof textBlock.text === 'string' ? textBlock.text : '';
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        console.error('Could not parse JSON from AI response:', content.slice(0, 300));
+        return { statusCode: 502, headers, body: JSON.stringify({ error: 'Could not parse AI response' }) };
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(jsonMatch[0]);
+      } catch {
+        return { statusCode: 502, headers, body: JSON.stringify({ error: 'Could not parse AI response' }) };
+      }
+      const action = typeof parsed.action === 'string' ? parsed.action.trim().replace(/\.$/, '').slice(0, 120) : '';
+      const sub = typeof parsed.sub === 'string' ? parsed.sub.trim().slice(0, 40) : '';
+      if (!action) {
+        return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI did not return an action' }) };
+      }
+      return { statusCode: 200, headers, body: JSON.stringify({ action, sub: sub || undefined }) };
+    }
+
     // Default mode: task breakdown
     const { mainTask, mainTime } = body;
 

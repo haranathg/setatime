@@ -1,7 +1,11 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import type { GardenEntry, GardenDomain } from '../types';
 import { GARDEN_DOMAINS, isGardenDomain } from '../types';
-import GardenTree, { DOMAIN_COLORS, colorForDomain } from './GardenTree';
+import GardenTree from './GardenTree';
+import { DOMAIN_COLORS, colorForDomain } from '../utils/gardenColors';
+import GardenNudgeCard from './GardenNudgeCard';
+import type { GardenNudge } from '../hooks/useGarden';
+import { stageFor, nextStage } from '../utils/gardenGrowth';
 
 interface GardenViewProps {
   entries: GardenEntry[];
@@ -14,6 +18,11 @@ interface GardenViewProps {
   onAdd: (text: string) => GardenEntry | null;
   onRetry: (id: string) => void;
   onDelete: (id: string) => void;
+  nudge: GardenNudge | null;
+  nudgeLoading: boolean;
+  nudgeWeekCount: number;
+  onNudgeDone: () => void;
+  onNudgeAnother: () => void;
 }
 
 // Map an entry's primary (which may be a legacy free-form value for
@@ -52,6 +61,11 @@ export default function GardenView({
   onAdd,
   onRetry,
   onDelete,
+  nudge,
+  nudgeLoading,
+  nudgeWeekCount,
+  onNudgeDone,
+  onNudgeAnother,
 }: GardenViewProps) {
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -205,6 +219,14 @@ export default function GardenView({
           </div>
         </div>
 
+        <GardenNudgeCard
+          nudge={nudge}
+          loading={nudgeLoading}
+          weekCount={nudgeWeekCount}
+          onDone={onNudgeDone}
+          onAnother={onNudgeAnother}
+        />
+
         {/* The tree. Eight branches, one per life domain, with
             sub-branches that grow as new sub-categories accumulate. */}
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-4">
@@ -295,10 +317,13 @@ export default function GardenView({
                       {total}
                     </span>
                   </div>
-                  <div className="pl-[1.125rem] mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">
-                    {subs.length > 0
-                      ? subs.map(([s, n]) => `${s} ${n}`).join(' · ')
-                      : <span className="italic text-gray-400 dark:text-gray-500">Nothing logged yet</span>}
+                  <div className="pl-[1.125rem] mt-0.5 flex items-baseline gap-3 text-[11px]">
+                    <span className="flex-1 min-w-0 truncate text-gray-500 dark:text-gray-400">
+                      {subs.length > 0
+                        ? subs.map(([s, n]) => `${s} ${n}`).join(' · ')
+                        : <span className="italic text-gray-400 dark:text-gray-500">Nothing logged yet</span>}
+                    </span>
+                    <StageHint count={total} />
                   </div>
                 </button>
               );
@@ -349,6 +374,24 @@ export default function GardenView({
         )}
       </div>
     </div>
+  );
+}
+
+// Current growth stage plus the distance to the next one, so every branch
+// always shows a reachable target.
+function StageHint({ count }: { count: number }) {
+  const stage = stageFor(count);
+  const next = nextStage(count);
+  return (
+    <span className="flex-shrink-0 whitespace-nowrap text-gray-500 dark:text-gray-400">
+      {stage && <span className="text-gray-600 dark:text-gray-300">{stage.emoji} {stage.name}</span>}
+      {stage && next && <span className="text-gray-300 dark:text-gray-600"> · </span>}
+      {next && (
+        <span>
+          {next.at - count} to {next.emoji} {next.name}
+        </span>
+      )}
+    </span>
   );
 }
 

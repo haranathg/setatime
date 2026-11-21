@@ -1,23 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { GARDEN_DOMAINS, type GardenDomain } from '../types';
-
-// One color per domain, shared with the chips and the legend. `label` is a
-// darker shade for text on light backgrounds; `dark` is a brighter shade for
-// strokes and text on dark backgrounds.
-export const DOMAIN_COLORS: Record<GardenDomain, { bg: string; dark: string; label: string }> = {
-  'Health':                  { bg: '#16a34a', dark: '#4ade80', label: '#15803d' },
-  'Career Exploration':      { bg: '#d97706', dark: '#fbbf24', label: '#b45309' },
-  'School':                  { bg: '#4f46e5', dark: '#a5b4fc', label: '#4338ca' },
-  'Relationships':           { bg: '#e11d48', dark: '#fb7185', label: '#be123c' },
-  'Emotional Maturity':      { bg: '#7c3aed', dark: '#c4b5fd', label: '#6d28d9' },
-  'Environment & Lifestyle': { bg: '#0d9488', dark: '#5eead4', label: '#0f766e' },
-  'Purpose & Meaning':       { bg: '#0284c7', dark: '#7dd3fc', label: '#0369a1' },
-  'Other':                   { bg: '#6b7280', dark: '#d1d5db', label: '#4b5563' },
-};
-
-export function colorForDomain(name: string): string {
-  return (DOMAIN_COLORS as Record<string, { bg: string } | undefined>)[name]?.bg || '#6b7280';
-}
+import { DOMAIN_COLORS } from '../utils/gardenColors';
 
 // ---------- Geometry ----------
 //
@@ -134,6 +117,34 @@ function lerpBySqrt(count: number, max: number, lo: number, hi: number): number 
   return lo + (hi - lo) * Math.min(1, Math.sqrt(count / Math.max(1, max)));
 }
 
+// Blossoms from 15 entries, fruit from 40 — the later growth stages. They
+// sit on existing leaves and sub-branch tips so they read as part of the
+// branch rather than decoration floating near it.
+function growthMarks(
+  domain: string,
+  count: number,
+  subs: { tip: Pt; spread: number; leaves: { cx: number; cy: number }[] }[],
+) {
+  const rand = seededRand(hashString(`${domain}|growth`));
+  const leaves = subs.flatMap((s) => s.leaves);
+  const nBloom = count >= 15 ? Math.min(8, 2 + Math.floor((count - 15) / 5)) : 0;
+  const blossoms: Pt[] = [];
+  for (let i = 0; i < nBloom && leaves.length > 0; i++) {
+    const l = leaves[Math.floor(rand() * leaves.length)];
+    blossoms.push({ x: l.cx + (rand() - 0.5) * 4, y: l.cy + (rand() - 0.5) * 4 });
+  }
+  const nFruit = count >= 40 ? Math.min(5, 1 + Math.floor((count - 40) / 20)) : 0;
+  const fruit: Pt[] = [];
+  for (let i = 0; i < nFruit && subs.length > 0; i++) {
+    const s = subs[i % subs.length];
+    const lap = Math.floor(i / subs.length);
+    fruit.push({ x: s.tip.x + (lap ? (lap % 2 ? 9 : -9) : 0), y: s.tip.y + s.spread * 0.5 + 7 });
+  }
+  return { blossoms, fruit };
+}
+
+const growIn = { transformBox: 'fill-box', transformOrigin: 'center', animation: 'garden-bloom 450ms ease-out' } as CSSProperties;
+
 const leafShape = (r: number) =>
   `M 0 0 C ${r * 0.6} ${-r * 0.75} ${r * 1.5} ${-r * 0.6} ${r * 2.1} 0 C ${r * 1.5} ${r * 0.6} ${r * 0.6} ${r * 0.75} 0 0 Z`;
 
@@ -182,7 +193,9 @@ export default function TreeView({
       const count = domainTotals.get(domain) || 0;
       const empty = count === 0;
       const len = empty ? EMPTY_LEN : lerpBySqrt(count, maxDomain, MIN_LEN, MAX_LEN);
-      const w0 = empty ? 2.5 : lerpBySqrt(count, maxDomain, MIN_W, MAX_W);
+      // Reaching the Sturdy stage (5 entries) gives the branch a visible step
+      // up in thickness on top of the smooth growth.
+      const w0 = empty ? 2.5 : lerpBySqrt(count, maxDomain, MIN_W, MAX_W) + (count >= 5 ? 1.5 : 0);
 
       // Leave the trunk heading straight up, then bend out toward the
       // wedge — the shared upward start is what reads as one tree.
@@ -279,6 +292,7 @@ export default function TreeView({
         anchor,
         leader,
         subs: subLayouts,
+        ...growthMarks(domain, count, subLayouts),
       };
     });
   }, [domainTotals, subCountsByDomain]);
@@ -419,6 +433,33 @@ export default function TreeView({
                   </g>
                 );
               })}
+
+              {b.blossoms.map((p, i) => (
+                <g key={`bl${i}`} transform={`translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`} className="pointer-events-none">
+                  <g style={growIn}>
+                    {[0, 72, 144, 216, 288].map((deg) => (
+                      <circle
+                        key={deg}
+                        cx={Math.cos((deg * Math.PI) / 180) * 3}
+                        cy={Math.sin((deg * Math.PI) / 180) * 3}
+                        r={2.7}
+                        strokeWidth={0.6}
+                        className="fill-pink-200 stroke-pink-400 dark:fill-pink-200 dark:stroke-pink-300"
+                      />
+                    ))}
+                    <circle r={1.8} className="fill-amber-400" />
+                  </g>
+                </g>
+              ))}
+              {b.fruit.map((p, i) => (
+                <g key={`fr${i}`} transform={`translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`} className="pointer-events-none">
+                  <g style={growIn}>
+                    <line x1={0} y1={-9} x2={0} y2={-4.5} strokeWidth={1.4} className="stroke-amber-900 dark:stroke-amber-700" />
+                    <circle r={6} strokeWidth={0.8} className="fill-orange-400 stroke-orange-700" />
+                    <circle cx={-1.7} cy={-1.7} r={1.4} className="fill-white/70" />
+                  </g>
+                </g>
+              ))}
 
               {b.leader && (
                 <line

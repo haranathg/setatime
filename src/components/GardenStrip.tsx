@@ -1,7 +1,9 @@
 import { useRef, useState } from 'react';
 import type { GardenEntry } from '../types';
 import { isGardenDomain } from '../types';
-import { colorForDomain } from './GardenTree';
+import { colorForDomain } from '../utils/gardenColors';
+import GardenNudgeCard from './GardenNudgeCard';
+import type { GardenNudge } from '../hooks/useGarden';
 
 interface GardenStripProps {
   todaysEntries: GardenEntry[];
@@ -10,6 +12,8 @@ interface GardenStripProps {
   topCategories: { primary: string; total: number }[]; // pre-sorted, cap handled by caller
   onAdd: (text: string) => void;
   onOpenGarden: () => void;
+  nudge?: GardenNudge | null;
+  onNudgeDone?: () => void;
 }
 
 // Pull the chip color from the shared domain palette when the entry is
@@ -30,6 +34,8 @@ export default function GardenStrip({
   topCategories,
   onAdd,
   onOpenGarden,
+  nudge = null,
+  onNudgeDone,
 }: GardenStripProps) {
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -89,6 +95,10 @@ export default function GardenStrip({
           Log
         </button>
       </div>
+
+      {onNudgeDone && (
+        <GardenNudgeCard nudge={nudge} loading={false} weekCount={0} onDone={onNudgeDone} onAnother={() => {}} compact />
+      )}
 
       {/* Today's entries preview */}
       {visible.length > 0 && (
