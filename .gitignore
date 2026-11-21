@@ -34,3 +34,7 @@ aws-credentials*
 *.njsproj
 *.sln
 *.sw?
+
+# Local scratch files that may hold secrets — never commit
+temp.txt
+*.secret
