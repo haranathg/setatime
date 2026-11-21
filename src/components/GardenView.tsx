@@ -1,9 +1,11 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
-import type { GardenEntry, GardenDomain } from '../types';
-import { GARDEN_DOMAINS, isGardenDomain } from '../types';
-import GardenTree from './GardenTree';
-import { DOMAIN_COLORS, colorForDomain } from '../utils/gardenColors';
+import type { GardenEntry, GardenCategory, GardenLayout } from '../types';
+import GardenTree, { type TreeBranchInput } from './GardenTree';
 import GardenNudgeCard from './GardenNudgeCard';
+import GardenArrangeSheet from './GardenArrangeSheet';
+import GardenMovePicker from './GardenMovePicker';
+import { branchNames, goalsIn, isBranchName } from '../utils/gardenLayout';
+import { useBranchColors } from '../utils/gardenPalette';
 import type { GardenNudge } from '../hooks/useGarden';
 import { stageFor, nextStage } from '../utils/gardenGrowth';
 
@@ -23,14 +25,10 @@ interface GardenViewProps {
   nudgeWeekCount: number;
   onNudgeDone: () => void;
   onNudgeAnother: () => void;
-}
-
-// Map an entry's primary (which may be a legacy free-form value for
-// not-yet-migrated entries) to a chip color. Canonical domains use the
-// shared DOMAIN_COLORS palette so a chip and a tree branch read as the
-// same thing. Legacy values fall back to a neutral slate.
-function chipColor(primary: string): string {
-  return isGardenDomain(primary) ? colorForDomain(primary) : '#94a3b8';
+  layout: GardenLayout;
+  goalCounts: Map<string, number>;
+  onSaveLayout: (layout: GardenLayout) => string | null;
+  onRecategorize: (id: string, category: GardenCategory) => void;
 }
 
 function formatTime(iso: string): string {
@@ -66,7 +64,14 @@ export default function GardenView({
   nudgeWeekCount,
   onNudgeDone,
   onNudgeAnother,
+  layout,
+  goalCounts,
+  onSaveLayout,
+  onRecategorize,
 }: GardenViewProps) {
+  const colorOf = useBranchColors();
+  const [arranging, setArranging] = useState(false);
+  const [moving, setMoving] = useState<GardenEntry | null>(null);
   const [text, setText] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   // Selecting a branch on the tree filters history; selecting a sub-branch
@@ -109,44 +114,41 @@ export default function GardenView({
       .slice(0, 100);
   }, [entries, todayKey, filterPrimary, filterSub]);
 
-  // Canonical domain → total, including zero-count domains so every main
-  // branch of the tree renders even before the user has logged into it.
-  // Entries whose primary is a legacy free-form value are ignored here —
-  // they'll be re-categorized on load by the migration in useGarden and
-  // join a canonical domain shortly.
-  const domainTotals = useMemo(() => {
-    const m = new Map<GardenDomain, number>();
-    for (const d of GARDEN_DOMAINS) m.set(d, 0);
-    for (const [primary, b] of yearCategoryCounts.entries()) {
-      if (isGardenDomain(primary)) m.set(primary, (m.get(primary) || 0) + b.total);
-    }
+  // Everything the tree and the list below it draw, in the user's branch
+  // order with Other last. Branches with no logs still appear, so the gaps
+  // are visible. Goal entries are counted on their goal rather than repeated
+  // as free-form subs. Entries whose primary isn't a branch (legacy values
+  // still being re-sorted) are left out until the migration in useGarden
+  // files them.
+  const treeBranches = useMemo<TreeBranchInput[]>(() => {
+    return branchNames(layout).map((name) => {
+      const bucket = yearCategoryCounts.get(name);
+      const goals = goalsIn(layout, name).map((g) => ({ id: g.id, name: g.name, count: goalCounts.get(g.id) || 0 }));
+      const goalNames = new Set(goals.map((g) => g.name));
+      const subs = Array.from(bucket?.subs.entries() ?? [])
+        .filter(([sub]) => !goalNames.has(sub))
+        .map(([sub, count]) => ({ name: sub, count }))
+        .sort((a, b) => b.count - a.count);
+      return { name, colors: colorOf(name), total: bucket?.total ?? 0, subs, goals };
+    });
+  }, [layout, yearCategoryCounts, goalCounts, colorOf]);
+
+  const maxDomainTotal = useMemo(() => Math.max(0, ...treeBranches.map((b) => b.total)), [treeBranches]);
+
+  // Existing free-form subs per branch, offered as quick picks when moving.
+  const subsByBranch = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const b of treeBranches) m.set(b.name, b.subs.map((s) => s.name));
     return m;
-  }, [yearCategoryCounts]);
+  }, [treeBranches]);
 
-  const maxDomainTotal = useMemo(() => Math.max(0, ...domainTotals.values()), [domainTotals]);
-
-  // Canonical domain → sub → count. Drives the sub-branches on the tree
-  // and the breakdown list below it.
-  const subCountsByDomain = useMemo(() => {
-    const m = new Map<GardenDomain, Map<string, number>>();
-    for (const d of GARDEN_DOMAINS) m.set(d, new Map());
-    for (const [primary, b] of yearCategoryCounts.entries()) {
-      if (!isGardenDomain(primary)) continue;
-      const inner = m.get(primary)!;
-      for (const [sub, n] of b.subs.entries()) inner.set(sub, (inner.get(sub) || 0) + n);
-    }
-    return m;
-  }, [yearCategoryCounts]);
-
-  // Legacy entries still waiting on migration — surfaced as a small
-  // note so the user understands why a few rows aren't on the tree yet.
   const legacyPendingCount = useMemo(() => {
     let n = 0;
     for (const [primary, b] of yearCategoryCounts.entries()) {
-      if (!isGardenDomain(primary)) n += b.total;
+      if (!isBranchName(layout, primary)) n += b.total;
     }
     return n;
-  }, [yearCategoryCounts]);
+  }, [yearCategoryCounts, layout]);
 
   if (!loaded) {
     return (
@@ -173,7 +175,7 @@ export default function GardenView({
               </span>
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-              Log small positive actions. Watch the tree grow — one leaf per log, one branch per life domain.
+              Log small positive actions. Watch the tree grow — one leaf per log, one branch per area of your life.
             </p>
           </div>
           <div className="flex items-center gap-3 text-right">
@@ -227,8 +229,8 @@ export default function GardenView({
           onAnother={onNudgeAnother}
         />
 
-        {/* The tree. Eight branches, one per life domain, with
-            sub-branches that grow as new sub-categories accumulate. */}
+        {/* The tree: one branch per area of the user's life, with goals as
+            pinned twigs and sub-branches that grow as sub-categories accumulate. */}
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-4">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">
@@ -238,18 +240,25 @@ export default function GardenView({
                   : filterPrimary
                 : 'Your garden'}
             </h2>
-            {(filterPrimary || filterSub) && (
+            <div className="flex items-center gap-3">
+              {(filterPrimary || filterSub) && (
+                <button
+                  onClick={() => { setFilterPrimary(null); setFilterSub(null); }}
+                  className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  clear filter
+                </button>
+              )}
               <button
-                onClick={() => { setFilterPrimary(null); setFilterSub(null); }}
-                className="text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline"
+                onClick={() => setArranging(true)}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
               >
-                clear filter
+                Arrange
               </button>
-            )}
+            </div>
           </div>
           <GardenTree
-            domainTotals={domainTotals}
-            subCountsByDomain={subCountsByDomain}
+            branches={treeBranches}
             selectedPrimary={filterPrimary}
             selectedSub={filterSub}
             onSelectPrimary={(d) => {
@@ -263,18 +272,14 @@ export default function GardenView({
           />
           {legacyPendingCount > 0 && (
             <p className="text-[11px] text-amber-600 dark:text-amber-400 italic mt-1">
-              {legacyPendingCount} earlier {legacyPendingCount === 1 ? 'entry is' : 'entries are'} being re-sorted into your domains — the tree will grow to include them in a moment.
+              {legacyPendingCount} earlier {legacyPendingCount === 1 ? 'entry is' : 'entries are'} being re-sorted into your branches — the tree will grow to include them in a moment.
             </p>
           )}
           {/* Per-domain sub-category breakdown — a readable companion
               to the visual tree. Zero-count domains render too so the
               imbalance signal is explicit in text as well. */}
           <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 space-y-2">
-            {GARDEN_DOMAINS.map((domain) => {
-              const total = domainTotals.get(domain) || 0;
-              const subs = Array.from((subCountsByDomain.get(domain) || new Map()).entries())
-                .sort((a, b) => b[1] - a[1]);
-              const color = DOMAIN_COLORS[domain];
+            {treeBranches.map(({ name: domain, total, subs, goals, colors: color }) => {
               const isEmpty = total === 0;
               const isSel = filterPrimary === domain;
               const pct = maxDomainTotal > 0 ? (total / maxDomainTotal) * 100 : 0;
@@ -320,11 +325,44 @@ export default function GardenView({
                   <div className="pl-[1.125rem] mt-0.5 flex items-baseline gap-3 text-[11px]">
                     <span className="flex-1 min-w-0 truncate text-gray-500 dark:text-gray-400">
                       {subs.length > 0
-                        ? subs.map(([s, n]) => `${s} ${n}`).join(' · ')
-                        : <span className="italic text-gray-400 dark:text-gray-500">Nothing logged yet</span>}
+                        ? subs.map((s) => `${s.name} ${s.count}`).join(' · ')
+                        : goals.length > 0
+                          ? null
+                          : <span className="italic text-gray-400 dark:text-gray-500">Nothing logged yet</span>}
                     </span>
                     <StageHint count={total} />
                   </div>
+                  {goals.map((g) => (
+                    <div
+                      key={g.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFilterPrimary(domain);
+                        setFilterSub((cur) => (cur === g.name && filterPrimary === domain ? null : g.name));
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setFilterPrimary(domain);
+                          setFilterSub(g.name);
+                        }
+                      }}
+                      className={`ml-[1.125rem] mt-1 flex items-baseline gap-2 text-[11px] rounded-md px-1.5 py-0.5 -mx-1.5 ${
+                        filterSub === g.name && filterPrimary === domain
+                          ? 'bg-white dark:bg-gray-900'
+                          : 'hover:bg-white/70 dark:hover:bg-gray-900/60'
+                      }`}
+                    >
+                      <span style={{ color: color.bg }} aria-hidden>★</span>
+                      <span className="font-semibold text-gray-700 dark:text-gray-200 truncate">{g.name}</span>
+                      <span className="tabular-nums text-gray-500 dark:text-gray-400">{g.count}</span>
+                      <span className="flex-1" />
+                      <StageHint count={g.count} />
+                    </div>
+                  ))}
                 </button>
               );
             })}
@@ -343,7 +381,7 @@ export default function GardenView({
           ) : (
             <ul className="space-y-1.5">
               {todaysEntries.map((e) => (
-                <EntryRow key={e.id} entry={e} onRetry={onRetry} onDelete={onDelete} />
+                <EntryRow key={e.id} entry={e} onRetry={onRetry} onDelete={onDelete} onMove={setMoving} />
               ))}
             </ul>
           )}
@@ -363,16 +401,34 @@ export default function GardenView({
         {history.length > 0 && (
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm p-4">
             <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2">
-              {filterPrimary ? `History · ${filterPrimary}` : 'History'}
+              {filterPrimary ? `History · ${filterPrimary}${filterSub ? ` · ${filterSub}` : ''}` : 'History'}
             </h2>
             <ul className="space-y-1.5">
               {history.map((e) => (
-                <EntryRow key={e.id} entry={e} onRetry={onRetry} onDelete={onDelete} showDay />
+                <EntryRow key={e.id} entry={e} onRetry={onRetry} onDelete={onDelete} onMove={setMoving} showDay />
               ))}
             </ul>
           </div>
         )}
       </div>
+
+      {arranging && (
+        <GardenArrangeSheet
+          layout={layout}
+          entries={entries}
+          onSave={onSaveLayout}
+          onClose={() => setArranging(false)}
+        />
+      )}
+      {moving && (
+        <GardenMovePicker
+          entry={moving}
+          layout={layout}
+          subsByBranch={subsByBranch}
+          onPick={(category) => onRecategorize(moving.id, category)}
+          onClose={() => setMoving(null)}
+        />
+      )}
     </div>
   );
 }
@@ -400,13 +456,16 @@ function EntryRow({
   entry,
   onRetry,
   onDelete,
+  onMove,
   showDay,
 }: {
   entry: GardenEntry;
   onRetry: (id: string) => void;
   onDelete: (id: string) => void;
+  onMove: (entry: GardenEntry) => void;
   showDay?: boolean;
 }) {
+  const colorOf = useBranchColors();
   const [confirming, setConfirming] = useState(false);
   useEffect(() => {
     if (!confirming) return;
@@ -414,7 +473,7 @@ function EntryRow({
     return () => clearTimeout(id);
   }, [confirming]);
 
-  const bg = entry.category?.primary ? chipColor(entry.category.primary) : null;
+  const bg = entry.category?.primary ? colorOf(entry.category.primary).bg : null;
   return (
     <li className="flex items-start gap-2 group">
       <span className="text-[10px] font-mono tabular-nums text-gray-400 dark:text-gray-500 pt-1 w-20 flex-shrink-0">
@@ -424,13 +483,15 @@ function EntryRow({
         <div className="text-sm text-gray-800 dark:text-gray-100 leading-snug">{entry.text}</div>
         <div className="flex items-center gap-1.5 mt-0.5">
           {entry.category ? (
-            <span
-              className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white"
+            <button
+              onClick={() => onMove(entry)}
+              title="Wrong place? Tap to move it"
+              className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full text-white hover:ring-2 hover:ring-offset-1 hover:ring-gray-300 dark:hover:ring-gray-600 dark:ring-offset-gray-900"
               style={{ backgroundColor: bg! }}
             >
               {entry.category.primary}
-              {entry.category.sub && <span className="opacity-80">· {entry.category.sub}</span>}
-            </span>
+              {entry.category.sub && <span className="opacity-80">· {entry.category.goalId ? '★ ' : ''}{entry.category.sub}</span>}
+            </button>
           ) : entry.categorizationFailed ? (
             <div className="flex items-center gap-1.5">
               <button

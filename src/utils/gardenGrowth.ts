@@ -1,4 +1,4 @@
-import { GARDEN_DOMAINS, type GardenDomain, type GardenEntry } from '../types';
+import type { GardenEntry } from '../types';
 
 // Each branch passes through these stages as its year count grows. The
 // thresholds are spaced so there is always a reachable next stage: the
@@ -44,14 +44,18 @@ export function yearCountFor(entries: GardenEntry[], domain: string, year = new 
   return n;
 }
 
-// "Other" is overflow, not a life domain, so it is never the thirsty branch.
-export const NUDGE_DOMAINS = GARDEN_DOMAINS.filter((d) => d !== 'Other') as GardenDomain[];
-
 /**
- * The domain that has had the least attention: fewest logs in the last
+ * The branch that has had the least attention: fewest logs in the last
  * seven days, then fewest this year, then the tree's left-to-right order.
+ * Pass the user's branches without Other — Other is overflow, not a life
+ * domain, so it is never the thirsty branch.
  */
-export function thirstiestDomain(entries: GardenEntry[], now = Date.now()): { domain: GardenDomain; weekCount: number } {
+export function thirstiestDomain(
+  entries: GardenEntry[],
+  branches: string[],
+  now = Date.now(),
+): { domain: string; weekCount: number } | null {
+  if (branches.length === 0) return null;
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
   const year = new Date(now).getFullYear();
   const week = new Map<string, number>();
@@ -63,8 +67,8 @@ export function thirstiestDomain(entries: GardenEntry[], now = Date.now()): { do
     if (t >= weekAgo) week.set(p, (week.get(p) || 0) + 1);
     if (new Date(t).getFullYear() === year) ytd.set(p, (ytd.get(p) || 0) + 1);
   }
-  let best = NUDGE_DOMAINS[0];
-  for (const d of NUDGE_DOMAINS) {
+  let best = branches[0];
+  for (const d of branches) {
     const dw = week.get(d) || 0;
     const bw = week.get(best) || 0;
     if (dw < bw || (dw === bw && (ytd.get(d) || 0) < (ytd.get(best) || 0))) best = d;
@@ -84,7 +88,7 @@ export function dayKey(d = new Date()): string {
 
 // Used when the AI can't be reached, so the nudge still offers something
 // concrete instead of an error.
-export const FALLBACK_ACTIONS: Record<GardenDomain, { action: string; sub: string }[]> = {
+const FALLBACK_ACTIONS: Record<string, { action: string; sub: string }[]> = {
   'Health': [
     { action: 'Drink a full glass of water', sub: 'Hydration' },
     { action: 'Stand up and stretch for two minutes', sub: 'Movement' },
@@ -113,7 +117,13 @@ export const FALLBACK_ACTIONS: Record<GardenDomain, { action: string; sub: strin
     { action: 'Write one sentence about why you chose your path', sub: 'Reflection' },
     { action: 'Note one thing today that felt meaningful', sub: 'Gratitude' },
   ],
-  'Other': [
-    { action: 'Do one small kind thing for yourself', sub: 'Self-Care' },
-  ],
 };
+
+const GENERIC_FALLBACK = [
+  { action: 'Spend two minutes on this, starting now', sub: 'Small Step' },
+  { action: 'Write down one next step for this', sub: 'Planning' },
+];
+
+export function fallbackActionsFor(branch: string): { action: string; sub: string }[] {
+  return FALLBACK_ACTIONS[branch] ?? GENERIC_FALLBACK;
+}

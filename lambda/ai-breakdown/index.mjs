@@ -2,6 +2,49 @@ import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-sec
 
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
+// The branches a garden starts with, used when a client sends no layout.
+const DEFAULT_GARDEN_BRANCHES = [
+  'Health',
+  'Career Exploration',
+  'School',
+  'Relationships',
+  'Emotional Maturity',
+  'Environment & Lifestyle',
+  'Purpose & Meaning',
+];
+
+// Common AI drift for the default branch names, keyed by the normalized form
+// (lowercase, letters and digits only). Applied only when the target is
+// still one of the user's branches.
+const GARDEN_ALIASES = {
+  career: 'Career Exploration',
+  careers: 'Career Exploration',
+  work: 'Career Exploration',
+  job: 'Career Exploration',
+  education: 'School',
+  learning: 'School',
+  study: 'School',
+  academics: 'School',
+  relationship: 'Relationships',
+  family: 'Relationships',
+  friends: 'Relationships',
+  connection: 'Relationships',
+  social: 'Relationships',
+  emotions: 'Emotional Maturity',
+  emotional: 'Emotional Maturity',
+  mindfulness: 'Emotional Maturity',
+  mentalhealth: 'Emotional Maturity',
+  therapy: 'Emotional Maturity',
+  environment: 'Environment & Lifestyle',
+  lifestyle: 'Environment & Lifestyle',
+  home: 'Environment & Lifestyle',
+  finance: 'Environment & Lifestyle',
+  meaning: 'Purpose & Meaning',
+  purpose: 'Purpose & Meaning',
+  spirituality: 'Purpose & Meaning',
+  gratitude: 'Purpose & Meaning',
+};
+
 // The Anthropic key lives in Secrets Manager; only setatime-lambda-role can
 // read it. The AWS SDK ships with the nodejs22.x runtime, so this file stays
 // dependency-free. Never log the key or the raw secret response.
@@ -191,37 +234,66 @@ Rules for microSteps:
       };
     }
 
-    // Garden action categorization mode: take a positive-action log entry
-    // and slot it into one of the user's seven life domains (plus an
-    // Other overflow) + a free-form sub-category inside that domain.
+    // Garden action categorization mode. Files a positive-action log entry
+    // under one of the user's branches. The branches and goals are the
+    // user's own (set in the app's Arrange editor) and arrive with each
+    // request; the seven defaults apply when a client sends none.
     //
-    // The top level is deliberately fixed so the tree has a stable shape
-    // and the imbalance signal is legible — a sparse branch is a
-    // neglected domain. Sub-categories keep emerging organically so the
-    // tree grows more complex the more you log: "fixed my TMJ exercise"
-    // becomes Health · Fixing TMJ the first time and reuses that sub on
-    // every subsequent TMJ entry.
+    // A goal ("Learn to cook") wins over its branch whenever the entry
+    // advances it. Otherwise the entry gets a branch plus a free-form
+    // sub-category, reusing an existing sub when one fits, so the tree keeps
+    // growing new sub-branches organically. Recent corrections the user made
+    // by hand are passed as examples of how they like things sorted.
     if (body.mode === 'categorize-action') {
-      const { text, existingCategories } = body;
+      const text = typeof body.text === 'string' ? body.text.trim().slice(0, 500) : '';
       if (!text) {
         return { statusCode: 400, headers, body: JSON.stringify({ error: 'text is required' }) };
       }
+      const str = (v, len) => (typeof v === 'string' ? v.trim().slice(0, len) : '');
 
-      // existingCategories comes keyed by primary → [sub names]. Format
-      // it into a per-domain hint list so the AI prefers subs you've
-      // already named.
+      let branches = Array.isArray(body.branches)
+        ? [...new Set(body.branches.map((v) => str(v, 40)).filter(Boolean))].slice(0, 12)
+        : [];
+      if (branches.length === 0) branches = DEFAULT_GARDEN_BRANCHES;
+      branches = branches.filter((n) => n.toLowerCase() !== 'other');
+      const allBranches = [...branches, 'Other'];
+
+      const goals = (Array.isArray(body.goals) ? body.goals : [])
+        .map((g) => ({
+          id: str(g?.id, 64),
+          name: str(g?.name, 40),
+          description: str(g?.description, 160),
+          branch: str(g?.branch, 40),
+        }))
+        .filter((g) => g.id && g.name && branches.includes(g.branch))
+        .slice(0, 40);
+
+      const examples = (Array.isArray(body.examples) ? body.examples : [])
+        .map((x) => ({ text: str(x?.text, 160), primary: str(x?.primary, 40), sub: str(x?.sub, 40) }))
+        .filter((x) => x.text && allBranches.includes(x.primary))
+        .slice(-15);
+
       const subsByPrimary = new Map();
-      if (Array.isArray(existingCategories)) {
-        for (const c of existingCategories) {
-          if (!c || typeof c.primary !== 'string') continue;
-          const subs = Array.isArray(c.subs) ? c.subs.filter((s) => typeof s === 'string' && s) : [];
-          subsByPrimary.set(c.primary, subs);
+      if (Array.isArray(body.existingCategories)) {
+        for (const c of body.existingCategories) {
+          const primary = str(c?.primary, 40);
+          if (!primary) continue;
+          const subs = Array.isArray(c.subs) ? c.subs.map((v) => str(v, 40)).filter(Boolean).slice(0, 30) : [];
+          subsByPrimary.set(primary, subs);
         }
       }
-      const subHintLine = (name) => {
-        const subs = subsByPrimary.get(name) || [];
-        return subs.length > 0 ? ` — existing subs: ${subs.join(', ')}` : '';
-      };
+      const branchList = allBranches
+        .map((name) => {
+          const subs = subsByPrimary.get(name) || [];
+          return `- ${name}${subs.length ? ` — existing subs: ${subs.join(', ')}` : ''}`;
+        })
+        .join('\n');
+      const goalList = goals.length
+        ? goals.map((g) => `- id "${g.id}": ${g.name} (branch: ${g.branch})${g.description ? ` — ${g.description}` : ''}`).join('\n')
+        : '(none)';
+      const exampleList = examples.length
+        ? examples.map((x) => `- "${x.text}" → ${x.primary}${x.sub ? ` · ${x.sub}` : ''}`).join('\n')
+        : '(none yet)';
 
       const response = await fetch(ANTHROPIC_API_URL, {
         method: 'POST',
@@ -240,26 +312,24 @@ Rules for microSteps:
 
 User's action: "${text}"
 
-TOP-LEVEL DOMAINS (pick EXACTLY ONE, use the name verbatim):
-- Health${subHintLine('Health')}
-- Career Exploration${subHintLine('Career Exploration')}
-- School${subHintLine('School')}
-- Relationships${subHintLine('Relationships')}
-- Emotional Maturity${subHintLine('Emotional Maturity')}
-- Environment & Lifestyle${subHintLine('Environment & Lifestyle')}
-- Purpose & Meaning${subHintLine('Purpose & Meaning')}
-- Other${subHintLine('Other')}
+The user's GOALS (things they are deliberately working on):
+${goalList}
+
+The user's BRANCHES (top-level areas of their life):
+${branchList}
+
+How this user has sorted entries before, when they corrected the AI — follow their style:
+${exampleList}
 
 Return ONLY valid JSON in this exact format, no other text:
-{"primary": "<one of the domains above>", "sub": "<a specific sub-category>"}
+{"goal": "<goal id or null>", "primary": "<branch name>", "sub": "<sub-category>"}
 
 Rules:
-- "primary" MUST be one of the eight names above, spelled exactly (including ampersands and capitalization).
-- Use "Other" only when nothing else fits — strongly prefer one of the seven real domains.
-- "sub" is required: a short noun-phrase sub-category inside the chosen domain (1-3 words, Title Case).
-- Strongly prefer an existing sub listed next to the domain when one fits. Invent a new sub only when nothing on the list applies.
-- Keep subs honest and specific but not verbose. Examples: "Dental", "GERD", "Fixing TMJ", "Strength", "Family Call", "Side Project", "Therapy", "Journaling", "Deep Clean".
-- Map common synonyms to the same sub: "brushed teeth" and "flossed" both go to Health · Dental; "called mom" and "called dad" both go to Relationships · Family Call.`,
+- If the action clearly advances one of the goals, set "goal" to that goal's id. Cooking a meal advances a "learn to cook" goal even though it is also healthy.
+- Otherwise set "goal" to null, pick EXACTLY ONE branch name from the list (verbatim), and give a short sub-category (1-3 words, Title Case).
+- Use "Other" only when no branch fits.
+- Prefer an existing sub listed next to the branch when one fits; invent a new one only when nothing applies.
+- Map synonyms to the same sub: "brushed teeth" and "flossed" are both Dental.`,
             },
           ],
         }),
@@ -276,14 +346,11 @@ Rules:
       }
 
       const data = await response.json();
-      // Adaptive thinking (default on current models) may emit a leading
-      // `thinking` content block before the text. Find the text block
-      // rather than assume index 0 — indexing wrongly made the whole
-      // response look like "undefined" and the regex below never matched.
+      // Adaptive thinking may put a thinking block first; find the text block.
       const textBlock = Array.isArray(data.content) ? data.content.find((b) => b.type === 'text') : null;
       const content = textBlock && typeof textBlock.text === 'string' ? textBlock.text : '';
       if (!content) {
-        console.error('AI response had no text block:', JSON.stringify(data).slice(0, 1000));
+        console.error('AI response had no text block');
         return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI response had no text block' }) };
       }
       const jsonMatch = content.match(/\{[\s\S]*\}/);
@@ -295,59 +362,35 @@ Rules:
           body: JSON.stringify({ error: `Could not parse AI response: ${content.slice(0, 200)}` }),
         };
       }
+      let parsed;
+      try {
+        parsed = JSON.parse(jsonMatch[0]);
+      } catch {
+        return { statusCode: 502, headers, body: JSON.stringify({ error: 'Could not parse AI response' }) };
+      }
 
-      const parsed = JSON.parse(jsonMatch[0]);
-      const rawPrimary = typeof parsed.primary === 'string' ? parsed.primary.trim() : '';
-      const sub = typeof parsed.sub === 'string' ? parsed.sub.trim() : '';
+      const goal = typeof parsed.goal === 'string' ? goals.find((g) => g.id === parsed.goal) : undefined;
+      if (goal) {
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ primary: goal.branch, sub: goal.name, goalId: goal.id }),
+        };
+      }
+
+      const rawPrimary = str(parsed.primary, 60);
+      const sub = str(parsed.sub, 40);
       if (!rawPrimary) {
         return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI did not return a primary category' }) };
       }
-      // Snap drifted primaries ("Career" / "career exploration" / "Career &
-      // Exploration") back to a canonical domain. If nothing matches, the
-      // entry lands in "Other" rather than inventing a ninth branch.
-      const CANONICAL_DOMAINS = [
-        'Health',
-        'Career Exploration',
-        'School',
-        'Relationships',
-        'Emotional Maturity',
-        'Environment & Lifestyle',
-        'Purpose & Meaning',
-        'Other',
-      ];
-      const normalize = (s) => s.toLowerCase().replace(/[^a-z]+/g, '');
-      const canonicalByNorm = new Map(CANONICAL_DOMAINS.map((d) => [normalize(d), d]));
-      // Alias table for common AI drift. Keyed by normalized form.
-      const ALIASES = {
-        career: 'Career Exploration',
-        careers: 'Career Exploration',
-        work: 'Career Exploration',
-        job: 'Career Exploration',
-        education: 'School',
-        learning: 'School',
-        study: 'School',
-        academics: 'School',
-        relationship: 'Relationships',
-        family: 'Relationships',
-        friends: 'Relationships',
-        connection: 'Relationships',
-        social: 'Relationships',
-        emotions: 'Emotional Maturity',
-        emotional: 'Emotional Maturity',
-        mindfulness: 'Emotional Maturity',
-        mentalhealth: 'Emotional Maturity',
-        therapy: 'Emotional Maturity',
-        environment: 'Environment & Lifestyle',
-        lifestyle: 'Environment & Lifestyle',
-        home: 'Environment & Lifestyle',
-        finance: 'Environment & Lifestyle',
-        meaning: 'Purpose & Meaning',
-        purpose: 'Purpose & Meaning',
-        spirituality: 'Purpose & Meaning',
-        gratitude: 'Purpose & Meaning',
-      };
-      const norm = normalize(rawPrimary);
-      const primary = canonicalByNorm.get(norm) || ALIASES[norm] || 'Other';
+      // Snap a drifted primary ("Career", "career exploration") back to one
+      // of the user's branch names. An alias only applies if its target is
+      // still one of their branches; anything unmatched lands in Other
+      // rather than inventing a new branch.
+      const normalize = (v) => v.toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const byNorm = new Map(allBranches.map((d) => [normalize(d), d]));
+      const alias = GARDEN_ALIASES[normalize(rawPrimary)];
+      const primary = byNorm.get(normalize(rawPrimary)) || (alias && allBranches.includes(alias) ? alias : 'Other');
       return {
         statusCode: 200,
         headers,
@@ -355,26 +398,31 @@ Rules:
       };
     }
 
-    // Garden "thirsty branch" nudge: one tiny, concrete action in the life
-    // domain the user has logged least this week. Small enough to do in two
-    // minutes so the nudge turns imbalance into a next step, not guilt.
+    // Garden "thirsty branch" nudge: one tiny, concrete action in the branch
+    // the user has logged least this week. If that branch has goals, the
+    // suggestion should advance one of them. Small enough to do in two
+    // minutes, so the nudge turns imbalance into a next step, not guilt.
     if (body.mode === 'suggest-micro-action') {
-      const DOMAINS = [
-        'Health', 'Career Exploration', 'School', 'Relationships',
-        'Emotional Maturity', 'Environment & Lifestyle', 'Purpose & Meaning',
-      ];
-      const domain = typeof body.domain === 'string' ? body.domain : '';
-      if (!DOMAINS.includes(domain)) {
-        return { statusCode: 400, headers, body: JSON.stringify({ error: 'domain must be one of the seven garden domains' }) };
+      const str = (v, len) => (typeof v === 'string' ? v.trim().slice(0, len) : '');
+      const domain = str(body.domain, 40);
+      if (!domain || domain.toLowerCase() === 'other') {
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'domain must be one of the user\'s branches' }) };
       }
       const cleanList = (v, max, len) =>
         (Array.isArray(v) ? v : [])
-          .filter((s) => typeof s === 'string' && s.trim())
-          .slice(0, max)
-          .map((s) => s.trim().slice(0, len));
+          .map((s) => str(s, len))
+          .filter(Boolean)
+          .slice(0, max);
       const subs = cleanList(body.subs, 20, 40);
       const recent = cleanList(body.recent, 8, 120);
       const avoid = cleanList(body.avoid, 6, 120);
+      const goals = (Array.isArray(body.goals) ? body.goals : [])
+        .map((g) => ({ id: str(g?.id, 64), name: str(g?.name, 40), description: str(g?.description, 160) }))
+        .filter((g) => g.id && g.name)
+        .slice(0, 6);
+      const goalLine = goals.length
+        ? `Their goals in ${domain} — prefer an action that advances one of these:\n${goals.map((g) => `- id "${g.id}": ${g.name}${g.description ? ` — ${g.description}` : ''}`).join('\n')}`
+        : `They have no specific goals set in ${domain}.`;
 
       const response = await fetch(ANTHROPIC_API_URL, {
         method: 'POST',
@@ -392,16 +440,18 @@ Rules:
           messages: [
             {
               role: 'user',
-              content: `The user keeps a "garden" log of small positive actions, grouped into life domains. This week they have logged least in: ${domain}.
+              content: `The user keeps a "garden" log of small positive actions, grouped into branches of their life. This week they have logged least in: ${domain}.
 
-Suggest ONE tiny positive action in that domain that they could do in about two minutes, right now, wherever they are. It should be concrete and physically startable (not "think about your career" but "skim one job posting in a field you're curious about"). The user is a student.
+Suggest ONE tiny positive action for that branch that they could do in about two minutes, right now, wherever they are. It should be concrete and physically startable (not "think about your career" but "skim one job posting in a field you're curious about"). The user is a student.
+
+${goalLine}
 
 Sub-categories they already use in ${domain}: ${subs.length ? subs.join(', ') : '(none yet)'}
 Recent ${domain} actions they logged: ${recent.length ? recent.map((r) => `"${r}"`).join('; ') : '(none yet)'}
 Do not repeat these earlier suggestions: ${avoid.length ? avoid.map((r) => `"${r}"`).join('; ') : '(none)'}
 
 Return ONLY valid JSON, no other text:
-{"action": "<imperative, under 12 words, no trailing period>", "sub": "<sub-category, 1-3 words, Title Case>"}
+{"action": "<imperative, under 12 words, no trailing period>", "goal": "<id of the goal it advances, or null>", "sub": "<sub-category, 1-3 words, Title Case>"}
 
 For "sub", reuse one of their existing sub-categories when it fits; otherwise name a new one.`,
             },
@@ -432,12 +482,17 @@ For "sub", reuse one of their existing sub-categories when it fits; otherwise na
       } catch {
         return { statusCode: 502, headers, body: JSON.stringify({ error: 'Could not parse AI response' }) };
       }
-      const action = typeof parsed.action === 'string' ? parsed.action.trim().replace(/\.$/, '').slice(0, 120) : '';
-      const sub = typeof parsed.sub === 'string' ? parsed.sub.trim().slice(0, 40) : '';
+      const action = str(parsed.action, 120).replace(/\.$/, '');
+      const sub = str(parsed.sub, 40);
+      const goal = typeof parsed.goal === 'string' ? goals.find((g) => g.id === parsed.goal) : undefined;
       if (!action) {
         return { statusCode: 502, headers, body: JSON.stringify({ error: 'AI did not return an action' }) };
       }
-      return { statusCode: 200, headers, body: JSON.stringify({ action, sub: sub || undefined }) };
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ action, sub: sub || undefined, goalId: goal ? goal.id : undefined }),
+      };
     }
 
     // Default mode: task breakdown

@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
-import type { GrowthStage } from '../utils/gardenGrowth';
-import { DOMAIN_COLORS } from '../utils/gardenColors';
-import type { GardenDomain } from '../types';
+import type { GardenMilestone } from '../hooks/useGarden';
+import { useBranchColors } from '../utils/gardenPalette';
 
 interface Props {
-  milestone: { domain: string; stage: GrowthStage; at: number } | null;
+  milestone: GardenMilestone | null;
   onDismiss: () => void;
   onOpen: () => void;
 }
@@ -19,8 +18,9 @@ export default function GardenMilestoneToast({ milestone, onDismiss, onOpen }: P
     return () => clearTimeout(t);
   }, [milestone, onDismiss]);
 
+  const colorOf = useBranchColors();
   if (!milestone) return null;
-  const color = DOMAIN_COLORS[milestone.domain as GardenDomain]?.bg ?? '#16a34a';
+  const color = colorOf(milestone.branch).bg;
 
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4">
@@ -31,9 +31,11 @@ export default function GardenMilestoneToast({ milestone, onDismiss, onOpen }: P
         <span className="text-2xl" aria-hidden>{milestone.stage.emoji}</span>
         <div className="text-sm">
           <div className="font-semibold text-gray-900 dark:text-gray-100">
-            <span style={{ color }}>{milestone.domain}</span> {milestone.stage.phrase}
+            <span style={{ color }}>{milestone.isGoal ? `★ ${milestone.name}` : milestone.name}</span> {milestone.stage.phrase}
           </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">New growth stage: {milestone.stage.name}</div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            {milestone.isGoal ? `Goal in ${milestone.branch} · ` : ''}New growth stage: {milestone.stage.name}
+          </div>
         </div>
         <button
           onClick={() => { onOpen(); onDismiss(); }}
