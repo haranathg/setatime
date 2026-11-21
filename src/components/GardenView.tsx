@@ -109,6 +109,8 @@ export default function GardenView({
     return m;
   }, [yearCategoryCounts]);
 
+  const maxDomainTotal = useMemo(() => Math.max(0, ...domainTotals.values()), [domainTotals]);
+
   // Canonical domain → sub → count. Drives the sub-branches on the tree
   // and the breakdown list below it.
   const subCountsByDomain = useMemo(() => {
@@ -245,39 +247,60 @@ export default function GardenView({
           {/* Per-domain sub-category breakdown — a readable companion
               to the visual tree. Zero-count domains render too so the
               imbalance signal is explicit in text as well. */}
-          <div className="mt-3 space-y-1.5">
+          <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-800 space-y-2">
             {GARDEN_DOMAINS.map((domain) => {
               const total = domainTotals.get(domain) || 0;
               const subs = Array.from((subCountsByDomain.get(domain) || new Map()).entries())
                 .sort((a, b) => b[1] - a[1]);
               const color = DOMAIN_COLORS[domain];
               const isEmpty = total === 0;
+              const isSel = filterPrimary === domain;
+              const pct = maxDomainTotal > 0 ? (total / maxDomainTotal) * 100 : 0;
               return (
-                <div key={domain} className="flex items-baseline gap-2 text-xs">
-                  <span
-                    className="inline-block w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: isEmpty ? '#cbd5e1' : color.bg }}
-                  />
-                  <button
-                    onClick={() => {
-                      setFilterPrimary(filterPrimary === domain ? null : domain);
-                      setFilterSub(null);
-                    }}
-                    className={`font-semibold hover:underline ${
-                      isEmpty
-                        ? 'text-gray-400 dark:text-gray-600'
-                        : 'text-gray-700 dark:text-gray-200'
-                    }`}
-                  >
-                    {domain}
-                  </button>
-                  <span className="tabular-nums text-gray-500 dark:text-gray-400">{total}</span>
-                  {subs.length > 0 && (
-                    <span className="text-gray-400 dark:text-gray-500 truncate">
-                      · {subs.map(([s, n]) => `${s} ${n}`).join(' · ')}
+                <button
+                  key={domain}
+                  onClick={() => {
+                    setFilterPrimary(isSel ? null : domain);
+                    setFilterSub(null);
+                  }}
+                  className={`w-full text-left rounded-lg px-2 py-1 -mx-2 transition-colors ${
+                    isSel ? 'bg-gray-100 dark:bg-gray-800' : 'hover:bg-gray-50 dark:hover:bg-gray-800/60'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 text-xs">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: isEmpty ? undefined : color.bg }}
+                    >
+                      {isEmpty && <span className="block w-full h-full rounded-full border border-gray-300 dark:border-gray-600" />}
                     </span>
-                  )}
-                </div>
+                    <span
+                      className={`w-40 flex-shrink-0 font-semibold truncate ${
+                        isEmpty ? 'text-gray-400 dark:text-gray-500' : 'text-gray-800 dark:text-gray-100'
+                      }`}
+                    >
+                      {domain}
+                    </span>
+                    <span className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                      <span
+                        className="block h-full rounded-full"
+                        style={{ width: `${pct}%`, backgroundColor: color.bg }}
+                      />
+                    </span>
+                    <span
+                      className={`w-8 text-right tabular-nums font-semibold ${
+                        isEmpty ? 'text-gray-400 dark:text-gray-500' : 'text-gray-700 dark:text-gray-200'
+                      }`}
+                    >
+                      {total}
+                    </span>
+                  </div>
+                  <div className="pl-[1.125rem] mt-0.5 text-[11px] text-gray-500 dark:text-gray-400 truncate">
+                    {subs.length > 0
+                      ? subs.map(([s, n]) => `${s} ${n}`).join(' · ')
+                      : <span className="italic text-gray-400 dark:text-gray-500">Nothing logged yet</span>}
+                  </div>
+                </button>
               );
             })}
           </div>
